@@ -1,0 +1,271 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import {
+  Plus, Edit2, Trash2, Globe, DollarSign,
+  Clock, CheckCircle, AlertCircle, X
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+const VISA_TYPES = [
+  'Student Visa', 'Work Permit', 'Visit Visa', 'Family Visa',
+  'Business Visa', 'Tourist Visa', 'PR / Permanent Residency',
+  'Umrah Visa', 'Schengen Visa',
+]
+
+const COUNTRIES = [
+  'Canada', 'United Kingdom', 'United States', 'Australia',
+  'UAE', 'Saudi Arabia', 'Germany', 'Turkey', 'Malaysia',
+  'Italy', 'France', 'Japan', 'South Korea', 'New Zealand',
+]
+
+export default function ServicesPage() {
+  const [services, setServices] = useState<any[]>([])
+  const [profileId, setProfileId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  const [form, setForm] = useState({
+    title: '', visa_type: '', destination_country: '',
+    description: '', price_min: '', price_max: '', processing_days: '',
+  })
+
+  const resetForm = () => {
+    setForm({ title: '', visa_type: '', destination_country: '', description: '', price_min: '', price_max: '', processing_days: '' })
+    setEditingId(null)
+    setShowForm(false)
+    setError('')
+  }
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: prof } = await supabase
+        .from('profiles').select('id').eq('user_id', user.id).single()
+
+      if (prof) {
+        setProfileId(prof.id)
+        const { data: svcs } = await supabase
+          .from('services').select('*').eq('consultant_id', prof.id).order('created_at', { ascending: false })
+        setServices(svcs || [])
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    setError('')
+
+    const supabase = createClient()
+    const payload = {
+      consultant_id: profileId,
+      title: form.title,
+      visa_type: form.visa_type,
+      destination_country: form.destination_country,
+      description: form.description,
+      price_min: parseInt(form.price_min) || 0,
+      price_max: parseInt(form.price_max) || 0,
+      processing_days: parseInt(form.processing_days) || 0,
+      is_active: true,
+    }
+
+    if (editingId) {
+      const { error } = await supabase.from('services').update(payload).eq('id', editingId)
+      if (error) { setError(error.message); setSaving(false); return }
+      setServices(prev => prev.map(s => s.id === editingId ? { ...s, ...payload } : s))
+    } else {
+      const { data, error } = await supabase.from('services').insert(payload).select().single()
+      if (error) { setError(error.message); setSaving(false); return }
+      if (data) setServices(prev => [data, ...prev])
+    }
+
+    setSaving(false)
+    resetForm()
+  }
+
+  const handleEdit = (s: any) => {
+    setForm({
+      title: s.title, visa_type: s.visa_type || '', destination_country: s.destination_country || '',
+      description: s.description || '', price_min: s.price_min?.toString() || '',
+      price_max: s.price_max?.toString() || '', processing_days: s.processing_days?.toString() || '',
+    })
+    setEditingId(s.id)
+    setShowForm(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this service?')) return
+    const supabase = createClient()
+    await supabase.from('services').delete().eq('id', id)
+    setServices(prev => prev.filter(s => s.id !== id))
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-navy/20 border-t-navy rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-3xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="font-heading font-bold text-navy text-xl mb-1">My Services</h1>
+          <p className="font-body text-gray-500 text-sm">{services.length} services listed</p>
+        </div>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)}
+            className="font-heading font-bold text-sm bg-gold hover:bg-gold-dark text-white px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2">
+            <Plus size={16} /> Add Service
+          </button>
+        )}
+      </div>
+
+      {/* Add/Edit form */}
+      {showForm && (
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="font-heading font-bold text-navy text-base">
+              {editingId ? 'Edit Service' : 'Add New Service'}
+            </h2>
+            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          </div>
+
+          {error && (
+            <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-body px-4 py-3 rounded-xl mb-4">
+              <AlertCircle size={14} /> {error}
+            </div>
+          )}
+
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Service Title</label>
+              <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })}
+                placeholder="UK Student Visa Consultation" required
+                className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Visa Type</label>
+                <select value={form.visa_type} onChange={(e) => setForm({ ...form, visa_type: e.target.value })} required
+                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all bg-white">
+                  <option value="">Select</option>
+                  {VISA_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Destination Country</label>
+                <select value={form.destination_country} onChange={(e) => setForm({ ...form, destination_country: e.target.value })} required
+                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all bg-white">
+                  <option value="">Select</option>
+                  {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Description</label>
+              <textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+                placeholder="Describe what this service includes..." rows={3}
+                className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all resize-none" />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Min Price (PKR)</label>
+                <input type="number" value={form.price_min} onChange={(e) => setForm({ ...form, price_min: e.target.value })}
+                  placeholder="5000" min="0"
+                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
+              </div>
+              <div>
+                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Max Price (PKR)</label>
+                <input type="number" value={form.price_max} onChange={(e) => setForm({ ...form, price_max: e.target.value })}
+                  placeholder="25000" min="0"
+                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
+              </div>
+              <div>
+                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Processing Days</label>
+                <input type="number" value={form.processing_days} onChange={(e) => setForm({ ...form, processing_days: e.target.value })}
+                  placeholder="30" min="1"
+                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button type="button" onClick={resetForm}
+                className="font-heading font-bold flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}
+                className="font-heading font-bold flex-1 bg-navy hover:bg-navy-dark text-white py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60">
+                {saving ? 'Saving...' : editingId ? 'Update Service' : 'Add Service'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Services list */}
+      {services.length > 0 ? (
+        <div className="space-y-3">
+          {services.map((s) => (
+            <div key={s.id} className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-gray-200 transition-all">
+              <div className="flex items-start justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-heading font-bold text-navy text-sm">{s.title}</h3>
+                    {s.is_active && <span className="w-2 h-2 bg-green-400 rounded-full shrink-0" />}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {s.visa_type && <span className="font-body text-xs bg-navy-light text-navy px-2 py-0.5 rounded-full">{s.visa_type}</span>}
+                    {s.destination_country && <span className="font-body text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{s.destination_country}</span>}
+                  </div>
+                  {s.description && <p className="font-body text-gray-500 text-xs line-clamp-1 mb-2">{s.description}</p>}
+                  <div className="flex items-center gap-4 text-xs text-gray-400">
+                    {(s.price_min > 0 || s.price_max > 0) && (
+                      <span className="flex items-center gap-1">
+                        <DollarSign size={11} />
+                        PKR {s.price_min?.toLocaleString()}{s.price_max > 0 ? ` — ${s.price_max.toLocaleString()}` : ''}
+                      </span>
+                    )}
+                    {s.processing_days > 0 && (
+                      <span className="flex items-center gap-1"><Clock size={11} />{s.processing_days} days</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 ml-4 shrink-0">
+                  <button onClick={() => handleEdit(s)}
+                    className="p-2 text-gray-400 hover:text-navy rounded-lg hover:bg-gray-100 transition-colors">
+                    <Edit2 size={14} />
+                  </button>
+                  <button onClick={() => handleDelete(s.id)}
+                    className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
+          <Globe size={32} className="text-gray-200 mx-auto mb-3" />
+          <h3 className="font-heading font-bold text-navy text-base mb-1">No services yet</h3>
+          <p className="font-body text-gray-400 text-xs mb-4">Add your visa services to attract seekers</p>
+          <button onClick={() => setShowForm(true)}
+            className="font-heading font-bold text-sm bg-gold hover:bg-gold-dark text-white px-5 py-2.5 rounded-xl transition-colors inline-flex items-center gap-2">
+            <Plus size={16} /> Add First Service
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
