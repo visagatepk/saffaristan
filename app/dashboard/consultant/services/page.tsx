@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import {
   Plus, Edit2, Trash2, Globe, DollarSign,
-  Clock, CheckCircle, AlertCircle, X
+  Clock, CheckCircle, AlertCircle, X, Upload, ImageIcon
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -26,6 +26,9 @@ export default function ServicesPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+const [serviceImageUrl, setServiceImageUrl] = useState('')
+const [serviceImagePreview, setServiceImagePreview] = useState('')
   const [error, setError] = useState('')
 
   const [form, setForm] = useState({
@@ -33,13 +36,26 @@ export default function ServicesPage() {
     description: '', price_min: '', price_max: '', processing_days: '',
   })
 
-  const resetForm = () => {
-    setForm({ title: '', visa_type: '', destination_country: '', description: '', price_min: '', price_max: '', processing_days: '' })
-    setEditingId(null)
-    setShowForm(false)
-    setError('')
-  }
-
+const resetForm = () => {
+  setForm({ title: '', visa_type: '', destination_country: '', description: '', price_min: '', price_max: '', processing_days: '' })
+  setEditingId(null)
+  setShowForm(false)
+  setError('')
+  setServiceImageUrl('')        // ← add
+  setServiceImagePreview('')    // ← add
+}
+const payload = {
+  consultant_id: profileId,
+  title: form.title,
+  visa_type: form.visa_type,
+  destination_country: form.destination_country,
+  description: form.description,
+  price_min: parseInt(form.price_min) || 0,
+  price_max: parseInt(form.price_max) || 0,
+  processing_days: parseInt(form.processing_days) || 0,
+  is_active: true,
+  image_url: serviceImageUrl || null,  // ← add this
+}
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
@@ -91,7 +107,38 @@ export default function ServicesPage() {
     setSaving(false)
     resetForm()
   }
+const handleServiceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0]
+  if (!file) return
 
+  if (file.size > 5 * 1024 * 1024) {
+    setError('Image too large. Max 5MB.')
+    return
+  }
+
+  setUploadingImage(true)
+  const supabase = createClient()
+  const ext = file.name.split('.').pop()
+  const path = `services/${profileId}-${Date.now()}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: false, cacheControl: '3600' })
+
+  if (error) {
+    setError(error.message)
+    setUploadingImage(false)
+    return
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(path)
+
+  setServiceImageUrl(path)
+  setServiceImagePreview(publicUrl)
+  setUploadingImage(false)
+}
   const handleEdit = (s: any) => {
     setForm({
       title: s.title, visa_type: s.visa_type || '', destination_country: s.destination_country || '',
@@ -179,6 +226,45 @@ export default function ServicesPage() {
                 placeholder="Describe what this service includes..." rows={3}
                 className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all resize-none" />
             </div>
+{/* Service Image */}
+<div>
+  <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">
+    Service Image
+    <span className="text-gray-400 font-normal ml-1">(like a Fiverr gig thumbnail)</span>
+  </label>
+  <label className="cursor-pointer block">
+    {serviceImagePreview ? (
+      <div className="relative rounded-xl overflow-hidden h-36 bg-gray-100">
+        <img src={serviceImagePreview} alt="service" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+          <span className="text-white text-xs font-body font-semibold">Change Image</span>
+        </div>
+      </div>
+    ) : (
+      <div className="flex items-center justify-center h-36 border-2 border-dashed border-gray-200 rounded-xl hover:border-navy/40 bg-gray-50 transition-colors">
+        <div className="text-center">
+          {uploadingImage ? (
+            <div className="w-6 h-6 border-2 border-navy/20 border-t-navy rounded-full animate-spin mx-auto mb-2" />
+          ) : (
+            <ImageIcon size={24} className="text-gray-300 mx-auto mb-2" />
+          )}
+          <p className="font-body text-xs text-gray-400">
+            {uploadingImage ? 'Uploading...' : 'Click to upload service image'}
+          </p>
+          <p className="font-body text-xs text-gray-300 mt-0.5">JPG, PNG · Max 5MB</p>
+        </div>
+      </div>
+    )}
+    <input
+      type="file"
+      accept=".jpg,.jpeg,.png"
+      onChange={handleServiceImageUpload}
+      className="hidden"
+      disabled={uploadingImage}
+    />
+  </label>
+</div>
+
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Min Price (PKR)</label>

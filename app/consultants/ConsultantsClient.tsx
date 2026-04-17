@@ -78,14 +78,17 @@ export default function ConsultantsClient({ searchParams }: { searchParams: any 
       const avg = cr.length > 0 ? cr.reduce((s: number, r: any) => s + r.rating, 0) / cr.length : 0
       const prices = cs.map((s: any) => s.price_min || 0).filter((p: number) => p > 0)
       return {
-        ...c,
-        reviewCount: cr.length,
-        avgRating: Math.round(avg * 10) / 10,
-        minPrice: prices.length > 0 ? Math.min(...prices) : 0,
-        visaTypes: [...new Set(cs.map((s: any) => s.visa_type).filter(Boolean))],
-        destinations: [...new Set(cs.map((s: any) => s.destination_country).filter(Boolean))],
-        gradient: GRADIENTS[i % GRADIENTS.length],
-      }
+  ...c,
+  reviewCount: cr.length,
+  avgRating: Math.round(avg * 10) / 10,
+  minPrice: prices.length > 0 ? Math.min(...prices) : 0,
+  visaTypes: [...new Set(cs.map((s: any) => s.visa_type).filter(Boolean))],
+  destinations: [...new Set(cs.map((s: any) => s.destination_country).filter(Boolean))],
+  gradient: GRADIENTS[i % GRADIENTS.length],
+  service_image: cs.find((s: any) => s.image_url)?.image_url  // ← add this
+    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/avatars/${cs.find((s: any) => s.image_url)?.image_url}`
+    : null,
+}
     })
   }, [consultants, services, reviews])
 
@@ -240,7 +243,10 @@ export default function ConsultantsClient({ searchParams }: { searchParams: any 
                 {filtered.map((c) => (
                   <div key={c.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-gold/40 hover:shadow-md transition-all">
                     {/* Banner */}
-                    <div className={`relative h-44 bg-gradient-to-br ${c.gradient} overflow-hidden`}>
+                    <div className={`relative h-44 ${c.service_image ? 'bg-gray-900' : `bg-gradient-to-br ${c.gradient}`} overflow-hidden`}>
+  {c.service_image && (
+    <img src={c.service_image} alt={c.business_name} className="absolute inset-0 w-full h-full object-cover opacity-90" />
+  )}
                       <div className="absolute inset-0 opacity-10">
                         <div className="absolute top-4 right-4 w-24 h-24 rounded-full border-2 border-white" />
                         <div className="absolute bottom-4 left-4 w-16 h-16 rounded-full border border-white" />
@@ -262,9 +268,8 @@ export default function ConsultantsClient({ searchParams }: { searchParams: any 
                           <BadgeCheck size={11} /> Verified
                         </div>
                       )}
-                      {c.oep_license_number && (
-                        <div className="absolute bottom-3 right-3 bg-black/30 backdrop-blur-sm text-white/80 text-xs font-mono px-2 py-0.5 rounded">{c.oep_license_number}</div>
-                      )}
+                      
+                      
                     </div>
 
                     {/* Info */}
@@ -314,7 +319,22 @@ export default function ConsultantsClient({ searchParams }: { searchParams: any 
                             <span key={String(d)} className="font-body text-xs text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">{String(d)}</span>
                           ))}
                         </div>
-                      )}
+                      )}{/* Official Registration Badge */}
+{(c.is_beoe_verified || c.is_oep_verified || c.is_secp_verified) && (
+  <div className="flex items-center gap-2 mb-3">
+    <div className="bg-green-500/10 border border-green-500/30 text-green-700 text-xs font-body font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+      Registered with{' '}
+      {[
+        c.is_beoe_verified && 'BEOE',
+        c.is_secp_verified && 'SECP',
+        c.is_fbr_verified && 'FBR',
+      ].filter(Boolean).join(' & ')}
+    </div>
+  </div>
+)}
 
                       <div className="h-px bg-gray-100 my-3" />
 
