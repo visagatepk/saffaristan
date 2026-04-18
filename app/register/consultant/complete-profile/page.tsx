@@ -83,11 +83,11 @@ export default function CompleteProfilePage() {
   const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    const oepFormat = /^OEP-\d{1,6}$/i
-    if (!oepFormat.test(form.oepLicenseNumber.trim())) {
-      setError('OEP License Number must be in format: OEP-0669')
-      return
-    }
+    const oepFormat = /^OEPL\s*No\.\s*\d{1,6}\/[A-Z]{2,5}$/i
+if (!oepFormat.test(form.oepLicenseNumber.trim())) {
+  setError('Format must be: OEPL No. 3702/LHR')
+  return
+}
     if (!form.oepLicenseTitle.trim()) {
       setError('Please enter your OEP License Title')
       return
@@ -300,16 +300,34 @@ export default function CompleteProfilePage() {
                   type="text"
                   value={form.oepLicenseNumber}
                   onChange={(e) => update('oepLicenseNumber', e.target.value.toUpperCase())}
-                  placeholder="OEP-0669"
+                 placeholder="OEPL No. 3702/LHR"
                   required
                   className={`${inputClass} font-mono tracking-wide`}
                 />
               </div>
               <p className="font-body text-xs text-gray-400 mt-1.5 ml-1">
-                Format: <span className="font-mono font-semibold text-navy">OEP-0669</span>
+               Format: <span className="font-mono font-semibold text-navy">OEPL No. 3702/LHR</span>
               </p>
             </div>
-
+<p className="font-body text-xs text-gray-400 mt-1.5 ml-1">
+  Format: <span className="font-mono font-semibold text-navy">OEPL No. 3702/LHR</span>
+</p>
+<div className="flex flex-wrap gap-1.5 mt-2">
+  {[
+    ['ISB', 'Islamabad'],
+    ['RWP', 'Rawalpindi'],
+    ['LHR', 'Lahore'],
+    ['KHI', 'Karachi'],
+    ['SKT', 'Sialkot'],
+    ['FSB', 'Faisalabad'],
+    ['MLT', 'Multan'],
+    ['PEW', 'Peshawar'],
+  ].map(([code, city]) => (
+    <span key={code} className="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+      {code} = {city}
+    </span>
+  ))}
+</div>
             {/* OEP License Title */}
             <div>
               <Label text="OEP License Title" required />
