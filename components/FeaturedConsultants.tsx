@@ -1,52 +1,10 @@
 import Link from 'next/link'
-import { MapPin, Star, Phone, BadgeCheck } from 'lucide-react'
+import { MapPin, Star, Phone, BadgeCheck, Clock, TrendingUp } from 'lucide-react'
 
 const consultants = [
-  {
-    id: 1,
-    initials: 'AH',
-    name: 'Ahmed Hassan',
-    urduName: 'احمد حسن',
-    title: 'UK Immigration Specialist',
-    city: 'Islamabad',
-    experience: '10 yrs',
-    rating: 4.9,
-    reviews: 127,
-    success: 98,
-    price: 'PKR 5,000',
-    tags: ['UK Student', 'UK Work'],
-    verified: true,
-  },
-  {
-    id: 2,
-    initials: 'SM',
-    name: 'Sara Malik',
-    urduName: 'سارہ ملک',
-    title: 'Canada PR Expert',
-    city: 'Rawalpindi',
-    experience: '8 yrs',
-    rating: 4.8,
-    reviews: 98,
-    success: 96,
-    price: 'PKR 8,000',
-    tags: ['Canada PR', 'Express Entry'],
-    verified: true,
-  },
-  {
-    id: 3,
-    initials: 'UK',
-    name: 'Usman Khalid',
-    urduName: 'عثمان خالد',
-    title: 'Australia Migration Agent',
-    city: 'Islamabad',
-    experience: '12 yrs',
-    rating: 4.7,
-    reviews: 76,
-    success: 94,
-    price: 'PKR 6,000',
-    tags: ['Australia Student', 'Skilled Worker'],
-    verified: true,
-  },
+  { id: 1, initials: 'AH', name: 'Ahmad Hassan', urduName: 'احمد حسن', title: 'UK Immigration Specialist', city: 'Lahore', experience: '10 yrs', rating: 5.0, reviews: 234, success: 98, price: 'PKR 3,500', responseTime: '1h', tags: ['Student Visa', 'UK', 'USA'], verified: true, recommended: false },
+  { id: 2, initials: 'SM', name: 'Sara Malik', urduName: 'سارہ ملک', title: 'Canada PR Expert', city: 'Karachi', experience: '12 yrs', rating: 4.9, reviews: 98, success: 96, price: 'PKR 5,000', responseTime: '2h', tags: ['Business Visa', 'Canada', 'UK'], verified: true, recommended: true },
+  { id: 3, initials: 'UK', name: 'Usman Kabir', urduName: 'عثمان کبیر', title: 'Australia Migration Agent', city: 'Islamabad', experience: '8 yrs', rating: 4.8, reviews: 76, success: 97, price: 'PKR 4,000', responseTime: '3h', tags: ['Family Visa', 'Australia'], verified: true, recommended: false },
 ]
 
 export default function FeaturedConsultants() {
@@ -54,111 +12,103 @@ export default function FeaturedConsultants() {
     <section className="bg-gray-50 py-24 lg:py-32">
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
 
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-14 gap-4">
           <div>
             <span className="font-body text-xs font-semibold text-gold uppercase tracking-widest bg-gold-light px-4 py-1.5 rounded-full">
-              Top Rated
+              Top Consultants
             </span>
-            <h2 className="font-heading font-bold text-navy text-3xl lg:text-4xl mt-5 mb-2">
-              Featured Consultants
-            </h2>
-            <p className="font-urdu text-gold text-lg"></p>
-            <p className="font-body text-gray-500 mt-2">
-            
-            </p>
+            <h2 className="font-heading font-bold text-navy text-3xl lg:text-4xl mt-5 mb-2">Featured Consultants</h2>
+            <p className="font-urdu text-gold text-lg">نمایاں کنسلٹنٹس</p>
           </div>
-          <Link
-            href="/consultants"
-            className="font-heading text-sm font-semibold text-navy hover:text-gold transition-colors flex items-center gap-1 shrink-0"
-          >
-            View All Consultants
-            <span className="text-gold">→</span>
+          <Link href="/consultants"
+            className="font-heading text-sm font-semibold text-navy hover:text-gold transition-colors flex items-center gap-1 shrink-0">
+            View all consultants →
           </Link>
         </div>
 
-        {/* Cards */}
         <div className="grid md:grid-cols-3 gap-6">
           {consultants.map((c) => (
-            <div
-              key={c.id}
-              className="bg-white rounded-2xl border border-gray-100 p-6 hover:border-gold/30 hover:shadow-sm transition-all group"
-            >
-              {/* Top row */}
+            <div key={c.id}
+              className={`bg-white rounded-2xl p-6 transition-all duration-300 hover:-translate-y-1 relative ${
+                c.recommended
+                  ? 'border-2 border-gold shadow-[0_8px_30px_rgba(201,162,39,0.15)]'
+                  : 'border border-gray-100 hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)]'
+              }`}>
+
+              {c.recommended && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="font-heading font-bold text-xs text-white px-3 py-1 rounded-full"
+                    style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
+                    ★ Recommended
+                  </span>
+                </div>
+              )}
+
+              {/* Header */}
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-navy rounded-xl flex items-center justify-center text-white font-heading font-bold text-lg shrink-0">
                     {c.initials}
                   </div>
                   <div>
-                    <h3 className="font-heading font-bold text-navy text-base leading-tight">
-                      {c.name}
-                    </h3>
+                    <h3 className="font-heading font-bold text-navy text-base leading-tight">{c.name}</h3>
                     <p className="font-urdu text-gray-400 text-xs">{c.urduName}</p>
                   </div>
                 </div>
                 {c.verified && (
-                  <div className="flex items-center gap-1 bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full shrink-0">
-                    <BadgeCheck size={12} />
-                    Verified
+                  <div className="flex items-center gap-1 bg-green-50 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">
+                    <BadgeCheck size={11} /> Verified
                   </div>
                 )}
               </div>
 
-              {/* Details */}
               <p className="font-body text-sm text-gray-500 mb-2">{c.title}</p>
-              <div className="flex items-center gap-1 text-gray-400 text-xs font-body mb-4">
-                <MapPin size={12} className="text-gold" />
-                <span>{c.city}</span>
-                <span className="mx-1.5">·</span>
-                <span>{c.experience} experience</span>
+
+              {/* Meta row */}
+              <div className="flex flex-wrap items-center gap-3 text-xs font-body text-gray-400 mb-4">
+                <span className="flex items-center gap-1"><MapPin size={11} className="text-gold" />{c.city}</span>
+                <span className="flex items-center gap-1"><Clock size={11} />~{c.responseTime} response</span>
+                <span className="flex items-center gap-1"><TrendingUp size={11} className="text-emerald-500" />{c.experience}</span>
               </div>
 
               {/* Tags */}
-              <div className="flex flex-wrap gap-2 mb-5">
-                {c.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="font-body text-xs font-medium bg-navy-light text-navy px-3 py-1 rounded-full"
-                  >
-                    {tag}
-                  </span>
+              <div className="flex flex-wrap gap-1.5 mb-5">
+                {c.tags.map(tag => (
+                  <span key={tag} className="font-body text-xs font-medium bg-navy-light text-navy px-2.5 py-0.5 rounded-full">{tag}</span>
                 ))}
               </div>
 
-              {/* Rating + success */}
-              <div className="flex items-center gap-3 mb-5 pb-5 border-b border-gray-100">
-                <div className="flex items-center gap-1">
-                  <Star size={14} className="text-gold fill-gold" />
-                  <span className="font-heading font-bold text-navy text-sm">
-                    {c.rating}
-                  </span>
-                  <span className="font-body text-gray-400 text-xs">
-                    ({c.reviews})
-                  </span>
+              {/* Stats bar */}
+              <div className="grid grid-cols-3 gap-2 mb-5 p-3 bg-gray-50 rounded-xl">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-0.5">
+                    <Star size={12} className="text-gold fill-gold" />
+                    <span className="font-heading font-bold text-navy text-sm">{c.rating}</span>
+                  </div>
+                  <p className="font-body text-gray-400 text-xs mt-0.5">({c.reviews})</p>
                 </div>
-                <span className="w-1 h-1 bg-gray-300 rounded-full" />
-                <span className="font-body text-gray-500 text-xs">
-                  {c.success}% success rate
-                </span>
+                <div className="text-center border-x border-gray-200">
+                  <p className="font-heading font-bold text-navy text-sm">{c.success}%</p>
+                  <p className="font-body text-gray-400 text-xs mt-0.5">Success</p>
+                </div>
+                <div className="text-center">
+                  <p className="font-heading font-bold text-navy text-sm">{c.experience}</p>
+                  <p className="font-body text-gray-400 text-xs mt-0.5">Exp</p>
+                </div>
               </div>
 
               {/* Footer */}
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="font-body text-xs text-gray-400">Starting from</span>
-                  <div className="font-heading font-bold text-gold text-base">
-                    {c.price}
-                  </div>
+                  <span className="font-body text-xs text-gray-400">PKR </span>
+                  <span className="font-heading font-bold text-gold text-lg">{c.price.replace('PKR ', '')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Link
-                    href={`/consultant/${c.id}`}
-                    className="font-heading text-xs font-semibold text-navy border border-navy px-4 py-2 rounded-lg hover:bg-navy hover:text-white transition-colors"
-                  >
+                  <Link href={`/consultants/${c.id}`}
+                    className="font-heading text-xs font-bold text-navy border border-navy px-4 py-2 rounded-xl hover:bg-navy hover:text-white transition-all duration-200">
                     View Profile
                   </Link>
-                  <button className="w-9 h-9 bg-green-500 hover:bg-green-600 text-white rounded-lg flex items-center justify-center transition-colors shrink-0">
+                  <button className="w-9 h-9 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center transition-colors shrink-0">
                     <Phone size={14} />
                   </button>
                 </div>
@@ -166,7 +116,6 @@ export default function FeaturedConsultants() {
             </div>
           ))}
         </div>
-
       </div>
     </section>
   )

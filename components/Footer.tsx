@@ -32,7 +32,7 @@ export default function Footer() {
             </p>
             <div className="mt-6 flex items-center gap-2">
               <div className="bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-body font-semibold px-3 py-1.5 rounded-full">
-                ✓ Registered with SECP & BEOE
+                ✓ Registered with SECP & FBR
               </div>
             </div>
           </div>

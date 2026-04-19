@@ -3,15 +3,16 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import {
   Menu, X, ChevronDown, User, LayoutDashboard,
-  LogOut, Settings, UserPlus, Briefcase
+  LogOut, Briefcase, Lightbulb
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 export default function Navbar() {
   const router = useRouter()
+  const pathname = usePathname()
   const [isOpen, setIsOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [user, setUser] = useState<any>(null)
@@ -23,61 +24,72 @@ export default function Navbar() {
   const signupMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20)
+    const handleScroll = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Close dropdowns on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setShowUserMenu(false)
-      }
-      if (signupMenuRef.current && !signupMenuRef.current.contains(e.target as Node)) {
-        setShowSignupMenu(false)
-      }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setShowUserMenu(false)
+      if (signupMenuRef.current && !signupMenuRef.current.contains(e.target as Node)) setShowSignupMenu(false)
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  // Fetch auth state
   useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        setUser(user)
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('role, full_name, display_name, avatar_url')
-          .eq('user_id', user.id)
-          .single()
-        setProfile(prof)
-      }
-      setLoading(false)
-    }
-    getUser()
-
-    // Listen for auth changes
     const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
-        setUser(session.user)
-        const { data: prof } = await supabase
-          .from('profiles')
-          .select('role, full_name, display_name, avatar_url')
-          .eq('user_id', session.user.id)
-          .single()
-        setProfile(prof)
-      } else if (event === 'SIGNED_OUT') {
+
+    const loadUser = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session?.user) {
+          setUser(session.user)
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('role, full_name, display_name, avatar_url')
+            .eq('user_id', session.user.id)
+            .single()
+          setProfile(prof)
+        } else {
+          setUser(null)
+          setProfile(null)
+        }
+      } catch (err) {
         setUser(null)
         setProfile(null)
+      } finally {
+        setLoading(false)
       }
-    })
-    return () => subscription.unsubscribe()
-  }, [])
+    }
+
+    const timeout = setTimeout(() => setLoading(false), 2000)
+    loadUser().finally(() => clearTimeout(timeout))
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (session?.user) {
+          setUser(session.user)
+          const { data: prof } = await supabase
+            .from('profiles')
+            .select('role, full_name, display_name, avatar_url')
+            .eq('user_id', session.user.id)
+            .single()
+          setProfile(prof)
+        } else {
+          setUser(null)
+          setProfile(null)
+        }
+        setLoading(false)
+      }
+    )
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
+  }, [pathname])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -101,7 +113,6 @@ export default function Navbar() {
   }
 
   const displayName = profile?.display_name || profile?.full_name || user?.email?.split('@')[0] || 'User'
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const avatarUrl = profile?.avatar_url
     ? `${supabaseUrl}/storage/v1/object/public/avatars/${profile.avatar_url}`
@@ -109,149 +120,152 @@ export default function Navbar() {
 
   const NAV_LINKS = [
     { href: '/consultants', label: 'Find Consultants' },
-    { href: '/visa-categories', label: 'Visa Categories' },
+    { href: '/visa-categories', label: 'Visa Types' },
     { href: '/destinations', label: 'Destinations' },
-    { href: '/for-consultants', label: 'For Consultants' },
+    { href: '/insights', label: 'Insights', isNew: true },
   ]
 
   return (
     <nav className={`sticky top-0 z-50 transition-all duration-300 ${
-      scrolled ? 'bg-white shadow-sm' : 'bg-white border-b border-gray-100'
+      scrolled
+        ? 'bg-white/95 backdrop-blur-md shadow-[0_1px_20px_rgba(0,0,0,0.08)]'
+        : 'bg-white border-b border-gray-100'
     }`}>
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between py-4">
+        <div className="flex items-center justify-between py-3.5">
 
           {/* Logo */}
           <Link href="/" className="flex items-center shrink-0">
-            <Image
-              src="/logo.png"
-              alt="VisaGate.pk"
-              width={160}
-              height={40}
-              priority
-              className="h-10 w-auto"
-            />
+            <Image src="/logo.png" alt="VisaGate.pk" width={160} height={40} priority className="h-9 w-auto" />
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-8">
+          <div className="hidden lg:flex items-center gap-7">
             {NAV_LINKS.map(link => (
               <Link key={link.href} href={link.href}
-                className="font-body text-sm text-gray-600 hover:text-navy font-medium transition-colors">
+                className="flex items-center gap-1.5 font-body text-sm text-gray-600 hover:text-navy font-medium transition-colors duration-200 relative group">
                 {link.label}
+                {link.isNew && <Lightbulb size={12} className="text-gold" />}
+                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gold rounded-full group-hover:w-full transition-all duration-300" />
               </Link>
             ))}
           </div>
 
-          {/* Desktop Auth Buttons */}
-          <div className="hidden lg:flex items-center gap-3">
-            {loading ? (
-              <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse" />
-            ) : user && profile ? (
-              // ── LOGGED IN ──
+          {/* Desktop Auth */}
+          <div className="hidden lg:flex items-center gap-2.5 min-w-[200px] justify-end">
+
+            {/* Loading skeleton */}
+            {loading && (
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl animate-pulse">
+                <div className="w-7 h-7 rounded-lg bg-gray-200" />
+                <div className="w-16 h-3.5 bg-gray-200 rounded" />
+              </div>
+            )}
+
+            {/* Logged IN */}
+            {!loading && user && profile && (
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2.5 bg-gray-50 hover:bg-navy-light border border-gray-200 hover:border-navy/20 px-3 py-2 rounded-xl transition-all"
+                  className="flex items-center gap-2.5 bg-gray-50 hover:bg-navy-light border border-gray-200 hover:border-navy/20 px-3 py-2 rounded-xl transition-all duration-200"
                 >
-                  {/* Avatar */}
-                  <div className="w-7 h-7 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                      <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
                     ) : (
-                      <span className="font-heading font-bold text-white text-xs">
-                        {getInitials(displayName)}
-                      </span>
+                      <span className="font-heading font-bold text-white text-xs">{getInitials(displayName)}</span>
                     )}
                   </div>
-                  <span className="font-heading font-semibold text-navy text-sm max-w-[100px] truncate">
+                  <span className="font-heading font-semibold text-navy text-sm truncate max-w-[100px]">
                     {displayName}
                   </span>
-                  {/* Role badge */}
                   {profile.role === 'consultant' && (
-                    <span className="font-body text-xs bg-gold-light text-gold font-semibold px-1.5 py-0.5 rounded-full">
-                      Pro
-                    </span>
+                    <span className="font-body text-xs bg-gold-light text-gold font-semibold px-1.5 py-0.5 rounded-full shrink-0">Pro</span>
                   )}
-                  <ChevronDown size={14} className={`text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                  {profile.role === 'admin' && (
+                    <span className="font-body text-xs bg-red-50 text-red-600 font-semibold px-1.5 py-0.5 rounded-full shrink-0">Admin</span>
+                  )}
+                  <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 shrink-0 ${showUserMenu ? 'rotate-180' : ''}`} />
                 </button>
 
-                {/* User dropdown */}
                 {showUserMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden z-50">
-                    {/* Profile header */}
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50">
                     <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                      <p className="font-heading font-bold text-navy text-sm truncate">{displayName}</p>
-                      <p className="font-body text-gray-400 text-xs truncate">{user.email}</p>
-                      <span className={`inline-block mt-1 text-xs font-body font-semibold px-2 py-0.5 rounded-full ${
-                        profile.role === 'consultant'
-                          ? 'bg-gold-light text-gold'
-                          : 'bg-navy-light text-navy'
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
+                          {avatarUrl ? (
+                            <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="font-heading font-bold text-white text-xs">{getInitials(displayName)}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-heading font-bold text-navy text-sm truncate">{displayName}</p>
+                          <p className="font-body text-gray-400 text-xs truncate">{user.email}</p>
+                        </div>
+                      </div>
+                      <span className={`inline-block mt-2 text-xs font-body font-semibold px-2 py-0.5 rounded-full capitalize ${
+                        profile.role === 'consultant' ? 'bg-gold-light text-gold' :
+                        profile.role === 'admin' ? 'bg-red-50 text-red-600' :
+                        'bg-navy-light text-navy'
                       }`}>
-                        {profile.role === 'consultant' ? 'Consultant' : 'Visa Seeker'}
+                        {profile.role === 'consultant' ? 'Consultant' :
+                         profile.role === 'admin' ? 'Administrator' : 'Visa Seeker'}
                       </span>
                     </div>
 
-                    {/* Menu items */}
-                    <div className="py-2">
-                      <Link href={getDashboardPath()}
-                        onClick={() => setShowUserMenu(false)}
+                    <div className="py-1.5">
+                      <Link href={getDashboardPath()} onClick={() => setShowUserMenu(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-body text-gray-600 hover:text-navy hover:bg-navy-light transition-colors">
-                        <LayoutDashboard size={15} className="text-navy/50" />
-                        Dashboard
+                        <LayoutDashboard size={15} className="text-navy/50 shrink-0" /> Dashboard
                       </Link>
-                      <Link href={`${getDashboardPath()}/profile`}
-                        onClick={() => setShowUserMenu(false)}
+                      <Link href={`${getDashboardPath()}/profile`} onClick={() => setShowUserMenu(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm font-body text-gray-600 hover:text-navy hover:bg-navy-light transition-colors">
-                        <User size={15} className="text-navy/50" />
-                        My Profile
+                        <User size={15} className="text-navy/50 shrink-0" /> My Profile
                       </Link>
                       {profile.role === 'consultant' && (
-                        <Link href="/dashboard/consultant/services"
-                          onClick={() => setShowUserMenu(false)}
+                        <Link href="/dashboard/consultant/services" onClick={() => setShowUserMenu(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm font-body text-gray-600 hover:text-navy hover:bg-navy-light transition-colors">
-                          <Briefcase size={15} className="text-navy/50" />
-                          My Services
+                          <Briefcase size={15} className="text-navy/50 shrink-0" /> My Services
                         </Link>
                       )}
                     </div>
 
-                    <div className="border-t border-gray-100 py-2">
+                    <div className="border-t border-gray-100 py-1.5">
                       <button onClick={handleLogout}
                         className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body text-red-500 hover:bg-red-50 transition-colors">
-                        <LogOut size={15} />
-                        Sign Out
+                        <LogOut size={15} className="shrink-0" /> Sign Out
                       </button>
                     </div>
                   </div>
                 )}
               </div>
-            ) : (
-              // ── NOT LOGGED IN ──
+            )}
+
+            {/* NOT logged in */}
+            {!loading && !user && (
               <>
                 <Link href="/login"
-                  className="font-heading text-sm font-semibold text-navy px-4 py-2 rounded-xl hover:bg-navy-light transition-colors">
+                  className="font-heading text-sm font-semibold text-navy px-4 py-2 rounded-xl hover:bg-navy-light transition-all duration-200">
                   Log In
                 </Link>
 
-                {/* Sign Up dropdown */}
                 <div className="relative" ref={signupMenuRef}>
-                  <button
-                    onClick={() => setShowSignupMenu(!showSignupMenu)}
-                    className="font-heading text-sm font-semibold bg-gold hover:bg-gold-dark text-white px-5 py-2.5 rounded-xl transition-colors flex items-center gap-1.5"
-                  >
+                  <button onClick={() => setShowSignupMenu(!showSignupMenu)}
+                    className="font-heading text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 text-white hover:opacity-90"
+                    style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
                     Sign Up
-                    <ChevronDown size={14} className={`transition-transform ${showSignupMenu ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${showSignupMenu ? 'rotate-180' : ''}`} />
                   </button>
 
                   {showSignupMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-lg overflow-hidden z-50">
+                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50">
                       <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
                         <p className="font-body text-xs text-gray-400 font-medium">Create a free account as</p>
                       </div>
-                      <div className="py-2">
-                        <Link href="/register/seeker"
-                          onClick={() => setShowSignupMenu(false)}
+                      <div className="py-1.5">
+                        <Link href="/register/seeker" onClick={() => setShowSignupMenu(false)}
                           className="flex items-start gap-3 px-4 py-3 hover:bg-navy-light transition-colors group">
                           <div className="w-8 h-8 bg-navy-light group-hover:bg-navy rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors">
                             <User size={14} className="text-navy group-hover:text-white transition-colors" />
@@ -261,8 +275,7 @@ export default function Navbar() {
                             <p className="font-body text-gray-400 text-xs mt-0.5">Find & contact consultants</p>
                           </div>
                         </Link>
-                        <Link href="/register/consultant"
-                          onClick={() => setShowSignupMenu(false)}
+                        <Link href="/register/consultant" onClick={() => setShowSignupMenu(false)}
                           className="flex items-start gap-3 px-4 py-3 hover:bg-gold-light transition-colors group">
                           <div className="w-8 h-8 bg-gold-light group-hover:bg-gold rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors">
                             <Briefcase size={14} className="text-gold group-hover:text-white transition-colors" />
@@ -291,25 +304,22 @@ export default function Navbar() {
         {isOpen && (
           <div className="lg:hidden border-t border-gray-100 py-4 space-y-1">
             {NAV_LINKS.map(link => (
-              <Link key={link.href} href={link.href}
-                onClick={() => setIsOpen(false)}
-                className="block px-3 py-2.5 font-body text-sm text-gray-700 hover:text-navy hover:bg-navy-light rounded-xl transition-colors">
+              <Link key={link.href} href={link.href} onClick={() => setIsOpen(false)}
+                className="flex items-center gap-2 px-3 py-2.5 font-body text-sm text-gray-700 hover:text-navy hover:bg-navy-light rounded-xl transition-colors">
+                {link.isNew && <Lightbulb size={13} className="text-gold" />}
                 {link.label}
               </Link>
             ))}
 
             <div className="pt-3 border-t border-gray-100 space-y-2 mt-2">
-              {user && profile ? (
+              {!loading && user && profile ? (
                 <>
-                  {/* Logged in mobile */}
-                  <div className="flex items-center gap-3 px-3 py-2 bg-gray-50 rounded-xl mb-3">
-                    <div className="w-8 h-8 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
+                  <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl">
+                    <div className="w-9 h-9 rounded-xl overflow-hidden bg-navy flex items-center justify-center shrink-0">
                       {avatarUrl ? (
                         <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="font-heading font-bold text-white text-xs">
-                          {getInitials(displayName)}
-                        </span>
+                        <span className="font-heading font-bold text-white text-sm">{getInitials(displayName)}</span>
                       )}
                     </div>
                     <div>
@@ -326,9 +336,8 @@ export default function Navbar() {
                     <LogOut size={15} /> Sign Out
                   </button>
                 </>
-              ) : (
+              ) : !loading && !user ? (
                 <>
-                  {/* Not logged in mobile */}
                   <Link href="/login" onClick={() => setIsOpen(false)}
                     className="block text-center font-heading text-sm font-semibold border border-navy text-navy py-2.5 rounded-xl hover:bg-navy hover:text-white transition-colors">
                     Log In
@@ -338,11 +347,12 @@ export default function Navbar() {
                     <User size={15} /> Sign Up as Seeker
                   </Link>
                   <Link href="/register/consultant" onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-center gap-2 font-heading text-sm font-semibold bg-gold text-white py-2.5 rounded-xl hover:bg-gold-dark transition-colors">
+                    className="flex items-center justify-center gap-2 font-heading text-sm font-semibold text-white py-2.5 rounded-xl transition-colors"
+                    style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
                     <Briefcase size={15} /> List Your Service
                   </Link>
                 </>
-              )}
+              ) : null}
             </div>
           </div>
         )}

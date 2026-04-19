@@ -10,6 +10,12 @@ import Testimonials from '@/components/Testimonials'
 import ConsultantCTA from '@/components/ConsultantCTA'
 import Footer from '@/components/Footer'
 
+export const metadata = {
+  title: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
+  description: "Pakistan's most trusted platform for finding verified immigration consultants in Islamabad, Rawalpindi, Lahore, Karachi and across Pakistan.",
+  keywords: 'visa consultant Pakistan, immigration agent Islamabad, student visa Pakistan, work visa consultant',
+}
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-white">
