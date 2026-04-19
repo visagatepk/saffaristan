@@ -70,8 +70,10 @@ export default function SavedConsultants() {
             {saved.length} consultant{saved.length !== 1 ? 's' : ''} saved
           </p>
         </div>
-        <Link href="/consultants"
-          className="font-heading font-bold text-sm bg-gold hover:bg-gold-dark text-white px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2">
+        <Link
+          href="/consultants"
+          className="font-heading font-bold text-sm bg-gold hover:bg-gold-dark text-white px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2"
+        >
           <Search size={15} /> Find More
         </Link>
       </div>
@@ -82,8 +84,10 @@ export default function SavedConsultants() {
             const c = item.consultant
             if (!c) return null
             return (
-              <div key={item.id}
-                className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-gold/30 transition-all">
+              <div
+                key={item.id}
+                className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-gold/30 transition-all"
+              >
                 <div className="flex items-start gap-4">
 
                   <div className="w-12 h-12 bg-navy rounded-xl flex items-center justify-center text-white font-heading font-bold text-base shrink-0">
@@ -130,20 +134,29 @@ export default function SavedConsultants() {
                     </p>
 
                     <div className="flex items-center gap-2">
-                      <Link href={`/consultants/${c.id}`}
-                        className="font-heading text-xs font-bold bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-xl transition-colors">
+                      <Link
+                        href={`/consultants/${c.id}`}
+                        className="font-heading text-xs font-bold bg-navy hover:bg-navy-dark text-white px-4 py-2 rounded-xl transition-colors"
+                      >
                         View Profile
                       </Link>
+
+                      {/* ✅ FIX: was missing the opening <a tag — only attributes were present */}
                       {(c.whatsapp_number || c.phone) && (
-                        
+                        <a
                           href={`https://wa.me/${(c.whatsapp_number || c.phone || '').replace(/\D/g, '')}`}
-                          target="_blank" rel="noopener noreferrer"
-                          className="w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center transition-colors">
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-xl flex items-center justify-center transition-colors"
+                        >
                           <Phone size={13} />
                         </a>
                       )}
-                      <button onClick={() => handleRemove(item.id)}
-                        className="w-8 h-8 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl flex items-center justify-center transition-colors ml-auto">
+
+                      <button
+                        onClick={() => handleRemove(item.id)}
+                        className="w-8 h-8 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl flex items-center justify-center transition-colors ml-auto"
+                      >
                         <Trash2 size={13} />
                       </button>
                     </div>
@@ -160,8 +173,10 @@ export default function SavedConsultants() {
           <p className="font-body text-gray-400 text-sm mb-6 max-w-xs mx-auto">
             When you save a consultant from the listings, they'll appear here for quick access.
           </p>
-          <Link href="/consultants"
-            className="font-heading font-bold text-sm bg-navy hover:bg-navy-dark text-white px-6 py-3 rounded-xl transition-colors inline-flex items-center gap-2">
+          <Link
+            href="/consultants"
+            className="font-heading font-bold text-sm bg-navy hover:bg-navy-dark text-white px-6 py-3 rounded-xl transition-colors inline-flex items-center gap-2"
+          >
             <Search size={15} /> Browse Consultants
           </Link>
         </div>
