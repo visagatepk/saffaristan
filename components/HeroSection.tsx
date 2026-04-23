@@ -53,7 +53,7 @@ export default function HeroSection() {
 
         {/* Sub */}
         <p className="font-body text-white/60 text-base max-w-xl mx-auto mb-10 leading-relaxed">
-          Compare experts · Get verified guidance · Start your visa journey with confidence.
+          Find the Right Consultant. Get Expert Advice. Get Your Visa Faster.
         </p>
 
         {/* Stats row */}

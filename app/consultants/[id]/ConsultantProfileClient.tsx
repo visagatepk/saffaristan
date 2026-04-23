@@ -2,13 +2,16 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   MapPin, Star, Phone, BadgeCheck, Briefcase,
   Globe, Heart, Share2, ChevronRight,
-  Clock, DollarSign, CheckCircle, ArrowLeft, Calendar
+  Clock, DollarSign, CheckCircle, ArrowLeft,
+  Calendar, MessageSquare
 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   consultant: any
@@ -17,6 +20,7 @@ interface Props {
 }
 
 export default function ConsultantProfileClient({ consultant: c, services, reviews }: Props) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<'services' | 'reviews' | 'about'>('services')
   const [saved, setSaved] = useState(false)
 
@@ -41,6 +45,35 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
   const waNumber = (c.whatsapp_number || c.phone || '').replace(/\D/g, '')
   const waMessage = encodeURIComponent(`Hi ${c.display_name}, I found your profile on VisaGate.pk and would like to inquire about your visa services.`)
   const whatsappUrl = waNumber ? `https://wa.me/${waNumber}?text=${waMessage}` : null
+
+  const handleStartConversation = async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    const { data: existing } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('seeker_id', user.id)
+      .eq('consultant_id', c.user_id)
+      .single()
+
+    if (existing) {
+      router.push('/dashboard/seeker/messages')
+      return
+    }
+
+    await supabase.from('conversations').insert({
+      seeker_id: user.id,
+      consultant_id: c.user_id,
+    })
+
+    router.push('/dashboard/seeker/messages')
+  }
 
   const TABS = [
     { key: 'services', label: 'Services', count: services.length },
@@ -68,14 +101,15 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
 
-          {/* Left Column */}
+          {/* ── Left Column ── */}
           <div className="flex-1 min-w-0">
 
             {/* Profile Header */}
             <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
 
               {/* Cover banner */}
-              <div className="h-28 bg-gradient-to-r from-navy to-blue-800 relative">
+              <div className="h-28 relative overflow-hidden"
+                style={{ background: 'linear-gradient(135deg, #1B3060 0%, #2a4a8a 100%)' }}>
                 <div className="absolute inset-0 opacity-10">
                   <div className="absolute top-3 right-8 w-20 h-20 rounded-full border-2 border-white" />
                   <div className="absolute bottom-2 left-12 w-12 h-12 rounded-full border border-white" />
@@ -94,6 +128,7 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                       </span>
                     )}
                   </div>
+
                   <div className="flex items-center gap-2 mt-12">
                     <button
                       onClick={() => setSaved(!saved)}
@@ -122,19 +157,10 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                   {c.business_name && (
                     <p className="font-body text-gray-500 text-sm mb-2">{c.business_name}</p>
                   )}
-
-                  {/* Location + exp */}
                   <div className="flex flex-wrap items-center gap-4 text-sm font-body text-gray-500">
                     {c.city && (
                       <span className="flex items-center gap-1.5">
-                        <MapPin size={14} className="text-gold" />
-                        {c.city}
-                      </span>
-                    )}
-                    {c.office_address && (
-                      <span className="flex items-center gap-1.5">
-                        <MapPin size={14} className="text-navy/30" />
-                        {c.office_address}
+                        <MapPin size={14} className="text-gold" />{c.city}
                       </span>
                     )}
                     {c.years_experience > 0 && (
@@ -161,8 +187,8 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                 )}
 
                 {/* Verification badges */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {(c.is_beoe_verified || c.is_oep_verified || c.is_secp_verified || c.is_fbr_verified) && (
+                {(c.is_beoe_verified || c.is_oep_verified || c.is_secp_verified || c.is_fbr_verified) && (
+                  <div className="flex flex-wrap gap-2 mb-4">
                     <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 text-green-700 text-xs font-body font-semibold px-3 py-1.5 rounded-full">
                       <CheckCircle size={11} />
                       Registered with{' '}
@@ -173,10 +199,9 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                         c.is_fbr_verified && 'FBR',
                       ].filter(Boolean).join(' & ')}
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                {/* Bio */}
                 {c.bio && (
                   <p className="font-body text-gray-600 text-sm leading-relaxed">{c.bio}</p>
                 )}
@@ -188,13 +213,12 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
               <div className="flex border-b border-gray-100">
                 {TABS.map((tab) => (
                   <button key={tab.key}
-                    onClick={() => setActiveTab(tab.key as any)}
+                    onClick={() => setActiveTab(tab.key as 'services' | 'reviews' | 'about')}
                     className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-heading font-semibold transition-colors ${
                       activeTab === tab.key
                         ? 'text-navy border-b-2 border-navy'
                         : 'text-gray-400 hover:text-gray-600'
-                    }`}
-                  >
+                    }`}>
                     {tab.label}
                     {tab.count !== null && (
                       <span className={`text-xs px-2 py-0.5 rounded-full font-body ${
@@ -209,7 +233,7 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
 
               <div className="p-6">
 
-                {/* Services */}
+                {/* ── Services Tab ── */}
                 {activeTab === 'services' && (
                   <div className="space-y-4">
                     {services.length > 0 ? services.map((s) => (
@@ -263,7 +287,7 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                   </div>
                 )}
 
-                {/* Reviews */}
+                {/* ── Reviews Tab ── */}
                 {activeTab === 'reviews' && (
                   <div className="space-y-4">
                     {reviews.length > 0 && (
@@ -322,7 +346,7 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                           </div>
                         </div>
                         {r.comment && (
-                          <p className="font-body text-gray-600 text-sm leading-relaxed">"{r.comment}"</p>
+                          <p className="font-body text-gray-600 text-sm leading-relaxed">&ldquo;{r.comment}&rdquo;</p>
                         )}
                       </div>
                     )) : (
@@ -334,7 +358,7 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                   </div>
                 )}
 
-                {/* About */}
+                {/* ── About Tab ── */}
                 {activeTab === 'about' && (
                   <div className="space-y-5">
                     {c.bio && (
@@ -388,7 +412,7 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                             }`}>
                               {v.verified
                                 ? <CheckCircle size={12} className="text-white" />
-                                : <span className="w-1.5 h-1.5 bg-gray-400 rounded-full" />
+                                : <span className="w-1.5 h-1.5 bg-gray-400 rounded-full block" />
                               }
                             </div>
                             <div>
@@ -407,7 +431,7 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
             </div>
           </div>
 
-          {/* Right Column — Sticky CTA */}
+          {/* ── Right Column — Sticky CTA ── */}
           <div className="lg:w-80 shrink-0">
             <div className="sticky top-24 space-y-4">
 
@@ -434,7 +458,15 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                   </a>
                 )}
 
-                <button className="w-full flex items-center justify-center gap-2 bg-gold hover:bg-gold-dark text-white font-heading font-bold text-sm py-3.5 rounded-xl transition-colors">
+                <button
+                  onClick={handleStartConversation}
+                  className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-white py-3.5 rounded-xl transition-all hover:opacity-90 mb-3"
+                  style={{ background: 'linear-gradient(135deg, #1B3060 0%, #2a4a8a 100%)' }}>
+                  <MessageSquare size={16} /> Message
+                </button>
+
+                <button className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-white py-3.5 rounded-xl transition-colors"
+                  style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
                   <Calendar size={16} />
                   Book Consultation
                 </button>

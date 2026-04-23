@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--font-inter), sans-serif; }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-jakarta), sans-serif;
+  }
+}
+/* Smooth global transitions */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Button gradient utility */
+.btn-gradient {
+  background: linear-gradient(135deg, #C9A227 0%, #a8861f 100%);
+}
+
+/* Soft card shadow */
+.card-shadow {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.card-shadow-hover:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+@layer utilities {
+  .bg-navy { background-color: #1B3060 !important; }
+  .bg-navy-dark { background-color: #0f1e3d !important; }
+  .bg-navy-light { background-color: #EBF0F8 !important; }
+  .bg-gold { background-color: #C9A227 !important; }
+  .bg-gold-light { background-color: #FBF5E0 !important; }
+  .bg-gold-dark { background-color: #a8861f !important; }
+  .text-navy { color: #1B3060 !important; }
+  .text-gold { color: #C9A227 !important; }
+  .border-navy { border-color: #1B3060 !important; }
+  .border-gold { border-color: #C9A227 !important; }
+  .hover\:bg-navy:hover { background-color: #1B3060 !important; }
+  .hover\:bg-navy-dark:hover { background-color: #0f1e3d !important; }
+  .hover\:bg-gold:hover { background-color: #C9A227 !important; }
+  .hover\:bg-gold-dark:hover { background-color: #a8861f !important; }
+  .hover\:text-gold:hover { color: #C9A227 !important; }
+  .hover\:text-navy:hover { color: #1B3060 !important; }
+  .hover\:border-navy:hover { border-color: #1B3060 !important; }
+  .fill-gold { fill: #C9A227 !important; }
+}
+
+@layer components {
+  .font-urdu {
+    font-family: 'Noto Nastaliq Urdu', serif;
+    direction: rtl;
+    line-height: 2.2;
+  }
+}/* Smooth global transitions */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Button gradient utility */
+.btn-gradient {
+  background: linear-gradient(135deg, #C9A227 0%, #a8861f 100%);
+}
+
+/* Soft card shadow */
+.card-shadow {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+.card-shadow-hover:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}

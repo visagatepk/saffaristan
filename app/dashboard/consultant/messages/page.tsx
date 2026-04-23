@@ -1,13 +1,36 @@
-import { MessageSquare } from 'lucide-react'
+'use client'
 
-export default function MessagesPage() {
+import { useState, useEffect } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import MessagingUI from '@/components/MessagingUI'
+
+export default function ConsultantMessages() {
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) setUserId(user.id)
+    }
+    load()
+  }, [])
+
+  if (!userId) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-navy/20 border-t-navy rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center max-w-2xl">
-      <MessageSquare size={40} className="text-gray-200 mx-auto mb-4" />
-      <h2 className="font-heading font-bold text-navy text-xl mb-2">Messages</h2>
-      <p className="font-body text-gray-500 text-sm">
-        Your conversations with visa seekers will appear here.
-      </p>
+    <div>
+      <div className="mb-5">
+        <h1 className="font-heading font-bold text-navy text-xl mb-1">Messages</h1>
+        <p className="font-body text-gray-500 text-sm">Chat with visa seekers</p>
+      </div>
+      <MessagingUI currentUserId={userId} currentUserRole="consultant" />
     </div>
   )
 }
