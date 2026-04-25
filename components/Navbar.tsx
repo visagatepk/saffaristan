@@ -89,8 +89,19 @@ export default function Navbar() {
       subscription.unsubscribe()
       clearTimeout(timeout)
     }
-  }, [pathname])
-
+}, [])
+// ADD this NEW useEffect after the existing one:
+useEffect(() => {
+  // Only re-check auth on navigation, not full reload
+  if (pathname !== '/') {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user)
+      }
+    })
+  }
+}, [pathname])
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()

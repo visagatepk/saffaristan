@@ -86,6 +86,8 @@ export default function AdminOverview() {
               {stats.pendingVerification > 0 && `${stats.pendingVerification} consultant(s) waiting for verification. `}
               {stats.pendingReviews > 0 && `${stats.pendingReviews} review(s) waiting for approval.`}
             </p>
+            -- Quick check to see reports
+SELECT COUNT(*) FROM fraud_reports WHERE status = 'pending';
           </div>
           <Link href="/dashboard/admin/consultants"
             className="font-heading font-semibold text-xs text-amber-700 border border-amber-300 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors shrink-0">
