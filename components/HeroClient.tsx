@@ -73,7 +73,7 @@ export default function HeroClient({ cities }: HeroClientProps) {
 
         {/* Subheading */}
         <p className="font-body text-white/60 text-lg max-w-xl mx-auto mb-12 leading-relaxed">
-          Compare 500+ authenticated immigration experts.
+          Compare 5000+ authenticated immigration experts.
           Real reviews. Direct contact. Zero fraud.
         </p>
 

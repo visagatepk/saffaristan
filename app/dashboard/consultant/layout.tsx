@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/consultant/services', label: 'Services', icon: Briefcase },
   { href: '/dashboard/consultant/bookings', label: 'Bookings', icon: CalendarCheck },
   { href: '/dashboard/consultant/messages', label: 'Messages', icon: MessageSquare },
+  { href: '/dashboard/consultant/settings', label: 'Settings', icon: Settings },
 ]
 
 export default function ConsultantDashboardLayout({
