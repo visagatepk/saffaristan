@@ -1,14 +1,45 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import { Search, MapPin, Star, BadgeCheck, Heart, Filter, X, ChevronDown } from 'lucide-react'
+import {
+  Search, MapPin, Star, BadgeCheck,
+  Heart, X, Clock, DollarSign,
+  Globe, Filter, ChevronDown, ArrowRight
+} from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { createClient } from '@/lib/supabase/client'
 
-const CITIES = ['Islamabad', 'Rawalpindi', 'Lahore', 'Karachi', 'Peshawar', 'Quetta', 'Multan']
-const VISA_TYPES = ['Student Visa', 'Work Permit', 'Visit Visa', 'Family Visa', 'Business Visa', 'Umrah Visa', 'PR & Immigration']
+const VISA_TYPES = [
+  'All',
+  'Student Visa',
+  'Work Permit',
+  'Visit Visa',
+  'Family Visa',
+  'Business Visa',
+  'PR & Immigration',
+  'Umrah Visa',
+]
+
+const DESTINATIONS = [
+  'All',
+  'United Kingdom',
+  'Canada',
+  'United States',
+  'Australia',
+  'UAE',
+  'Saudi Arabia',
+  'Germany',
+  'Other',
+]
+
+const SORT_OPTIONS = [
+  { value: 'newest', label: 'Newest First' },
+  { value: 'price_low', label: 'Price: Low to High' },
+  { value: 'price_high', label: 'Price: High to Low' },
+  { value: 'fastest', label: 'Fastest Processing' },
+]
 
 const GRADIENTS = [
   'from-blue-900 to-blue-700',
@@ -17,7 +48,34 @@ const GRADIENTS = [
   'from-indigo-900 to-blue-800',
   'from-[#1B3060] to-slate-700',
   'from-blue-950 to-indigo-800',
+  'from-teal-900 to-blue-800',
+  'from-purple-900 to-indigo-800',
 ]
+
+interface Service {
+  id: string
+  consultant_id: string
+  title: string
+  description: string
+  visa_type: string
+  destination_country: string
+  price_min: number
+  price_max: number
+  processing_days: number
+  image_url: string | null
+  is_active: boolean
+  created_at: string
+  consultant?: {
+    display_name: string
+    full_name: string
+    city: string
+    is_verified: boolean
+    avatar_url: string | null
+    years_experience: number
+    is_beoe_verified: boolean
+    is_oep_verified: boolean
+  }
+}
 
 function getInitials(name: string | null) {
   if (!name) return 'VC'
@@ -25,123 +83,142 @@ function getInitials(name: string | null) {
 }
 
 export default function ConsultantsClient() {
-  const [consultants, setConsultants] = useState<any[]>([])
+  const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [selectedCities, setSelectedCities] = useState<string[]>([])
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [visaType, setVisaType] = useState('All')
+  const [destination, setDestination] = useState('All')
   const [sortBy, setSortBy] = useState('newest')
   const [saved, setSaved] = useState<string[]>([])
+  const [showFilters, setShowFilters] = useState(false)
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
   useEffect(() => {
-    const fetchConsultants = async () => {
+    const fetchServices = async () => {
       try {
         const supabase = createClient()
+
         const { data, error } = await supabase
-          .from('profiles')
-          .select('id, user_id, display_name, full_name, business_name, city, bio, avatar_url, years_experience, verification_status, is_verified, is_beoe_verified, is_oep_verified, is_secp_verified, phone, created_at')
-          .eq('role', 'consultant')
+          .from('services')
+          .select(`
+            *,
+            consultant:consultant_id (
+              display_name,
+              full_name,
+              city,
+              is_verified,
+              avatar_url,
+              years_experience,
+              is_beoe_verified,
+              is_oep_verified
+            )
+          `)
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
 
         if (error) {
-          console.error('Supabase error:', error)
+          console.error(error)
           setError(error.message)
         } else {
-          setConsultants(data || [])
+          setServices(data || [])
         }
       } catch (err) {
-        console.error('Fetch error:', err)
-        setError('Failed to load consultants')
+        setError('Failed to load services')
       } finally {
         setLoading(false)
       }
     }
-
-    fetchConsultants()
+    fetchServices()
   }, [])
 
-  const toggleCity = (city: string) => {
-    setSelectedCities(prev =>
-      prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]
-    )
-  }
-
-  const toggleType = (type: string) => {
-    setSelectedTypes(prev =>
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    )
-  }
+  const filtered = useMemo(() => {
+    return services
+      .filter(s => {
+        const matchQuery = !query ||
+          s.title?.toLowerCase().includes(query.toLowerCase()) ||
+          s.description?.toLowerCase().includes(query.toLowerCase()) ||
+          s.destination_country?.toLowerCase().includes(query.toLowerCase()) ||
+          s.consultant?.display_name?.toLowerCase().includes(query.toLowerCase())
+        const matchVisa = visaType === 'All' || s.visa_type === visaType
+        const matchDest = destination === 'All' || s.destination_country === destination
+        return matchQuery && matchVisa && matchDest
+      })
+      .sort((a, b) => {
+        if (sortBy === 'price_low') return (a.price_min || 0) - (b.price_min || 0)
+        if (sortBy === 'price_high') return (b.price_min || 0) - (a.price_min || 0)
+        if (sortBy === 'fastest') return (a.processing_days || 99) - (b.processing_days || 99)
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
+  }, [services, query, visaType, destination, sortBy])
 
   const toggleSave = (id: string) => {
     setSaved(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id])
   }
 
-  const filtered = consultants.filter(c => {
-    const name = c.display_name || c.full_name || ''
-    const matchQuery = !query ||
-      name.toLowerCase().includes(query.toLowerCase()) ||
-      c.business_name?.toLowerCase().includes(query.toLowerCase()) ||
-      c.city?.toLowerCase().includes(query.toLowerCase())
-    const matchCity = selectedCities.length === 0 || selectedCities.includes(c.city)
-    return matchQuery && matchCity
-  }).sort((a, b) => {
-    if (sortBy === 'newest') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    if (sortBy === 'experience') return (b.years_experience || 0) - (a.years_experience || 0)
-    return 0
-  })
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const hasActiveFilters = visaType !== 'All' || destination !== 'All' || query
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
       {/* Hero */}
-      <div className="bg-navy py-10 px-6">
-        <div className="max-w-4xl mx-auto text-center mb-7">
+      <div className="bg-navy py-12 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.04]"
+          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
+        <div className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-10 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
+
+        <div className="relative max-w-4xl mx-auto text-center mb-8">
           <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-2">
-            Find Visa Consultants
+            Find Visa Services
           </h1>
+          <p className="font-urdu text-gold/80 text-lg mb-2">ویزا سروسز تلاش کریں</p>
           <p className="font-body text-white/60 text-sm">
-            {loading ? 'Loading...' : `${filtered.length} verified consultants across Pakistan`}
+            {loading ? 'Loading...' : `${filtered.length} services from verified consultants`}
           </p>
         </div>
 
-        {/* Search */}
-        <div className="max-w-3xl mx-auto">
+        {/* Search bar */}
+        <div className="relative max-w-3xl mx-auto">
           <div className="bg-white rounded-2xl p-2 flex flex-col sm:flex-row gap-2 shadow-lg">
             <div className="flex-1 flex items-center gap-3 px-4 py-2">
               <Search size={16} className="text-gray-400 shrink-0" />
-              <input
-                type="text"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                placeholder="Search by name, visa type, destination..."
-                className="font-body text-sm w-full outline-none text-gray-700 placeholder-gray-400"
-              />
+              <input type="text" value={query} onChange={e => setQuery(e.target.value)}
+                placeholder="Search visa services, countries, consultants..."
+                className="font-body text-sm w-full outline-none text-gray-700 placeholder-gray-400" />
               {query && (
                 <button onClick={() => setQuery('')}>
-                  <X size={14} className="text-gray-400" />
+                  <X size={14} className="text-gray-400 hover:text-gray-600" />
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 border-t sm:border-t-0 sm:border-l border-gray-100">
-              <MapPin size={14} className="text-gold shrink-0" />
-              <select
-                value={selectedCities[0] || ''}
-                onChange={e => setSelectedCities(e.target.value ? [e.target.value] : [])}
-                className="font-body text-sm text-gray-600 outline-none bg-transparent appearance-none cursor-pointer w-28"
-              >
-                <option value="">All Cities</option>
-                {CITIES.map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center justify-center gap-2 font-heading font-semibold text-sm text-navy border border-navy/20 bg-navy-light px-5 py-3 rounded-xl hover:bg-navy hover:text-white transition-all sm:hidden">
+              <Filter size={14} /> Filters
+            </button>
             <Link href="/consultants"
-              className="font-heading font-bold text-sm text-white px-7 py-3 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-2"
+              className="hidden sm:flex font-heading font-bold text-sm text-white px-7 py-3 rounded-xl hover:opacity-90 transition-all items-center justify-center gap-2"
               style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
               <Search size={15} /> Search
             </Link>
           </div>
+        </div>
+
+        {/* Category pills */}
+        <div className="relative max-w-4xl mx-auto mt-4 flex flex-wrap gap-2 justify-center">
+          {VISA_TYPES.slice(1).map(type => (
+            <button key={type} onClick={() => setVisaType(visaType === type ? 'All' : type)}
+              className={`font-body text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200 ${
+                visaType === type
+                  ? 'bg-gold border-gold text-white'
+                  : 'border-white/20 text-white/70 hover:border-gold/50 hover:text-gold'
+              }`}>
+              {type}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -149,56 +226,52 @@ export default function ConsultantsClient() {
         <div className="flex flex-col lg:flex-row gap-6">
 
           {/* Sidebar */}
-          <aside className="lg:w-56 shrink-0">
+          <aside className={`lg:w-56 shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
             <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-24">
 
-              <h3 className="font-heading font-bold text-navy text-sm mb-4">City</h3>
-              <div className="space-y-2 mb-6">
-                {CITIES.map(city => (
-                  <label key={city} className="flex items-center gap-2.5 cursor-pointer group">
-                    <div
-                      onClick={() => toggleCity(city)}
-                      className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-                        selectedCities.includes(city)
-                          ? 'bg-navy border-navy'
-                          : 'border-gray-300 group-hover:border-navy/50'
-                      }`}>
-                      {selectedCities.includes(city) && (
-                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                      )}
-                    </div>
-                    <span className="font-body text-sm text-gray-600 group-hover:text-navy transition-colors">{city}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-heading font-bold text-navy text-sm">Filters</h3>
+                {hasActiveFilters && (
+                  <button onClick={() => { setVisaType('All'); setDestination('All'); setQuery('') }}
+                    className="font-body text-xs text-red-400 hover:text-red-600 transition-colors">
+                    Clear all
+                  </button>
+                )}
               </div>
 
-              <h3 className="font-heading font-bold text-navy text-sm mb-4">Visa Type</h3>
-              <div className="space-y-2">
-                {VISA_TYPES.map(type => (
-                  <label key={type} className="flex items-center gap-2.5 cursor-pointer group">
-                    <div
-                      onClick={() => toggleType(type)}
-                      className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer ${
-                        selectedTypes.includes(type)
-                          ? 'bg-navy border-navy'
-                          : 'border-gray-300 group-hover:border-navy/50'
+              {/* Visa Type */}
+              <div className="mb-5">
+                <h4 className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Visa Type</h4>
+                <div className="space-y-1.5">
+                  {VISA_TYPES.map(type => (
+                    <button key={type} onClick={() => setVisaType(type)}
+                      className={`w-full text-left px-3 py-2 rounded-lg font-body text-xs transition-all ${
+                        visaType === type
+                          ? 'bg-navy text-white font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-navy'
                       }`}>
-                      {selectedTypes.includes(type) && (
-                        <div className="w-1.5 h-1.5 bg-white rounded-full" />
-                      )}
-                    </div>
-                    <span className="font-body text-xs text-gray-600 group-hover:text-navy transition-colors">{type}</span>
-                  </label>
-                ))}
+                      {type}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              {(selectedCities.length > 0 || selectedTypes.length > 0) && (
-                <button
-                  onClick={() => { setSelectedCities([]); setSelectedTypes([]) }}
-                  className="mt-5 w-full font-heading font-semibold text-xs text-red-500 border border-red-200 py-2 rounded-xl hover:bg-red-50 transition-colors">
-                  Clear Filters
-                </button>
-              )}
+              {/* Destination */}
+              <div>
+                <h4 className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Destination</h4>
+                <div className="space-y-1.5">
+                  {DESTINATIONS.map(dest => (
+                    <button key={dest} onClick={() => setDestination(dest)}
+                      className={`w-full text-left px-3 py-2 rounded-lg font-body text-xs transition-all ${
+                        destination === dest
+                          ? 'bg-navy text-white font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-navy'
+                      }`}>
+                      {dest}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           </aside>
 
@@ -206,16 +279,40 @@ export default function ConsultantsClient() {
           <div className="flex-1 min-w-0">
 
             {/* Toolbar */}
-            <div className="flex items-center justify-between mb-5">
-              <p className="font-body text-sm text-gray-500">
-                <span className="font-semibold text-navy">{filtered.length}</span> consultants found
-              </p>
+            <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="font-body text-sm text-gray-500">
+                  <span className="font-semibold text-navy">{filtered.length}</span> services found
+                </p>
+                {hasActiveFilters && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {visaType !== 'All' && (
+                      <span className="font-body text-xs bg-navy-light text-navy px-2.5 py-1 rounded-full flex items-center gap-1">
+                        {visaType}
+                        <button onClick={() => setVisaType('All')}>
+                          <X size={11} />
+                        </button>
+                      </span>
+                    )}
+                    {destination !== 'All' && (
+                      <span className="font-body text-xs bg-navy-light text-navy px-2.5 py-1 rounded-full flex items-center gap-1">
+                        {destination}
+                        <button onClick={() => setDestination('All')}>
+                          <X size={11} />
+                        </button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="flex items-center gap-2">
                 <span className="font-body text-xs text-gray-400">Sort:</span>
                 <select value={sortBy} onChange={e => setSortBy(e.target.value)}
                   className="font-body text-sm text-navy border border-gray-200 rounded-xl px-3 py-1.5 outline-none cursor-pointer bg-white">
-                  <option value="newest">Newest</option>
-                  <option value="experience">Most Experienced</option>
+                  {SORT_OPTIONS.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -224,7 +321,7 @@ export default function ConsultantsClient() {
             {loading && (
               <div className="flex flex-col items-center justify-center py-20">
                 <div className="w-10 h-10 border-4 border-navy/20 border-t-navy rounded-full animate-spin mb-4" />
-                <p className="font-body text-gray-400 text-sm">Loading consultants...</p>
+                <p className="font-body text-gray-400 text-sm">Loading services...</p>
               </div>
             )}
 
@@ -240,102 +337,135 @@ export default function ConsultantsClient() {
             {!loading && !error && filtered.length === 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
                 <Search size={36} className="text-gray-200 mx-auto mb-3" />
-                <p className="font-heading font-bold text-navy text-base mb-1">No consultants found</p>
-                <p className="font-body text-gray-400 text-sm">Try adjusting your filters</p>
-                <button onClick={() => { setQuery(''); setSelectedCities([]); setSelectedTypes([]) }}
-                  className="mt-4 font-heading font-semibold text-sm text-navy border border-navy px-5 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
-                  Clear All Filters
+                <p className="font-heading font-bold text-navy text-base mb-1">No services found</p>
+                <p className="font-body text-gray-400 text-sm mb-4">Try adjusting your filters</p>
+                <button onClick={() => { setQuery(''); setVisaType('All'); setDestination('All') }}
+                  className="font-heading font-semibold text-sm text-navy border border-navy px-5 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
+                  Clear Filters
                 </button>
               </div>
             )}
 
-            {/* Cards */}
+            {/* Service Cards — Fiverr Style */}
             {!loading && !error && filtered.length > 0 && (
               <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filtered.map((c, i) => {
-                  const avatarUrl = c.avatar_url
-                    ? `${supabaseUrl}/storage/v1/object/public/avatars/${c.avatar_url}`
+                {filtered.map((service, i) => {
+                  const isSaved = saved.includes(service.id)
+                  const consultantName = service.consultant?.display_name || service.consultant?.full_name || 'Consultant'
+                  const avatarUrl = service.consultant?.avatar_url
+                    ? `${supabaseUrl}/storage/v1/object/public/avatars/${service.consultant.avatar_url}`
                     : null
-                  const name = c.display_name || c.full_name || 'Consultant'
-                  const isSaved = saved.includes(c.id)
+                  const imageUrl = service.image_url
+                    ? `${supabaseUrl}/storage/v1/object/public/avatars/${service.image_url}`
+                    : null
 
                   return (
-                    <div key={c.id}
-                      className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:-translate-y-0.5 transition-all duration-300 group flex flex-col">
+                    <div key={service.id}
+                      className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300 group flex flex-col">
 
-                      {/* Gradient banner */}
-                      <div className={`h-20 bg-gradient-to-r ${GRADIENTS[i % GRADIENTS.length]} relative`}>
-                        <div className="absolute inset-0 opacity-10">
-                          <div className="absolute top-2 right-4 w-12 h-12 rounded-full border border-white" />
-                        </div>
+                      {/* Service image / gradient banner */}
+                      <div className={`relative h-40 overflow-hidden ${!imageUrl ? `bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]}` : ''}`}>
+                        {imageUrl ? (
+                          <img src={imageUrl} alt={service.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <div className="absolute inset-0 flex items-end p-4">
+                            <div className="opacity-20">
+                              <div className="absolute top-3 right-4 w-14 h-14 rounded-full border-2 border-white" />
+                              <div className="absolute top-10 right-14 w-8 h-8 rounded-full border border-white" />
+                            </div>
+                            {/* Visa type badge on image */}
+                            <span className="relative font-body text-xs font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30 px-3 py-1 rounded-full">
+                              {service.visa_type}
+                            </span>
+                          </div>
+                        )}
+
                         {/* Save button */}
-                        <button onClick={() => toggleSave(c.id)}
-                          className="absolute top-2 right-2 w-7 h-7 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center hover:bg-white/40 transition-colors">
-                          <Heart size={13} className={isSaved ? 'text-red-400 fill-red-400' : 'text-white'} />
+                        <button onClick={() => toggleSave(service.id)}
+                          className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/40 transition-colors">
+                          <Heart size={14} className={isSaved ? 'text-red-400 fill-red-400' : 'text-white'} />
                         </button>
+
+                        {/* Destination flag */}
+                        {service.destination_country && (
+                          <div className="absolute top-3 left-3 font-body text-xs text-white bg-white/20 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full flex items-center gap-1">
+                            <Globe size={10} />
+                            {service.destination_country}
+                          </div>
+                        )}
                       </div>
 
-                      <div className="px-5 pb-5 flex flex-col flex-1">
-                        {/* Avatar */}
-                        <div className="-mt-7 mb-3">
-                          <div className="w-14 h-14 rounded-xl overflow-hidden bg-navy border-2 border-white shadow-sm flex items-center justify-center">
+                      {/* Content */}
+                      <div className="p-5 flex flex-col flex-1">
+
+                        {/* Consultant info */}
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="w-7 h-7 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
                             {avatarUrl ? (
-                              <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
+                              <img src={avatarUrl} alt={consultantName} className="w-full h-full object-cover" />
                             ) : (
-                              <span className="font-heading font-bold text-white text-lg">
-                                {getInitials(name)}
+                              <span className="font-heading font-bold text-white text-xs">
+                                {getInitials(consultantName)}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-body text-xs text-gray-500 truncate">{consultantName}</span>
+                            {service.consultant?.is_verified && (
+                              <BadgeCheck size={12} className="text-green-500 shrink-0" />
+                            )}
+                            {service.consultant?.city && (
+                              <span className="flex items-center gap-0.5 text-gray-400 text-xs shrink-0">
+                                <MapPin size={9} className="text-gold" />
+                                {service.consultant.city}
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Name + verified */}
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <h3 className="font-heading font-bold text-navy text-base leading-tight group-hover:text-gold transition-colors">
-                            {name}
-                          </h3>
-                          {c.is_verified && (
-                            <div className="flex items-center gap-1 bg-green-50 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full shrink-0">
-                              <BadgeCheck size={10} /> Verified
-                            </div>
-                          )}
-                        </div>
+                        {/* Title */}
+                        <h3 className="font-heading font-bold text-navy text-sm leading-snug mb-2 group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1">
+                          {service.title}
+                        </h3>
 
-                        {c.business_name && (
-                          <p className="font-body text-gray-400 text-xs mb-2">{c.business_name}</p>
-                        )}
+                        {/* Description */}
+                        <p className="font-body text-gray-400 text-xs leading-relaxed line-clamp-2 mb-4">
+                          {service.description}
+                        </p>
 
-                        {/* City + exp */}
-                        <div className="flex items-center gap-3 text-xs font-body text-gray-400 mb-3">
-                          {c.city && (
+                        {/* Meta */}
+                        <div className="flex items-center gap-3 text-xs font-body text-gray-400 mb-4 pt-3 border-t border-gray-100">
+                          {service.processing_days > 0 && (
                             <span className="flex items-center gap-1">
-                              <MapPin size={11} className="text-gold" />{c.city}
+                              <Clock size={11} className="text-gold" />
+                              {service.processing_days} days
                             </span>
                           )}
-                          {c.years_experience > 0 && (
-                            <span>{c.years_experience} yrs exp</span>
+                          {(service.consultant?.years_experience ?? 0) > 0 && (
+                            <span className="flex items-center gap-0.5 text-gray-400 text-xs shrink-0">
+  <MapPin size={9} className="text-gold" />
+  {service.consultant?.city}
+</span>
                           )}
                         </div>
 
-                        {/* Bio */}
-                        {c.bio && (
-                          <p className="font-body text-gray-500 text-xs leading-relaxed mb-3 line-clamp-2 flex-1">
-                            {c.bio}
-                          </p>
-                        )}
-
-                        {/* Verification badges */}
-                        <div className="flex flex-wrap gap-1 mb-4">
-                          {c.is_beoe_verified && <span className="font-body text-xs bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full">BEOE</span>}
-                          {c.is_oep_verified && <span className="font-body text-xs bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full">OEP</span>}
-                          {c.is_secp_verified && <span className="font-body text-xs bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full">SECP</span>}
+                        {/* Footer — Price + CTA */}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-body text-xs text-gray-400">Starting from</p>
+                            <div className="flex items-baseline gap-1">
+                              <span className="font-body text-xs text-gray-400">PKR</span>
+                              <span className="font-heading font-extrabold text-gold text-lg">
+                                {service.price_min?.toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                          <Link href={`/consultants/${service.consultant_id}`}
+                            className="flex items-center gap-1.5 font-heading font-bold text-xs text-white px-4 py-2.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
+                            style={{ background: 'linear-gradient(135deg, #1B3060 0%, #2a4a8a 100%)' }}>
+                            View Details <ArrowRight size={12} />
+                          </Link>
                         </div>
-
-                        {/* CTA */}
-                        <Link href={`/consultants/${c.user_id}`}
-                          className="w-full flex items-center justify-center font-heading font-bold text-xs text-navy border border-navy/20 bg-navy-light hover:bg-navy hover:text-white py-2.5 rounded-xl transition-all duration-200">
-                          View Profile →
-                        </Link>
                       </div>
                     </div>
                   )
