@@ -14,7 +14,7 @@ import { createClient } from '@/lib/supabase/client'
 const NAV_ITEMS = [
   { href: '/dashboard/seeker', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/seeker/saved', label: 'Saved Consultants', icon: Heart },
-  { href: '/dashboard/seeker/bookings', label: 'My Bookings', icon: CalendarCheck },
+{ href: '/dashboard/seeker/appointments', label: 'Appointments', icon: CalendarCheck },
   { href: '/dashboard/seeker/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/seeker/profile', label: 'My Profile', icon: User },
 ]

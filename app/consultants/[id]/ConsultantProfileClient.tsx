@@ -465,11 +465,13 @@ export default function ConsultantProfileClient({ consultant: c, services, revie
                   <MessageSquare size={16} /> Message
                 </button>
 
-                <button className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-white py-3.5 rounded-xl transition-colors"
-                  style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
-                  <Calendar size={16} />
-                  Book Consultation
-                </button>
+            <Link
+  href={`/book/${c.user_id}`}
+  className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-white py-3.5 rounded-xl transition-colors"
+  style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
+  <Calendar size={16} />
+  Book Consultation
+</Link>
 
                 <p className="font-body text-gray-400 text-xs text-center mt-4">
                   Usually responds within 1–2 hours

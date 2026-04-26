@@ -5,9 +5,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  LayoutDashboard, User, Briefcase, CalendarCheck,
-  MessageSquare, LogOut, Menu, X, ChevronRight,
-  Bell, Settings
+  LayoutDashboard, User, Briefcase,
+  CalendarCheck, MessageSquare, LogOut,
+  Menu, X, ChevronRight, Bell, Settings
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -15,9 +15,8 @@ const NAV_ITEMS = [
   { href: '/dashboard/consultant', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/consultant/profile', label: 'My Profile', icon: User },
   { href: '/dashboard/consultant/services', label: 'Services', icon: Briefcase },
-  { href: '/dashboard/consultant/bookings', label: 'Bookings', icon: CalendarCheck },
+{ href: '/dashboard/consultant/appointments', label: 'Appointments', icon: CalendarCheck },
   { href: '/dashboard/consultant/messages', label: 'Messages', icon: MessageSquare },
-  { href: '/dashboard/consultant/settings', label: 'Settings', icon: Settings },
 ]
 
 export default function ConsultantDashboardLayout({
@@ -29,30 +28,24 @@ export default function ConsultantDashboardLayout({
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [profile, setProfile] = useState<any>(null)
+  const [userEmail, setUserEmail] = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const getProfile = async () => {
+    const load = async () => {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-
-      if (!user) {
-        router.push('/login')
-        return
-      }
-
+      if (!user) { router.push('/login'); return }
+      setUserEmail(user.email || '')
       const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .single()
-
-      if (data) {
-        setProfile(data)
-      }
+      if (data) setProfile(data)
       setLoading(false)
     }
-    getProfile()
+    load()
   }, [router])
 
   const handleLogout = async () => {
@@ -66,13 +59,15 @@ export default function ConsultantDashboardLayout({
     return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const avatarUrl = profile?.avatar_url
+    ? `${supabaseUrl}/storage/v1/object/public/avatars/${profile.avatar_url}`
+    : null
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-10 h-10 border-4 border-navy/20 border-t-navy rounded-full animate-spin mx-auto mb-4" />
-          <p className="font-body text-gray-500 text-sm">Loading dashboard...</p>
-        </div>
+        <div className="w-10 h-10 border-4 border-navy/20 border-t-navy rounded-full animate-spin" />
       </div>
     )
   }
@@ -82,10 +77,8 @@ export default function ConsultantDashboardLayout({
 
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -108,22 +101,23 @@ export default function ConsultantDashboardLayout({
         {/* Profile card */}
         <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gold/20 border border-gold/30 rounded-lg flex items-center justify-center text-gold font-heading font-bold text-sm shrink-0">
-              {getInitials(profile?.display_name)}
+            <div className="w-10 h-10 rounded-lg overflow-hidden bg-gold/20 border border-gold/30 flex items-center justify-center shrink-0">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={profile?.display_name || ''} className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-heading font-bold text-gold text-sm">
+                  {getInitials(profile?.display_name || profile?.full_name)}
+                </span>
+              )}
             </div>
             <div className="min-w-0">
               <p className="font-heading font-semibold text-white text-sm truncate">
-                {profile?.display_name || 'Consultant'}
+                {profile?.display_name || profile?.full_name || 'Consultant'}
               </p>
-              <div className="flex items-center gap-1 mt-0.5">
-                {profile?.verification_status === 'active' ? (
-                  <span className="text-green-400 text-xs font-body">Verified</span>
-                ) : profile?.verification_status === 'pending_verification' ? (
-                  <span className="text-amber-400 text-xs font-body">Pending</span>
-                ) : (
-                  <span className="text-gray-400 text-xs font-body">Not verified</span>
-                )}
-              </div>
+              <p className="font-body text-white/40 text-xs truncate">{userEmail}</p>
+              {profile?.verification_status === 'active' && (
+                <span className="font-body text-xs text-green-400">✓ Verified</span>
+              )}
             </div>
           </div>
         </div>
@@ -134,16 +128,13 @@ export default function ConsultantDashboardLayout({
             const isActive = pathname === item.href
             const Icon = item.icon
             return (
-              <Link
-                key={item.href}
-                href={item.href}
+              <Link key={item.href} href={item.href}
                 onClick={() => setSidebarOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body transition-colors ${
                   isActive
                     ? 'bg-white/10 text-white font-semibold'
                     : 'text-white/60 hover:text-white hover:bg-white/5'
-                }`}
-              >
+                }`}>
                 <Icon size={18} />
                 {item.label}
                 {isActive && <ChevronRight size={14} className="ml-auto" />}
@@ -152,20 +143,28 @@ export default function ConsultantDashboardLayout({
           })}
         </nav>
 
-        {/* Bottom */}
+        {/* Bottom — Settings + Sign Out */}
         <div className="p-3 border-t border-white/10 space-y-1">
-          <Link href="/dashboard/consultant/settings"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body text-white/60 hover:text-white hover:bg-white/5 transition-colors">
-            <Settings size={18} /> Settings
+          <Link
+            href="/dashboard/consultant/settings"
+            onClick={() => setSidebarOpen(false)}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body transition-colors ${
+              pathname === '/dashboard/consultant/settings'
+                ? 'bg-white/10 text-white font-semibold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}>
+            <Settings size={18} />
+            Settings
           </Link>
           <button onClick={handleLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-body text-white/60 hover:text-red-400 hover:bg-white/5 transition-colors">
-            <LogOut size={18} /> Sign Out
+            <LogOut size={18} />
+            Sign Out
           </button>
         </div>
       </aside>
 
-      {/* Main content area */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
 
         {/* Top bar */}
@@ -178,21 +177,18 @@ export default function ConsultantDashboardLayout({
               </button>
               <div>
                 <h2 className="font-heading font-bold text-navy text-base">
-                  {NAV_ITEMS.find(i => i.href === pathname)?.label || 'Dashboard'}
+                  {NAV_ITEMS.find(i => i.href === pathname)?.label ||
+                   (pathname === '/dashboard/consultant/settings' ? 'Settings' : 'Dashboard')}
                 </h2>
                 <p className="font-body text-gray-400 text-xs">
-                  {profile?.business_name}
+                  {profile?.business_name || 'Consultant Dashboard'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button className="relative p-2 text-gray-400 hover:text-navy rounded-lg hover:bg-gray-100 transition-colors">
                 <Bell size={18} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
               </button>
-              <Link href="/" className="font-body text-xs text-gray-400 hover:text-navy border border-gray-200 px-3 py-1.5 rounded-lg transition-colors">
-                View Site
-              </Link>
             </div>
           </div>
         </header>
