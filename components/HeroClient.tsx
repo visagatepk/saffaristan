@@ -68,7 +68,7 @@ export default function HeroClient({ cities }: HeroClientProps) {
           className="font-urdu text-lg mb-4"
           style={{ color: '#F5D76E' }}
         >
-          پاکستان کا پہلا تصدیق شدہ ویزا کنسلٹنٹ پلیٹ فارم
+          پاکستان کا پہلا تصدیق شدہ ویزا کنسلٹنٹ کا پلیٹ فارم
         </p>
 
         {/* Subheading */}
@@ -161,8 +161,8 @@ export default function HeroClient({ cities }: HeroClientProps) {
         {/* Stats row */}
         <div className="flex flex-wrap items-center justify-center gap-8 lg:gap-16">
           {[
-            { number: '500+', label: 'Verified Consultants' },
-            { number: '10,000+', label: 'Success Stories' },
+            { number: '5000+', label: 'Verified Consultants' },
+            { number: '100,000+', label: 'Success Stories' },
             { number: '4.8★', label: 'Average Rating' },
           ].map((stat, i) => (
             <div key={stat.label} className="flex items-center gap-8">

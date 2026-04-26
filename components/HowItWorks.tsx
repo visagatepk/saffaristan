@@ -19,7 +19,7 @@ export default function HowItWorks() {
           <h2 className="font-heading font-bold text-navy text-3xl lg:text-4xl mt-6 mb-3">
             Your Journey to a Successful Visa
           </h2>
-          <p className="font-urdu text-gold text-lg mb-3">آپ کا ویزا سفر</p>
+          <p className="font-urdu text-gold text-lg mb-3">آپ کا کامیاب ویزہ کا سفر</p>
           <p className="font-body text-gray-500 text-base leading-relaxed">
             Get your visa approved in 4 simple steps — fast, transparent & reliable.
           </p>

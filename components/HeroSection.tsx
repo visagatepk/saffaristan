@@ -60,7 +60,7 @@ export default function HeroSection() {
         <div className="flex flex-wrap items-center justify-center gap-6 mb-10">
           {[
             { num: '5000+', label: 'Consultants' },
-            { num: '10,000+', label: 'Applications' },
+            { num: '500,000+', label: 'Applications' },
             { num: '4.8★', label: 'Average Rating' },
           ].map((s, i) => (
             <div key={s.label} className="flex items-center gap-5">
