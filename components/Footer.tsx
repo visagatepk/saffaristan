@@ -5,21 +5,19 @@ import { Shield } from 'lucide-react'
 const FOOTER_LINKS = {
   Platform: [
     { label: 'Find Consultants', href: '/consultants' },
-    { label: 'Visa Types', href: '/visa-categories' },
     { label: 'Destinations', href: '/destinations' },
     { label: 'Insights & Guides', href: '/insights' },
   ],
   Support: [
-    { label: 'Help Center', href: '/help' },
-    { label: 'FAQs', href: '/faqs' },
-    { label: 'Contact Us', href: '/contact' },
-  ],
+    { label: 'Help Center', href: '/contact' },
+  { label: 'FAQs', href: '/terms-of-service' },
+  { label: 'Contact Us', href: '/contact' },
+],
   Company: [
     { label: 'About Us', href: '/about' },
     { label: 'Privacy Policy', href: '/privacy-policy' },
     { label: 'Terms of Service', href: '/terms-of-service' },
-    { label: 'Become a Consultant', href: '/register/consultant' },
-  ],
+     ],
 }
 
 export default function Footer() {
@@ -83,7 +81,11 @@ export default function Footer() {
               <Shield size={12} className="text-gold/50" />
               <p className="font-body text-white/30 text-xs">
                 © 2026 VisaGate.pk — Operated by{' '}
-                <span className="text-white/50 font-medium">Defaste (Pvt) Ltd</span>
+                <a href="https://www.defaste.com" target="_blank" rel="noopener noreferrer">
+  <span className="text-white/50 font-medium">
+    Defaste (Pvt) Ltd
+  </span>
+</a>
               </p>
             </div>
             <div className="flex items-center gap-4">

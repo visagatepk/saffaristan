@@ -128,7 +128,7 @@ export default function PrivacyPolicy() {
                     <div className="grid sm:grid-cols-2 gap-3">
                       {[
                         { who: 'Other Users', why: 'When you contact a consultant, basic profile info is shared with them.' },
-                        { who: 'Service Providers', why: 'Supabase (database) and Netlify (hosting) — bound by strict data agreements.' },
+                        { who: 'Service Providers', why: 'We work with trusted third-party service providers to operate and maintain our platform. These providers are contractually obligated to protect your data and use it only for specified purposes.' },
                         { who: 'Legal Authorities', why: 'Only if required by Pakistani law, court order, or PECA 2016.' },
                         { who: 'Fraud Prevention', why: 'Relevant information may be shared with authorities if scams are detected.' },
                       ].map(item => (
