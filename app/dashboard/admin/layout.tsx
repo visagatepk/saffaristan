@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/admin/consultants', label: 'Consultants', icon: BadgeCheck },
   { href: '/dashboard/admin/users', label: 'All Users', icon: Users },
+  { href: '/dashboard/admin/insights', label: 'Insights', icon: FileText },
   { href: '/dashboard/admin/reviews', label: 'Reviews', icon: Star },
 ]
 

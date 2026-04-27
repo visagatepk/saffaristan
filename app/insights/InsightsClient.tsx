@@ -1,306 +1,239 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { Search, Clock, Eye, Star, ChevronRight, Tag } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
-import {
-  Search, Clock, Eye, Tag, ArrowRight,
-  TrendingUp, Bookmark, Share2, ChevronRight
-} from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
-const CATEGORIES = ['All', 'Student Visa', 'Work Permit', 'PR & Immigration', 'Visa Tips', 'Interview Tips', 'Guides', 'UK', 'Canada', 'UAE']
+const CATEGORIES = ['All', 'Visa Tips', 'Country Guides', 'Immigration News', 'Success Stories', 'Consultant Advice', 'Policy Updates']
 
 const CATEGORY_COLORS: Record<string, string> = {
-  'Student Visa': 'bg-blue-50 text-blue-700 border-blue-200',
-  'Work Permit': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'PR & Immigration': 'bg-purple-50 text-purple-700 border-purple-200',
-  'Visa Tips': 'bg-orange-50 text-orange-700 border-orange-200',
-  'Interview Tips': 'bg-pink-50 text-pink-700 border-pink-200',
-  'Guides': 'bg-teal-50 text-teal-700 border-teal-200',
+  'Visa Tips': 'bg-blue-100 text-blue-700',
+  'Country Guides': 'bg-green-100 text-green-700',
+  'Immigration News': 'bg-red-100 text-red-700',
+  'Success Stories': 'bg-purple-100 text-purple-700',
+  'Consultant Advice': 'bg-orange-100 text-orange-700',
+  'Policy Updates': 'bg-teal-100 text-teal-700',
 }
 
-const COVER_GRADIENTS = [
-  'from-blue-900 to-blue-700',
-  'from-[#1B3060] to-blue-800',
-  'from-slate-800 to-indigo-900',
-  'from-indigo-900 to-blue-800',
-  'from-[#1B3060] to-slate-700',
-  'from-blue-950 to-indigo-800',
-]
-
-function timeAgo(dateStr: string) {
-  const date = new Date(dateStr)
-  const now = new Date()
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000)
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`
-  return date.toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+interface Article {
+  id: string
+  title: string
+  slug: string
+  excerpt: string
+  cover_image: string | null
+  category: string
+  tags: string[]
+  author_name: string
+  read_time: number
+  views: number
+  is_featured: boolean
+  published_at: string
+  created_at: string
 }
 
-export default function InsightsClient({ articles }: { articles: any[] }) {
-  const [query, setQuery] = useState('')
-  const [activeCategory, setActiveCategory] = useState('All')
-  const [email, setEmail] = useState('')
-  const [subscribed, setSubscribed] = useState(false)
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100">
+      <div className="h-48 bg-gray-100 animate-pulse" />
+      <div className="p-5 space-y-3">
+        <div className="h-3 w-20 bg-gray-100 rounded-full animate-pulse" />
+        <div className="h-5 w-full bg-gray-100 rounded-full animate-pulse" />
+        <div className="h-4 w-3/4 bg-gray-100 rounded-full animate-pulse" />
+        <div className="h-3 w-1/2 bg-gray-100 rounded-full animate-pulse" />
+      </div>
+    </div>
+  )
+}
 
-  const featured = articles.find(a => a.is_featured) || articles[0]
-  const rest = articles.filter(a => a.id !== featured?.id)
+export default function InsightsPage() {
+  const [articles, setArticles] = useState<Article[]>([])
+  const [loading, setLoading] = useState(true)
+  const [category, setCategory] = useState('All')
+  const [search, setSearch] = useState('')
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
-  const filtered = useMemo(() => {
-    return rest.filter(a => {
-      const matchCat = activeCategory === 'All' ||
-        a.category === activeCategory ||
-        a.tags?.includes(activeCategory)
-      const matchQ = !query ||
-        a.title.toLowerCase().includes(query.toLowerCase()) ||
-        a.excerpt?.toLowerCase().includes(query.toLowerCase())
-      return matchCat && matchQ
-    })
-  }, [rest, activeCategory, query])
+  useEffect(() => {
+    const load = async () => {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('articles')
+        .select('id, title, slug, excerpt, cover_image, category, tags, author_name, read_time, views, is_featured, published_at, created_at')
+        .eq('is_published', true)
+        .order('created_at', { ascending: false })
+      setArticles(data || [])
+      setLoading(false)
+    }
+    load()
+  }, [])
 
-  const getCategoryStyle = (cat: string) =>
-    CATEGORY_COLORS[cat] || 'bg-navy-light text-navy border-navy/20'
+  const featured = articles.find(a => a.is_featured)
+  const filtered = articles.filter(a => {
+    const matchCat = category === 'All' || a.category === category
+    const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase()) || a.excerpt?.toLowerCase().includes(search.toLowerCase())
+    return matchCat && matchSearch
+  })
+  const regular = filtered.filter(a => !a.is_featured || category !== 'All' || search)
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })
+  const imgSrc = (img: string | null) => img ? `${supabaseUrl}/storage/v1/object/public/articles/${img}` : null
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F5F6FA]">
       <Navbar />
 
-      {/* ── Hero ── */}
-      <div className="bg-navy relative overflow-hidden">
+      {/* Hero */}
+      <div className="bg-[#1B3060] py-14 px-6 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full opacity-10 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
-
-        <div className="relative max-w-5xl mx-auto px-6 lg:px-8 py-16 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-gold/30 bg-gold/10 mb-6">
-            <TrendingUp size={13} className="text-gold" />
-            <span className="font-body text-xs font-semibold text-gold tracking-wide">Visa Knowledge Hub</span>
-          </div>
-          <h1 className="font-heading font-extrabold text-white text-4xl lg:text-5xl mb-4 leading-tight">
-            Visa Insights & Guides
+          style={{ backgroundImage: 'radial-gradient(circle, #C9A227 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="relative max-w-4xl mx-auto text-center">
+          <span className="inline-block text-xs font-bold text-[#C9A227] uppercase tracking-widest mb-3 bg-[#C9A227]/10 px-3 py-1.5 rounded-full">
+            VisaGate Insights
+          </span>
+          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-2">
+            Visa Tips, Guides & News
           </h1>
-          <p className="font-body text-white/60 text-base max-w-xl mx-auto mb-8 leading-relaxed">
-            Latest visa updates, step-by-step guides, and expert advice — all in one place.
+          <p className="font-urdu text-[#C9A227]/80 text-lg mb-4">ویزا گائیڈز اور تازہ خبریں</p>
+          <p className="text-white/60 text-sm max-w-xl mx-auto mb-7">
+            Expert advice, country guides, and immigration updates from Pakistan trusted visa professionals.
           </p>
-
-          {/* Search */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-2 max-w-xl mx-auto mb-8">
-            <div className="flex items-center gap-3 px-3">
-              <Search size={16} className="text-white/50 shrink-0" />
-              <input type="text" value={query} onChange={e => setQuery(e.target.value)}
-                placeholder="Search guides, visa types, countries..."
-                className="font-body flex-1 text-sm text-white placeholder-white/40 outline-none bg-transparent py-2.5" />
-            </div>
-          </div>
-
-          {/* Category pills */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            {['Student Visa', 'UK', 'Canada', 'Visa Updates', 'Interview Tips', 'Success Stories'].map(tag => (
-              <button key={tag}
-                onClick={() => setActiveCategory(tag === activeCategory ? 'All' : tag)}
-                className={`font-body text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200 ${
-                  activeCategory === tag
-                    ? 'bg-gold border-gold text-white'
-                    : 'border-white/20 text-white/70 hover:border-gold/50 hover:text-gold hover:bg-gold/10'
-                }`}>
-                {tag}
-              </button>
-            ))}
+          <div className="max-w-xl mx-auto flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-xl">
+            <Search size={16} className="text-gray-400 shrink-0" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search articles, topics..."
+              className="flex-1 text-sm outline-none text-gray-700 placeholder-gray-400"
+            />
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
+      <div className="max-w-6xl mx-auto px-4 py-10">
 
-        {/* ── Featured Article ── */}
-        {featured && (
-          <div className="mb-14">
-            <div className="flex items-center gap-2 mb-5">
-              <TrendingUp size={16} className="text-gold" />
-              <span className="font-heading font-bold text-navy text-sm">Featured Article</span>
+        {/* Featured Article */}
+        {!loading && !search && category === 'All' && featured && (
+          <div className="mb-12">
+            <div className="flex items-center gap-2 mb-4">
+              <Star size={14} className="text-[#C9A227] fill-[#C9A227]" />
+              <span className="text-sm font-bold text-[#C9A227] uppercase tracking-wider">Featured Article</span>
             </div>
-
             <Link href={`/insights/${featured.slug}`}
-              className="group grid lg:grid-cols-2 gap-0 bg-white rounded-3xl overflow-hidden border border-gray-100 hover:shadow-[0_20px_60px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-0.5">
-
-              {/* Image */}
-              <div className={`relative h-56 lg:h-auto bg-gradient-to-br ${COVER_GRADIENTS[0]} overflow-hidden`}>
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute top-6 right-6 w-28 h-28 rounded-full border-2 border-white" />
-                  <div className="absolute bottom-6 left-6 w-20 h-20 rounded-full border border-white" />
-                </div>
-                <div className="absolute inset-0 flex items-end p-6">
-                  <div className="flex items-center gap-2">
-                    <span className="font-heading font-bold text-xs text-white bg-gold px-2.5 py-1 rounded-full flex items-center gap-1">
-                      🔥 Trending
-                    </span>
+              className="group flex flex-col lg:flex-row bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)] transition-all duration-300">
+              <div className="lg:w-1/2 h-64 lg:h-auto overflow-hidden bg-[#1B3060]/10">
+                {imgSrc(featured.cover_image) ? (
+                  <img src={imgSrc(featured.cover_image)!} alt={featured.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-blue-800 flex items-center justify-center">
+                    <span className="text-white/20 text-6xl font-black">VG</span>
                   </div>
-                </div>
+                )}
               </div>
-
-              {/* Content */}
-              <div className="p-8 lg:p-10 flex flex-col justify-center">
-                <span className={`inline-block font-body text-xs font-semibold px-3 py-1 rounded-full border mb-4 w-fit ${getCategoryStyle(featured.category)}`}>
-                  {featured.category}
-                </span>
-                <h2 className="font-heading font-bold text-navy text-2xl lg:text-3xl leading-snug mb-4 group-hover:text-gold transition-colors duration-200">
+              <div className="lg:w-1/2 p-8 flex flex-col justify-center">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${CATEGORY_COLORS[featured.category] || 'bg-gray-100 text-gray-600'}`}>
+                    {featured.category}
+                  </span>
+                  <span className="text-xs font-bold text-[#C9A227] bg-[#C9A227]/10 px-2 py-0.5 rounded-full">Featured</span>
+                </div>
+                <h2 className="font-heading font-extrabold text-[#1B3060] text-2xl lg:text-3xl leading-tight mb-3 group-hover:text-[#C9A227] transition-colors">
                   {featured.title}
                 </h2>
-                <p className="font-body text-gray-500 text-sm leading-relaxed mb-6 line-clamp-3">
-                  {featured.excerpt}
-                </p>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 text-xs font-body text-gray-400">
-                    <span className="flex items-center gap-1.5">
-                      <div className="w-6 h-6 bg-navy rounded-full flex items-center justify-center text-white font-heading font-bold text-xs shrink-0">
-                        {featured.author_name?.[0] || 'V'}
-                      </div>
-                      {featured.author_name}
-                    </span>
-                    <span className="flex items-center gap-1"><Clock size={12} />{featured.read_time} min read</span>
-                    <span className="flex items-center gap-1"><Eye size={12} />{featured.views?.toLocaleString()}</span>
-                  </div>
-                  <span className="font-heading font-bold text-sm text-navy group-hover:text-gold transition-colors flex items-center gap-1">
-                    Read Guide <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </span>
+                <p className="text-gray-500 text-sm leading-relaxed mb-5 line-clamp-3">{featured.excerpt}</p>
+                <div className="flex items-center gap-4 text-xs text-gray-400 mb-5">
+                  <span className="font-semibold text-gray-600">{featured.author_name}</span>
+                  <span className="flex items-center gap-1"><Clock size={11} /> {featured.read_time} min read</span>
+                  <span className="flex items-center gap-1"><Eye size={11} /> {(featured.views || 0).toLocaleString()} views</span>
                 </div>
+                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-[#1B3060] group-hover:text-[#C9A227] transition-colors">
+                  Read Article <ChevronRight size={15} />
+                </span>
               </div>
             </Link>
           </div>
         )}
 
-        {/* ── Filter bar ── */}
-        <div className="sticky top-[68px] z-20 bg-gray-50 py-3 mb-8 -mx-6 px-6 border-b border-gray-200">
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-            {CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)}
-                className={`font-heading font-semibold text-xs px-4 py-2 rounded-xl whitespace-nowrap transition-all duration-200 shrink-0 ${
-                  activeCategory === cat
-                    ? 'bg-navy text-white shadow-sm'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-navy/30 hover:text-navy'
-                }`}>
-                {cat}
-              </button>
-            ))}
-          </div>
+        {/* Category Tabs */}
+        <div className="flex gap-2 flex-wrap mb-7">
+          {CATEGORIES.map(cat => (
+            <button key={cat} onClick={() => setCategory(cat)}
+              className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${
+                category === cat
+                  ? 'bg-[#1B3060] text-white shadow-sm'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-[#1B3060]/30 hover:text-[#1B3060]'
+              }`}>
+              {cat}
+            </button>
+          ))}
         </div>
 
-        {/* ── Articles Grid ── */}
-        <div className="mb-16">
-          <div className="flex items-center justify-between mb-6">
-            <p className="font-body text-sm text-gray-500">
-              <span className="font-semibold text-navy">{filtered.length}</span> articles
-              {activeCategory !== 'All' && <> in <span className="font-semibold text-navy">{activeCategory}</span></>}
-            </p>
-          </div>
+        {/* Count */}
+        {!loading && (
+          <p className="text-sm text-gray-400 mb-5">
+            <span className="font-bold text-[#1B3060]">{filtered.length}</span> article{filtered.length !== 1 ? 's' : ''} found
+          </p>
+        )}
 
-          {filtered.length > 0 ? (
-            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filtered.map((article, i) => (
-                <Link key={article.id} href={`/insights/${article.slug}`}
-                  className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:border-transparent hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)] transition-all duration-300 hover:-translate-y-1 flex flex-col">
+        {/* Grid */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
 
-                  {/* Thumbnail */}
-                  <div className={`h-44 bg-gradient-to-br ${COVER_GRADIENTS[i % COVER_GRADIENTS.length]} relative overflow-hidden`}>
-                    <div className="absolute inset-0 opacity-10">
-                      <div className="absolute top-3 right-3 w-16 h-16 rounded-full border border-white" />
-                      <div className="absolute bottom-3 left-3 w-10 h-10 rounded-full border border-white" />
+          {!loading && regular.map(article => {
+            const src = imgSrc(article.cover_image)
+            return (
+              <Link key={article.id} href={`/insights/${article.slug}`}
+                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col">
+                <div className="h-48 overflow-hidden bg-[#1B3060]/10">
+                  {src ? (
+                    <img src={src} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-blue-800 flex items-center justify-center">
+                      <span className="text-white/20 text-4xl font-black">VG</span>
                     </div>
-                    <div className="absolute top-3 left-3">
-                      <span className={`font-body text-xs font-semibold px-2.5 py-1 rounded-full border ${getCategoryStyle(article.category)}`}>
-                        {article.category}
-                      </span>
+                  )}
+                </div>
+                <div className="p-5 flex flex-col flex-1">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[article.category] || 'bg-gray-100 text-gray-500'}`}>
+                      {article.category}
+                    </span>
+                  </div>
+                  <h3 className="font-heading font-bold text-[#1B3060] text-base leading-snug mb-2 line-clamp-2 group-hover:text-[#C9A227] transition-colors flex-1">
+                    {article.title}
+                  </h3>
+                  <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 mb-4">{article.excerpt}</p>
+                  {Array.isArray(article.tags) && article.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-3">
+                      {article.tags.slice(0, 3).map(tag => (
+                        <span key={tag} className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{tag}</span>
+                      ))}
                     </div>
-                    <div className="absolute top-3 right-3">
-                      <button className="w-7 h-7 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-white/40 transition-colors">
-                        <Bookmark size={13} />
-                      </button>
+                  )}
+                  <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-600">{article.author_name}</p>
+                      <p className="text-[10px] text-gray-400">{formatDate(article.published_at || article.created_at)}</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                      <span className="flex items-center gap-0.5"><Clock size={10} /> {article.read_time || 1}m</span>
+                      <span className="flex items-center gap-0.5"><Eye size={10} /> {(article.views || 0).toLocaleString()}</span>
                     </div>
                   </div>
+                </div>
+              </Link>
+            )
+          })}
 
-                  {/* Content */}
-                  <div className="p-5 flex flex-col flex-1">
-                    <h3 className="font-heading font-bold text-navy text-base leading-snug mb-2.5 line-clamp-2 group-hover:text-gold transition-colors duration-200">
-                      {article.title}
-                    </h3>
-                    <p className="font-body text-gray-500 text-xs leading-relaxed mb-4 line-clamp-2 flex-1">
-                      {article.excerpt}
-                    </p>
-
-                    {/* Tags */}
-                    {article.tags && (
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {article.tags.slice(0, 3).map((tag: string) => (
-                          <span key={tag} className="font-body text-xs bg-gray-50 border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center gap-3 text-xs font-body text-gray-400">
-                        <span className="flex items-center gap-1"><Clock size={11} />{article.read_time}m</span>
-                        <span className="flex items-center gap-1"><Eye size={11} />{article.views?.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs font-body text-gray-400">
-                        <span>{timeAgo(article.published_at)}</span>
-                        <Share2 size={12} className="hover:text-navy cursor-pointer transition-colors" />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
-              <Search size={32} className="text-gray-200 mx-auto mb-3" />
-              <p className="font-heading font-bold text-navy text-base mb-1">No articles found</p>
-              <p className="font-body text-gray-400 text-sm">Try a different search or category</p>
-              <button onClick={() => { setQuery(''); setActiveCategory('All') }}
-                className="mt-4 font-heading font-semibold text-sm text-navy border border-navy px-5 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
-                Clear Filters
-              </button>
+          {!loading && filtered.length === 0 && (
+            <div className="col-span-3 text-center py-16">
+              <Search size={36} className="text-gray-200 mx-auto mb-3" />
+              <p className="font-bold text-gray-600">No articles found</p>
+              <p className="text-gray-400 text-sm mt-1">Try a different category or search term</p>
             </div>
           )}
-        </div>
-
-        {/* ── Newsletter ── */}
-        <div className="bg-navy rounded-3xl p-10 lg:p-14 text-center relative overflow-hidden mb-8">
-          <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-gold/30 bg-gold/10 mb-5">
-              <span className="font-body text-xs font-semibold text-gold">Stay Updated</span>
-            </div>
-            <h3 className="font-heading font-bold text-white text-2xl lg:text-3xl mb-3">
-              Get Visa Updates in Your Inbox
-            </h3>
-            <p className="font-body text-white/50 text-sm mb-8">
-              No spam. Only useful updates, guides & visa news.
-            </p>
-            {subscribed ? (
-              <div className="inline-flex items-center gap-2 bg-green-500/20 border border-green-400/30 text-green-400 font-heading font-semibold text-sm px-6 py-3 rounded-xl">
-                ✓ You're subscribed! Welcome aboard.
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="font-body flex-1 px-5 py-3 rounded-xl text-sm text-gray-700 outline-none border-0 focus:ring-2 focus:ring-gold/30" />
-                <button
-                  onClick={() => { if (email) setSubscribed(true) }}
-                  className="font-heading font-bold text-sm text-white px-7 py-3 rounded-xl transition-all duration-200 hover:opacity-90 shrink-0"
-                  style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
-                  Subscribe
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
 

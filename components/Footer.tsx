@@ -10,14 +10,14 @@ const FOOTER_LINKS = {
   ],
   Support: [
     { label: 'Help Center', href: '/contact' },
-  { label: 'FAQs', href: '/terms-of-service' },
-  { label: 'Contact Us', href: '/contact' },
-],
+    { label: 'FAQs', href: '/faqs' },
+    { label: 'Contact Us', href: '/contact' },
+  ],
   Company: [
     { label: 'About Us', href: '/about' },
     { label: 'Privacy Policy', href: '/privacy-policy' },
     { label: 'Terms of Service', href: '/terms-of-service' },
-     ],
+  ],
 }
 
 export default function Footer() {
