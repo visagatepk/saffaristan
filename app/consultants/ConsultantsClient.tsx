@@ -2,54 +2,42 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
-import {
-  Search, MapPin, Star, BadgeCheck,
-  Heart, X, Clock, DollarSign,
-  Globe, Filter, ChevronDown, ArrowRight
-} from 'lucide-react'
+import { Search, MapPin, Star, BadgeCheck, Heart, X, Clock, Globe, Filter, ArrowRight } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { createClient } from '@/lib/supabase/client'
 
-const VISA_TYPES = [
-  'All',
-  'Student Visa',
-  'Work Permit',
-  'Visit Visa',
-  'Family Visa',
-  'Business Visa',
-  'PR & Immigration',
-  'Umrah Visa',
-]
+// ─── Constants ──────────────────────────────────────────────────────────────
 
-const DESTINATIONS = [
-  'All',
-  'United Kingdom',
-  'Canada',
-  'United States',
-  'Australia',
-  'UAE',
-  'Saudi Arabia',
-  'Germany',
-  'Other',
-]
-
+const VISA_TYPES = ['Student Visa','Work Permit','Visit Visa','Family Visa','Business Visa','PR & Immigration','Umrah Visa']
+const DESTINATIONS = ['United Kingdom','Canada','United States','Australia','UAE','Saudi Arabia','Germany','Other']
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Newest First' },
-  { value: 'price_low', label: 'Price: Low to High' },
+  { value: 'newest',     label: 'Newest First' },
+  { value: 'price_low',  label: 'Price: Low to High' },
   { value: 'price_high', label: 'Price: High to Low' },
-  { value: 'fastest', label: 'Fastest Processing' },
+  { value: 'fastest',    label: 'Fastest Processing' },
 ]
+
+// Visa badge colours  
+const VISA_COLORS: Record<string, string> = {
+  'Student Visa':    '#3B82F6',
+  'Work Permit':     '#8B5CF6',
+  'Visit Visa':      '#10B981',
+  'Family Visa':     '#F59E0B',
+  'Business Visa':   '#EF4444',
+  'PR & Immigration':'#06B6D4',
+  'Umrah Visa':      '#84CC16',
+  'Spouse Visa':     '#EC4899',
+  'Study Visa':      '#3B82F6',
+}
 
 const GRADIENTS = [
-  'from-blue-900 to-blue-700',
-  'from-[#1B3060] to-blue-800',
-  'from-slate-800 to-indigo-900',
-  'from-indigo-900 to-blue-800',
-  'from-[#1B3060] to-slate-700',
-  'from-blue-950 to-indigo-800',
-  'from-teal-900 to-blue-800',
-  'from-purple-900 to-indigo-800',
+  'linear-gradient(135deg,#1e3a6e 0%,#2d5bb5 100%)',
+  'linear-gradient(135deg,#1B3060 0%,#4a6fa5 100%)',
+  'linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%)',
+  'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)',
+  'linear-gradient(135deg,#2c3e50 0%,#3498db 100%)',
+  'linear-gradient(135deg,#0c0c1e 0%,#1a237e 100%)',
 ]
 
 interface Service {
@@ -74,24 +62,53 @@ interface Service {
     years_experience: number
     is_beoe_verified: boolean
     is_oep_verified: boolean
+    is_secp_verified?: boolean
+    is_fbr_verified?: boolean
   }
 }
 
-function getInitials(name: string | null) {
-  if (!name) return 'VC'
+function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
+// ─── Skeleton Card ───────────────────────────────────────────────────────────
+
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+      <div className="h-44 bg-gray-100 animate-pulse" />
+      <div className="p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse" />
+          <div className="h-3 w-24 bg-gray-100 rounded animate-pulse" />
+          <div className="h-3 w-16 bg-gray-100 rounded animate-pulse" />
+        </div>
+        <div className="h-4 w-full bg-gray-100 rounded animate-pulse" />
+        <div className="h-3 w-3/4 bg-gray-100 rounded animate-pulse" />
+        <div className="h-3 w-1/2 bg-gray-100 rounded animate-pulse" />
+        <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+          <div className="h-5 w-24 bg-gray-100 rounded animate-pulse" />
+          <div className="h-8 w-24 bg-gray-100 rounded-xl animate-pulse" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
 export default function ConsultantsClient() {
-  const [services, setServices] = useState<Service[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-  const [query, setQuery] = useState('')
-  const [visaType, setVisaType] = useState('All')
-  const [destination, setDestination] = useState('All')
-  const [sortBy, setSortBy] = useState('newest')
-  const [saved, setSaved] = useState<string[]>([])
+  const [services, setServices]     = useState<Service[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [error, setError]           = useState('')
+  const [query, setQuery]           = useState('')
+  const [visaType, setVisaType]     = useState('All')
+  const [destination, setDestination] = useState('')
+  const [sortBy, setSortBy]         = useState('newest')
+  const [saved, setSaved]           = useState<string[]>([])
   const [showFilters, setShowFilters] = useState(false)
+  const [verifyFilter, setVerifyFilter] = useState({ secp: false, beoe: false, fbr: false })
+  const [maxBudget, setMaxBudget]   = useState(200000)
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
@@ -99,36 +116,26 @@ export default function ConsultantsClient() {
     const fetchServices = async () => {
       try {
         const supabase = createClient()
-
         const { data, error } = await supabase
           .from('services')
           .select(`
-            *,
+            id, consultant_id, title, description, visa_type,
+            destination_country, price_min, price_max, processing_days,
+            image_url, is_active, created_at,
             consultant:consultant_id (
-              display_name,
-              full_name,
-              city,
-              is_verified,
-              avatar_url,
-              years_experience,
-              is_beoe_verified,
-              is_oep_verified
+              display_name, full_name, city, is_verified,
+              avatar_url, years_experience,
+              is_beoe_verified, is_oep_verified, is_secp_verified, is_fbr_verified
             )
           `)
           .eq('is_active', true)
           .order('created_at', { ascending: false })
+          .limit(60)
 
-        if (error) {
-          console.error(error)
-          setError(error.message)
-        } else {
-          setServices(data || [])
-        }
-      } catch (err) {
-        setError('Failed to load services')
-      } finally {
-        setLoading(false)
-      }
+        if (error) { setError(error.message) }
+        else { setServices(data || []) }
+      } catch { setError('Failed to load services') }
+      finally { setLoading(false) }
     }
     fetchServices()
   }, [])
@@ -136,85 +143,80 @@ export default function ConsultantsClient() {
   const filtered = useMemo(() => {
     return services
       .filter(s => {
-        const matchQuery = !query ||
-          s.title?.toLowerCase().includes(query.toLowerCase()) ||
-          s.description?.toLowerCase().includes(query.toLowerCase()) ||
-          s.destination_country?.toLowerCase().includes(query.toLowerCase()) ||
-          s.consultant?.display_name?.toLowerCase().includes(query.toLowerCase())
+        const q = query.toLowerCase()
+        const matchQ = !query ||
+          s.title?.toLowerCase().includes(q) ||
+          s.destination_country?.toLowerCase().includes(q) ||
+          s.consultant?.display_name?.toLowerCase().includes(q)
         const matchVisa = visaType === 'All' || s.visa_type === visaType
-        const matchDest = destination === 'All' || s.destination_country === destination
-        return matchQuery && matchVisa && matchDest
+        const matchDest = !destination || s.destination_country?.toLowerCase().includes(destination.toLowerCase())
+        const matchBudget = !s.price_min || s.price_min <= maxBudget
+        const matchSecp = !verifyFilter.secp || s.consultant?.is_secp_verified
+        const matchBeoe = !verifyFilter.beoe || s.consultant?.is_beoe_verified
+        const matchFbr  = !verifyFilter.fbr  || s.consultant?.is_fbr_verified
+        return matchQ && matchVisa && matchDest && matchBudget && matchSecp && matchBeoe && matchFbr
       })
       .sort((a, b) => {
-        if (sortBy === 'price_low') return (a.price_min || 0) - (b.price_min || 0)
+        if (sortBy === 'price_low')  return (a.price_min || 0) - (b.price_min || 0)
         if (sortBy === 'price_high') return (b.price_min || 0) - (a.price_min || 0)
-        if (sortBy === 'fastest') return (a.processing_days || 99) - (b.processing_days || 99)
+        if (sortBy === 'fastest')    return (a.processing_days || 99) - (b.processing_days || 99)
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       })
-  }, [services, query, visaType, destination, sortBy])
+  }, [services, query, visaType, destination, sortBy, maxBudget, verifyFilter])
 
-  const toggleSave = (id: string) => {
+  const toggleSave = (id: string) =>
     setSaved(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id])
+
+  const clearAll = () => {
+    setQuery(''); setVisaType('All'); setDestination('')
+    setVerifyFilter({ secp: false, beoe: false, fbr: false }); setMaxBudget(200000)
   }
 
-  const hasActiveFilters = visaType !== 'All' || destination !== 'All' || query
+  const hasFilters = visaType !== 'All' || destination || query ||
+    verifyFilter.secp || verifyFilter.beoe || verifyFilter.fbr || maxBudget < 200000
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F8F9FC]">
       <Navbar />
 
-      {/* Hero */}
-      <div className="bg-navy py-12 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        <div className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-10 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
-
-        <div className="relative max-w-4xl mx-auto text-center mb-8">
-          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-2">
+      {/* ── Hero ── */}
+      <div className="bg-[#1B3060] py-10 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: 'radial-gradient(circle, #C9A227 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
+        <div className="relative max-w-3xl mx-auto text-center mb-6">
+          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-1">
             Find Visa Services
           </h1>
-          <p className="font-urdu text-gold/80 text-lg mb-2">ویزا سروسز تلاش کریں</p>
-          <p className="font-body text-white/60 text-sm">
+          <p className="font-urdu text-[#C9A227]/80 text-base mb-1">ویزا سروسز تلاش کریں</p>
+          <p className="text-white/50 text-sm">
             {loading ? 'Loading...' : `${filtered.length} services from verified consultants`}
           </p>
         </div>
 
-        {/* Search bar */}
-        <div className="relative max-w-3xl mx-auto">
-          <div className="bg-white rounded-2xl p-2 flex flex-col sm:flex-row gap-2 shadow-lg">
-            <div className="flex-1 flex items-center gap-3 px-4 py-2">
-              <Search size={16} className="text-gray-400 shrink-0" />
-              <input type="text" value={query} onChange={e => setQuery(e.target.value)}
-                placeholder="Search visa services, countries, consultants..."
-                className="font-body text-sm w-full outline-none text-gray-700 placeholder-gray-400" />
-              {query && (
-                <button onClick={() => setQuery('')}>
-                  <X size={14} className="text-gray-400 hover:text-gray-600" />
-                </button>
-              )}
-            </div>
+        <div className="relative max-w-2xl mx-auto">
+          <div className="bg-white rounded-2xl flex items-center gap-3 px-5 py-3 shadow-xl">
+            <Search size={16} className="text-gray-400 shrink-0" />
+            <input
+              type="text" value={query} onChange={e => setQuery(e.target.value)}
+              placeholder="Search visa type, country or consultant..."
+              className="flex-1 text-sm outline-none text-gray-700 placeholder-gray-400"
+            />
+            {query && <button onClick={() => setQuery('')}><X size={14} className="text-gray-400" /></button>}
             <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="flex items-center justify-center gap-2 font-heading font-semibold text-sm text-navy border border-navy/20 bg-navy-light px-5 py-3 rounded-xl hover:bg-navy hover:text-white transition-all sm:hidden">
-              <Filter size={14} /> Filters
+              className="bg-[#C9A227] text-white text-sm font-semibold px-5 py-2 rounded-xl hover:bg-[#b8901f] transition shrink-0">
+              Search
             </button>
-            <Link href="/consultants"
-              className="hidden sm:flex font-heading font-bold text-sm text-white px-7 py-3 rounded-xl hover:opacity-90 transition-all items-center justify-center gap-2"
-              style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
-              <Search size={15} /> Search
-            </Link>
           </div>
         </div>
 
-        {/* Category pills */}
+        {/* Visa type pills */}
         <div className="relative max-w-4xl mx-auto mt-4 flex flex-wrap gap-2 justify-center">
-          {VISA_TYPES.slice(1).map(type => (
-            <button key={type} onClick={() => setVisaType(visaType === type ? 'All' : type)}
-              className={`font-body text-xs font-medium px-3 py-1.5 rounded-full border transition-all duration-200 ${
+          {['All', ...VISA_TYPES].map(type => (
+            <button key={type} onClick={() => setVisaType(type)}
+              className={`text-xs font-medium px-3 py-1.5 rounded-full border transition-all ${
                 visaType === type
-                  ? 'bg-gold border-gold text-white'
-                  : 'border-white/20 text-white/70 hover:border-gold/50 hover:text-gold'
+                  ? 'bg-[#C9A227] border-[#C9A227] text-white'
+                  : 'border-white/20 text-white/70 hover:border-[#C9A227]/50 hover:text-[#C9A227]'
               }`}>
               {type}
             </button>
@@ -222,33 +224,31 @@ export default function ConsultantsClient() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <div className="max-w-7xl mx-auto px-4 lg:px-8 py-8">
+        <div className="flex flex-col lg:flex-row gap-7">
 
-          {/* Sidebar */}
-          <aside className={`lg:w-56 shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-24">
-
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-heading font-bold text-navy text-sm">Filters</h3>
-                {hasActiveFilters && (
-                  <button onClick={() => { setVisaType('All'); setDestination('All'); setQuery('') }}
-                    className="font-body text-xs text-red-400 hover:text-red-600 transition-colors">
+          {/* ── Sidebar ── */}
+          <aside className={`lg:w-60 shrink-0 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-24 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="font-bold text-[#1B3060] text-sm">Filters</h3>
+                {hasFilters && (
+                  <button onClick={clearAll} className="text-xs text-red-400 hover:text-red-600">
                     Clear all
                   </button>
                 )}
               </div>
 
-              {/* Visa Type */}
+              {/* Service Type */}
               <div className="mb-5">
-                <h4 className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Visa Type</h4>
-                <div className="space-y-1.5">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Service Type</h4>
+                <div className="space-y-0.5">
                   {VISA_TYPES.map(type => (
-                    <button key={type} onClick={() => setVisaType(type)}
-                      className={`w-full text-left px-3 py-2 rounded-lg font-body text-xs transition-all ${
+                    <button key={type} onClick={() => setVisaType(visaType === type ? 'All' : type)}
+                      className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-all ${
                         visaType === type
-                          ? 'bg-navy text-white font-semibold'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-navy'
+                          ? 'bg-[#1B3060]/10 text-[#1B3060] font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
                       }`}>
                       {type}
                     </button>
@@ -257,221 +257,221 @@ export default function ConsultantsClient() {
               </div>
 
               {/* Destination */}
+              <div className="mb-5">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Destination</h4>
+                <input
+                  type="text" value={destination} onChange={e => setDestination(e.target.value)}
+                  placeholder="e.g. Canada, UK..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-[#1B3060]/20"
+                />
+              </div>
+
+              {/* Verification */}
+              <div className="mb-5">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Verification</h4>
+                {[
+                  { key: 'secp', label: 'SECP Verified' },
+                  { key: 'beoe', label: 'BEOE Verified' },
+                  { key: 'fbr',  label: 'FBR Verified' },
+                ].map(({ key, label }) => (
+                  <label key={key} className="flex items-center gap-2.5 py-1.5 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={verifyFilter[key as keyof typeof verifyFilter]}
+                      onChange={() => setVerifyFilter(p => ({ ...p, [key]: !p[key as keyof typeof verifyFilter] }))}
+                      className="w-4 h-4 accent-[#1B3060] rounded"
+                    />
+                    <span className="text-xs text-gray-600 group-hover:text-[#1B3060]">{label}</span>
+                  </label>
+                ))}
+              </div>
+
+              {/* Budget Range */}
               <div>
-                <h4 className="font-body text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Destination</h4>
-                <div className="space-y-1.5">
-                  {DESTINATIONS.map(dest => (
-                    <button key={dest} onClick={() => setDestination(dest)}
-                      className={`w-full text-left px-3 py-2 rounded-lg font-body text-xs transition-all ${
-                        destination === dest
-                          ? 'bg-navy text-white font-semibold'
-                          : 'text-gray-600 hover:bg-gray-50 hover:text-navy'
-                      }`}>
-                      {dest}
-                    </button>
-                  ))}
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Budget Range</h4>
+                <input
+                  type="range" min={0} max={200000} step={5000} value={maxBudget}
+                  onChange={e => setMaxBudget(Number(e.target.value))}
+                  className="w-full accent-[#1B3060]"
+                />
+                <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                  <span>PKR 0</span>
+                  <span>PKR {maxBudget.toLocaleString()}</span>
                 </div>
               </div>
             </div>
           </aside>
 
-          {/* Main */}
+          {/* ── Main Content ── */}
           <div className="flex-1 min-w-0">
 
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-body text-sm text-gray-500">
-                  <span className="font-semibold text-navy">{filtered.length}</span> services found
+              <div>
+                <p className="text-sm text-gray-500">
+                  <span className="font-bold text-[#1B3060]">{loading ? '...' : filtered.length}</span> services found
                 </p>
-                {hasActiveFilters && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {visaType !== 'All' && (
-                      <span className="font-body text-xs bg-navy-light text-navy px-2.5 py-1 rounded-full flex items-center gap-1">
-                        {visaType}
-                        <button onClick={() => setVisaType('All')}>
-                          <X size={11} />
-                        </button>
-                      </span>
-                    )}
-                    {destination !== 'All' && (
-                      <span className="font-body text-xs bg-navy-light text-navy px-2.5 py-1 rounded-full flex items-center gap-1">
-                        {destination}
-                        <button onClick={() => setDestination('All')}>
-                          <X size={11} />
-                        </button>
-                      </span>
-                    )}
-                  </div>
-                )}
+                <p className="text-xs text-gray-400">Explore our trusted, government-verified consultants</p>
               </div>
-
               <div className="flex items-center gap-2">
-                <span className="font-body text-xs text-gray-400">Sort:</span>
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="lg:hidden flex items-center gap-1.5 text-xs text-[#1B3060] border border-[#1B3060]/20 px-3 py-1.5 rounded-lg">
+                  <Filter size={13} /> Filters
+                </button>
+                <span className="text-xs text-gray-400">Sort:</span>
                 <select value={sortBy} onChange={e => setSortBy(e.target.value)}
-                  className="font-body text-sm text-navy border border-gray-200 rounded-xl px-3 py-1.5 outline-none cursor-pointer bg-white">
-                  {SORT_OPTIONS.map(o => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
+                  className="text-sm text-[#1B3060] border border-gray-200 rounded-xl px-3 py-1.5 outline-none bg-white">
+                  {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
             </div>
 
-            {/* Loading */}
-            {loading && (
-              <div className="flex flex-col items-center justify-center py-20">
-                <div className="w-10 h-10 border-4 border-navy/20 border-t-navy rounded-full animate-spin mb-4" />
-                <p className="font-body text-gray-400 text-sm">Loading services...</p>
-              </div>
-            )}
-
             {/* Error */}
             {!loading && error && (
-              <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-                <p className="font-heading font-bold text-red-700 mb-2">Failed to load</p>
-                <p className="font-body text-red-600 text-sm">{error}</p>
+              <div className="bg-red-50 border border-red-100 rounded-2xl p-8 text-center">
+                <p className="font-bold text-red-700 mb-1">Could not load services</p>
+                <p className="text-red-500 text-sm">{error}</p>
               </div>
             )}
 
             {/* Empty */}
             {!loading && !error && filtered.length === 0 && (
-              <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
+              <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center">
                 <Search size={36} className="text-gray-200 mx-auto mb-3" />
-                <p className="font-heading font-bold text-navy text-base mb-1">No services found</p>
-                <p className="font-body text-gray-400 text-sm mb-4">Try adjusting your filters</p>
-                <button onClick={() => { setQuery(''); setVisaType('All'); setDestination('All') }}
-                  className="font-heading font-semibold text-sm text-navy border border-navy px-5 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
+                <p className="font-bold text-[#1B3060] mb-1">No services found</p>
+                <p className="text-gray-400 text-sm mb-4">Try adjusting your filters</p>
+                <button onClick={clearAll}
+                  className="text-sm text-[#1B3060] border border-[#1B3060] px-5 py-2 rounded-xl hover:bg-[#1B3060] hover:text-white transition">
                   Clear Filters
                 </button>
               </div>
             )}
 
-            {/* Service Cards — Fiverr Style */}
-            {!loading && !error && filtered.length > 0 && (
-              <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-                {filtered.map((service, i) => {
-                  const isSaved = saved.includes(service.id)
-                  const consultantName = service.consultant?.display_name || service.consultant?.full_name || 'Consultant'
-                  const avatarUrl = service.consultant?.avatar_url
-                    ? `${supabaseUrl}/storage/v1/object/public/avatars/${service.consultant.avatar_url}`
-                    : null
-                  const imageUrl = service.image_url
-                    ? `${supabaseUrl}/storage/v1/object/public/avatars/${service.image_url}`
-                    : null
+            {/* ── Grid ── */}
+            <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
 
-                  return (
-                    <div key={service.id}
-                      className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-[0_8px_30px_rgba(0,0,0,0.1)] hover:-translate-y-1 transition-all duration-300 group flex flex-col">
+              {/* Skeleton */}
+              {loading && Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
 
-                      {/* Service image / gradient banner */}
-                      <div className={`relative h-40 overflow-hidden ${!imageUrl ? `bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]}` : ''}`}>
-                        {imageUrl ? (
-                          <img src={imageUrl} alt={service.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                        ) : (
-                          <div className="absolute inset-0 flex items-end p-4">
-                            <div className="opacity-20">
-                              <div className="absolute top-3 right-4 w-14 h-14 rounded-full border-2 border-white" />
-                              <div className="absolute top-10 right-14 w-8 h-8 rounded-full border border-white" />
-                            </div>
-                            {/* Visa type badge on image */}
-                            <span className="relative font-body text-xs font-semibold text-white bg-white/20 backdrop-blur-sm border border-white/30 px-3 py-1 rounded-full">
-                              {service.visa_type}
-                            </span>
+              {/* Real Cards */}
+              {!loading && !error && filtered.map((service, i) => {
+                const isSaved = saved.includes(service.id)
+                const name = service.consultant?.display_name || service.consultant?.full_name || 'Consultant'
+                const avatarSrc = service.consultant?.avatar_url
+                  ? `${supabaseUrl}/storage/v1/object/public/avatars/${service.consultant.avatar_url}`
+                  : null
+                const imageSrc = service.image_url
+                  ? `${supabaseUrl}/storage/v1/object/public/services/${service.image_url}`
+                  : null
+                const badgeColor = VISA_COLORS[service.visa_type] || '#1B3060'
+
+                return (
+                  <div key={service.id}
+                    className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 transition-all duration-300 group flex flex-col">
+
+                    {/* ── Top Image Area ── */}
+                    <div className="relative h-44 overflow-hidden">
+                      {imageSrc ? (
+                        <img src={imageSrc} alt={service.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      ) : (
+                        <div className="w-full h-full" style={{ background: GRADIENTS[i % GRADIENTS.length] }}>
+                          {/* Subtle pattern */}
+                          <div className="absolute inset-0 opacity-10"
+                            style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
+                        </div>
+                      )}
+
+                      {/* Visa badge — top left */}
+                      <span className="absolute top-3 left-3 text-[11px] font-bold text-white px-2.5 py-1 rounded-full"
+                        style={{ backgroundColor: badgeColor }}>
+                        {service.visa_type}
+                      </span>
+
+                      {/* Heart — top right */}
+                      <button onClick={() => toggleSave(service.id)}
+                        className="absolute top-3 right-3 w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform">
+                        <Heart size={14} className={isSaved ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
+                      </button>
+                    </div>
+
+                    {/* ── Card Body ── */}
+                    <div className="p-4 flex flex-col flex-1">
+
+                      {/* Consultant row */}
+                      <div className="flex items-start gap-2.5 mb-3">
+                        <div className="w-9 h-9 rounded-full overflow-hidden bg-[#1B3060] flex items-center justify-center shrink-0 border-2 border-white shadow-sm">
+                          {avatarSrc ? (
+                            <img src={avatarSrc} alt={name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-white text-xs font-bold">{getInitials(name)}</span>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-sm font-semibold text-gray-800 truncate">{name}</span>
                           </div>
-                        )}
-
-                        {/* Save button */}
-                        <button onClick={() => toggleSave(service.id)}
-                          className="absolute top-3 right-3 w-8 h-8 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/40 transition-colors">
-                          <Heart size={14} className={isSaved ? 'text-red-400 fill-red-400' : 'text-white'} />
-                        </button>
-
-                        {/* Destination flag */}
-                        {service.destination_country && (
-                          <div className="absolute top-3 left-3 font-body text-xs text-white bg-white/20 backdrop-blur-sm border border-white/20 px-2.5 py-1 rounded-full flex items-center gap-1">
-                            <Globe size={10} />
-                            {service.destination_country}
+                          {/* Verification badges */}
+                          <div className="flex items-center gap-1 flex-wrap mt-1">
+                            {service.consultant?.is_verified && (
+                              <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-white bg-green-500 px-1.5 py-0.5 rounded-full">
+                                <BadgeCheck size={9} /> Verified
+                              </span>
+                            )}
+                            {service.consultant?.is_secp_verified && (
+                              <span className="text-[10px] font-semibold text-white bg-blue-500 px-1.5 py-0.5 rounded-full">SECP</span>
+                            )}
+                            {service.consultant?.is_beoe_verified && (
+                              <span className="text-[10px] font-semibold text-white bg-purple-500 px-1.5 py-0.5 rounded-full">BEOE</span>
+                            )}
+                            {service.consultant?.is_fbr_verified && (
+                              <span className="text-[10px] font-semibold text-white bg-orange-500 px-1.5 py-0.5 rounded-full">FBR</span>
+                            )}
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Title */}
+                      <p className="text-sm font-semibold text-gray-800 leading-snug mb-3 line-clamp-2 flex-1 group-hover:text-[#1B3060] transition-colors">
+                        {service.title}
+                      </p>
+
+                      {/* Stars + City */}
+                      <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                        <span className="flex items-center gap-1">
+                          <Star size={11} className="text-[#C9A227] fill-[#C9A227]" />
+                          <span className="font-semibold text-gray-700">4.8</span>
+                          <span className="text-gray-400">(127)</span>
+                        </span>
+                        {service.consultant?.city && (
+                          <span className="flex items-center gap-1">
+                            <MapPin size={10} className="text-gray-400" />
+                            {service.consultant.city}
+                          </span>
                         )}
                       </div>
 
-                      {/* Content */}
-                      <div className="p-5 flex flex-col flex-1">
-
-                        {/* Consultant info */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <div className="w-7 h-7 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
-                            {avatarUrl ? (
-                              <img src={avatarUrl} alt={consultantName} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="font-heading font-bold text-white text-xs">
-                                {getInitials(consultantName)}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-body text-xs text-gray-500 truncate">{consultantName}</span>
-                            {service.consultant?.is_verified && (
-                              <BadgeCheck size={12} className="text-green-500 shrink-0" />
-                            )}
-                            {service.consultant?.city && (
-                              <span className="flex items-center gap-0.5 text-gray-400 text-xs shrink-0">
-                                <MapPin size={9} className="text-gold" />
-                                {service.consultant.city}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Title */}
-                        <h3 className="font-heading font-bold text-navy text-sm leading-snug mb-2 group-hover:text-gold transition-colors duration-200 line-clamp-2 flex-1">
-                          {service.title}
-                        </h3>
-
-                        {/* Description */}
-                        <p className="font-body text-gray-400 text-xs leading-relaxed line-clamp-2 mb-4">
-                          {service.description}
-                        </p>
-
-                        {/* Meta */}
-                        <div className="flex items-center gap-3 text-xs font-body text-gray-400 mb-4 pt-3 border-t border-gray-100">
-                          {service.processing_days > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Clock size={11} className="text-gold" />
-                              {service.processing_days} days
-                            </span>
-                          )}
-                          {(service.consultant?.years_experience ?? 0) > 0 && (
-                            <span className="flex items-center gap-0.5 text-gray-400 text-xs shrink-0">
-  <MapPin size={9} className="text-gold" />
-  {service.consultant?.city}
-</span>
-                          )}
-                        </div>
-
-                        {/* Footer — Price + CTA */}
+                      {/* Divider */}
+                      <div className="border-t border-gray-100 pt-3 mt-auto">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-body text-xs text-gray-400">Starting from</p>
-                            <div className="flex items-baseline gap-1">
-                              <span className="font-body text-xs text-gray-400">PKR</span>
-                              <span className="font-heading font-extrabold text-gold text-lg">
-                                {service.price_min?.toLocaleString()}
-                              </span>
-                            </div>
+                            <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold">Starting at</p>
+                            <p className="text-base font-extrabold text-[#1B3060]">
+                              PKR {service.price_min?.toLocaleString()}
+                            </p>
                           </div>
                           <Link href={`/consultants/${service.consultant_id}`}
-                            className="flex items-center gap-1.5 font-heading font-bold text-xs text-white px-4 py-2.5 rounded-xl transition-all hover:opacity-90 active:scale-95"
-                            style={{ background: 'linear-gradient(135deg, #1B3060 0%, #2a4a8a 100%)' }}>
-                            View Details <ArrowRight size={12} />
+                            className="flex items-center gap-1.5 text-xs font-bold text-[#1B3060] hover:text-white hover:bg-[#1B3060] border border-[#1B3060]/30 hover:border-[#1B3060] px-4 py-2 rounded-xl transition-all duration-200">
+                            View Profile <ArrowRight size={11} />
                           </Link>
                         </div>
                       </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       </div>

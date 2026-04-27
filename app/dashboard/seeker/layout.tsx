@@ -17,6 +17,7 @@ const NAV_ITEMS = [
 { href: '/dashboard/seeker/appointments', label: 'Appointments', icon: CalendarCheck },
   { href: '/dashboard/seeker/messages', label: 'Messages', icon: MessageSquare },
   { href: '/dashboard/seeker/profile', label: 'My Profile', icon: User },
+  { label: 'Settings', href: '/dashboard/seeker/settings', icon: '⚙️' }
 ]
 
 export default function SeekerDashboardLayout({
