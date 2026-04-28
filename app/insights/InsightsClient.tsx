@@ -1,239 +1,254 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Search, Clock, Eye, Star, ChevronRight, Tag } from 'lucide-react'
+import Image from 'next/image'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
-import { createClient } from '@/lib/supabase/client'
-
-const CATEGORIES = ['All', 'Visa Tips', 'Country Guides', 'Immigration News', 'Success Stories', 'Consultant Advice', 'Policy Updates']
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'Visa Tips': 'bg-blue-100 text-blue-700',
-  'Country Guides': 'bg-green-100 text-green-700',
-  'Immigration News': 'bg-red-100 text-red-700',
-  'Success Stories': 'bg-purple-100 text-purple-700',
-  'Consultant Advice': 'bg-orange-100 text-orange-700',
-  'Policy Updates': 'bg-teal-100 text-teal-700',
-}
+import { Search, Clock, Eye, Tag, ChevronRight, BookOpen } from 'lucide-react'
 
 interface Article {
   id: string
   title: string
   slug: string
   excerpt: string
-  cover_image: string | null
+  cover_image_url: string | null
   category: string
   tags: string[]
   author_name: string
   read_time: number
   views: number
   is_featured: boolean
-  published_at: string
   created_at: string
+}
+
+const CATEGORIES = ['All', 'Visa Tips', 'Country Guides', 'Immigration News', 'Success Stories', 'Consultants', 'General']
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Visa Tips': 'bg-blue-100 text-blue-700',
+  'Country Guides': 'bg-green-100 text-green-700',
+  'Immigration News': 'bg-orange-100 text-orange-700',
+  'Success Stories': 'bg-purple-100 text-purple-700',
+  'Consultants': 'bg-teal-100 text-teal-700',
+  'General': 'bg-gray-100 text-gray-700',
 }
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-2xl overflow-hidden border border-gray-100">
-      <div className="h-48 bg-gray-100 animate-pulse" />
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm animate-pulse">
+      <div className="h-48 bg-gray-200" />
       <div className="p-5 space-y-3">
-        <div className="h-3 w-20 bg-gray-100 rounded-full animate-pulse" />
-        <div className="h-5 w-full bg-gray-100 rounded-full animate-pulse" />
-        <div className="h-4 w-3/4 bg-gray-100 rounded-full animate-pulse" />
-        <div className="h-3 w-1/2 bg-gray-100 rounded-full animate-pulse" />
+        <div className="h-4 bg-gray-200 rounded w-1/3" />
+        <div className="h-5 bg-gray-200 rounded w-full" />
+        <div className="h-5 bg-gray-200 rounded w-4/5" />
+        <div className="h-4 bg-gray-200 rounded w-2/3" />
+        <div className="flex gap-2 pt-2">
+          <div className="h-3 bg-gray-200 rounded w-16" />
+          <div className="h-3 bg-gray-200 rounded w-16" />
+        </div>
       </div>
     </div>
   )
 }
 
-export default function InsightsPage() {
+export default function InsightsClient() {
   const [articles, setArticles] = useState<Article[]>([])
+  const [featured, setFeatured] = useState<Article | null>(null)
   const [loading, setLoading] = useState(true)
-  const [category, setCategory] = useState('All')
-  const [search, setSearch] = useState('')
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const [activeCategory, setActiveCategory] = useState('All')
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
+    const supabase = createClient()
     const load = async () => {
-      const supabase = createClient()
+      setLoading(true)
       const { data } = await supabase
         .from('articles')
-        .select('id, title, slug, excerpt, cover_image, category, tags, author_name, read_time, views, is_featured, published_at, created_at')
+        .select('id, title, slug, excerpt, cover_image_url, category, tags, author_name, read_time, views, is_featured, created_at')
         .eq('is_published', true)
         .order('created_at', { ascending: false })
-      setArticles(data || [])
+        .limit(50)
+
+      const all = (data || []) as Article[]
+      const feat = all.find(a => a.is_featured) || null
+      setFeatured(feat)
+      setArticles(all)
       setLoading(false)
     }
     load()
   }, [])
 
-  const featured = articles.find(a => a.is_featured)
   const filtered = articles.filter(a => {
-    const matchCat = category === 'All' || a.category === category
-    const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase()) || a.excerpt?.toLowerCase().includes(search.toLowerCase())
+    const matchCat = activeCategory === 'All' || a.category === activeCategory
+    const matchSearch = searchQuery === '' ||
+      a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      a.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
     return matchCat && matchSearch
   })
-  const regular = filtered.filter(a => !a.is_featured || category !== 'All' || search)
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })
-  const imgSrc = (img: string | null) => img ? `${supabaseUrl}/storage/v1/object/public/articles/${img}` : null
+  const displayArticles = featured
+    ? filtered.filter(a => a.id !== featured.id)
+    : filtered
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Hero */}
-      <div className="bg-[#1B3060] py-14 px-6 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'radial-gradient(circle, #C9A227 1px, transparent 1px)', backgroundSize: '28px 28px' }} />
-        <div className="relative max-w-4xl mx-auto text-center">
-          <span className="inline-block text-xs font-bold text-[#C9A227] uppercase tracking-widest mb-3 bg-[#C9A227]/10 px-3 py-1.5 rounded-full">
+      {/* Page Header */}
+      <section className="bg-[#1B3060] pt-24 pb-12">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <div className="inline-flex items-center gap-2 bg-white/10 text-white/80 text-sm px-4 py-1.5 rounded-full mb-4">
+            <BookOpen size={14} />
+            Expert Visa Guides & Immigration Insights
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-white font-['Plus_Jakarta_Sans'] mb-4">
             VisaGate Insights
-          </span>
-          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-2">
-            Visa Tips, Guides & News
           </h1>
-          <p className="font-urdu text-[#C9A227]/80 text-lg mb-4">ویزا گائیڈز اور تازہ خبریں</p>
-          <p className="text-white/60 text-sm max-w-xl mx-auto mb-7">
-            Expert advice, country guides, and immigration updates from Pakistan trusted visa professionals.
+          <p className="text-white/70 text-lg max-w-xl mx-auto mb-8">
+            Stay informed with expert tips, country guides, and immigration updates curated by our verified consultants.
           </p>
-          <div className="max-w-xl mx-auto flex items-center gap-3 bg-white rounded-2xl px-4 py-3 shadow-xl">
-            <Search size={16} className="text-gray-400 shrink-0" />
+
+          {/* Search Bar */}
+          <div className="relative max-w-lg mx-auto">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search articles, topics..."
-              className="flex-1 text-sm outline-none text-gray-700 placeholder-gray-400"
+              type="text"
+              placeholder="Search articles..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-white text-gray-900 placeholder-gray-400 shadow-lg focus:outline-none focus:ring-2 focus:ring-[#C9A227]"
             />
+          </div>
+        </div>
+      </section>
+
+      {/* Category Tabs */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="flex gap-1 overflow-x-auto py-3 scrollbar-hide">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  activeCategory === cat
+                    ? 'bg-[#1B3060] text-white'
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-10">
 
-        {/* Featured Article */}
-        {!loading && !search && category === 'All' && featured && (
-          <div className="mb-12">
-            <div className="flex items-center gap-2 mb-4">
-              <Star size={14} className="text-[#C9A227] fill-[#C9A227]" />
-              <span className="text-sm font-bold text-[#C9A227] uppercase tracking-wider">Featured Article</span>
-            </div>
-            <Link href={`/insights/${featured.slug}`}
-              className="group flex flex-col lg:flex-row bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)] transition-all duration-300">
-              <div className="lg:w-1/2 h-64 lg:h-auto overflow-hidden bg-[#1B3060]/10">
-                {imgSrc(featured.cover_image) ? (
-                  <img src={imgSrc(featured.cover_image)!} alt={featured.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-blue-800 flex items-center justify-center">
-                    <span className="text-white/20 text-6xl font-black">VG</span>
-                  </div>
-                )}
-              </div>
-              <div className="lg:w-1/2 p-8 flex flex-col justify-center">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${CATEGORY_COLORS[featured.category] || 'bg-gray-100 text-gray-600'}`}>
+        {/* Featured Article Hero */}
+        {!loading && featured && (activeCategory === 'All') && !searchQuery && (
+          <Link href={`/insights/${featured.slug}`} className="block mb-12 group">
+            <div className="relative rounded-3xl overflow-hidden shadow-xl h-80 md:h-[420px] bg-[#1B3060]">
+              {featured.cover_image_url && (
+                <Image src={featured.cover_image_url} alt={featured.title} fill className="object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-8 md:p-10">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="bg-[#C9A227] text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                    Featured
+                  </span>
+                  <span className="bg-white/20 text-white text-xs px-3 py-1 rounded-full">
                     {featured.category}
                   </span>
-                  <span className="text-xs font-bold text-[#C9A227] bg-[#C9A227]/10 px-2 py-0.5 rounded-full">Featured</span>
                 </div>
-                <h2 className="font-heading font-extrabold text-[#1B3060] text-2xl lg:text-3xl leading-tight mb-3 group-hover:text-[#C9A227] transition-colors">
+                <h2 className="text-white text-2xl md:text-4xl font-bold font-['Plus_Jakarta_Sans'] mb-3 leading-tight">
                   {featured.title}
                 </h2>
-                <p className="text-gray-500 text-sm leading-relaxed mb-5 line-clamp-3">{featured.excerpt}</p>
-                <div className="flex items-center gap-4 text-xs text-gray-400 mb-5">
-                  <span className="font-semibold text-gray-600">{featured.author_name}</span>
-                  <span className="flex items-center gap-1"><Clock size={11} /> {featured.read_time} min read</span>
-                  <span className="flex items-center gap-1"><Eye size={11} /> {(featured.views || 0).toLocaleString()} views</span>
+                <p className="text-white/80 text-sm md:text-base line-clamp-2 max-w-2xl mb-4">
+                  {featured.excerpt}
+                </p>
+                <div className="flex items-center gap-4 text-white/70 text-sm">
+                  <span className="flex items-center gap-1"><Clock size={13} />{featured.read_time} min read</span>
+                  <span className="flex items-center gap-1"><Eye size={13} />{featured.views} views</span>
+                  <span>{formatDate(featured.created_at)}</span>
                 </div>
-                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-[#1B3060] group-hover:text-[#C9A227] transition-colors">
-                  Read Article <ChevronRight size={15} />
-                </span>
               </div>
-            </Link>
+            </div>
+          </Link>
+        )}
+
+        {/* Results Count */}
+        {!loading && (
+          <div className="flex items-center justify-between mb-6">
+            <p className="text-gray-500 text-sm">
+              {filtered.length} article{filtered.length !== 1 ? 's' : ''} found
+              {activeCategory !== 'All' && ` in ${activeCategory}`}
+            </p>
           </div>
         )}
 
-        {/* Category Tabs */}
-        <div className="flex gap-2 flex-wrap mb-7">
-          {CATEGORIES.map(cat => (
-            <button key={cat} onClick={() => setCategory(cat)}
-              className={`text-sm font-semibold px-4 py-2 rounded-xl transition-all ${
-                category === cat
-                  ? 'bg-[#1B3060] text-white shadow-sm'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-[#1B3060]/30 hover:text-[#1B3060]'
-              }`}>
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Count */}
-        {!loading && (
-          <p className="text-sm text-gray-400 mb-5">
-            <span className="font-bold text-[#1B3060]">{filtered.length}</span> article{filtered.length !== 1 ? 's' : ''} found
-          </p>
-        )}
-
-        {/* Grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading && Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
-
-          {!loading && regular.map(article => {
-            const src = imgSrc(article.cover_image)
-            return (
-              <Link key={article.id} href={`/insights/${article.slug}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-[0_8px_30px_rgba(0,0,0,0.10)] hover:-translate-y-0.5 transition-all duration-300 flex flex-col">
-                <div className="h-48 overflow-hidden bg-[#1B3060]/10">
-                  {src ? (
-                    <img src={src} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+        {/* Article Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+            : displayArticles.length === 0
+            ? (
+              <div className="col-span-3 text-center py-20">
+                <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500 text-lg">No articles found</p>
+                <p className="text-gray-400 text-sm mt-1">Try a different category or search term</p>
+              </div>
+            )
+            : displayArticles.map(article => (
+              <Link key={article.id} href={`/insights/${article.slug}`} className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 flex flex-col">
+                <div className="relative h-48 bg-[#1B3060]/10 overflow-hidden">
+                  {article.cover_image_url ? (
+                    <Image src={article.cover_image_url} alt={article.title} fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-blue-800 flex items-center justify-center">
-                      <span className="text-white/20 text-4xl font-black">VG</span>
+                    <div className="h-full flex items-center justify-center bg-gradient-to-br from-[#1B3060]/10 to-[#C9A227]/10">
+                      <BookOpen size={40} className="text-[#1B3060]/30" />
                     </div>
                   )}
+                  <span className={`absolute top-3 left-3 text-xs font-semibold px-2.5 py-1 rounded-full ${CATEGORY_COLORS[article.category] || 'bg-gray-100 text-gray-700'}`}>
+                    {article.category}
+                  </span>
                 </div>
+
                 <div className="p-5 flex flex-col flex-1">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${CATEGORY_COLORS[article.category] || 'bg-gray-100 text-gray-500'}`}>
-                      {article.category}
-                    </span>
-                  </div>
-                  <h3 className="font-heading font-bold text-[#1B3060] text-base leading-snug mb-2 line-clamp-2 group-hover:text-[#C9A227] transition-colors flex-1">
+                  <h3 className="font-bold text-[#1B3060] text-base leading-snug mb-2 group-hover:text-[#C9A227] transition-colors line-clamp-2 font-['Plus_Jakarta_Sans']">
                     {article.title}
                   </h3>
-                  <p className="text-gray-500 text-xs leading-relaxed line-clamp-2 mb-4">{article.excerpt}</p>
-                  {Array.isArray(article.tags) && article.tags.length > 0 && (
+                  <p className="text-gray-500 text-sm line-clamp-2 mb-3 flex-1">
+                    {article.excerpt}
+                  </p>
+
+                  {article.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
                       {article.tags.slice(0, 3).map(tag => (
-                        <span key={tag} className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{tag}</span>
+                        <span key={tag} className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                          <Tag size={9} />{tag}
+                        </span>
                       ))}
                     </div>
                   )}
-                  <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-semibold text-gray-600">{article.author_name}</p>
-                      <p className="text-[10px] text-gray-400">{formatDate(article.published_at || article.created_at)}</p>
+
+                  <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1"><Clock size={11} />{article.read_time} min</span>
+                      <span className="flex items-center gap-1"><Eye size={11} />{article.views}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                      <span className="flex items-center gap-0.5"><Clock size={10} /> {article.read_time || 1}m</span>
-                      <span className="flex items-center gap-0.5"><Eye size={10} /> {(article.views || 0).toLocaleString()}</span>
-                    </div>
+                    <span className="text-[#C9A227] font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
+                      Read <ChevronRight size={12} />
+                    </span>
                   </div>
                 </div>
               </Link>
-            )
-          })}
-
-          {!loading && filtered.length === 0 && (
-            <div className="col-span-3 text-center py-16">
-              <Search size={36} className="text-gray-200 mx-auto mb-3" />
-              <p className="font-bold text-gray-600">No articles found</p>
-              <p className="text-gray-400 text-sm mt-1">Try a different category or search term</p>
-            </div>
-          )}
+            ))
+          }
         </div>
       </div>
 

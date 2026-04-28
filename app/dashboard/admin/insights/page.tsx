@@ -1,360 +1,266 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import Link from 'next/link'
+import Image from 'next/image'
 import {
-  PenSquare, Trash2, Eye, EyeOff, Star, StarOff,
-  MessageSquare, Search, Plus, BarChart2, FileText,
-  CheckCircle, XCircle, AlertTriangle
+  Plus, Eye, Edit, Trash2, Star, StarOff, Globe, EyeOff,
+  MessageSquare, CheckCircle, XCircle, BarChart2, FileText,
+  Send, BookOpen, AlertCircle
 } from 'lucide-react'
-
-const CATEGORIES = ['Visa Tips', 'Country Guides', 'Immigration News', 'Success Stories', 'Consultant Advice', 'Policy Updates']
 
 interface Article {
   id: string
   title: string
   slug: string
+  cover_image_url: string | null
   category: string
-  cover_image: string | null
   is_published: boolean
   is_featured: boolean
   views: number
   created_at: string
-  updated_at: string | null
-  comment_count?: number
+  author_name: string
 }
 
 interface Comment {
   id: string
-  article_id: string
-  commenter_name: string
-  commenter_city: string
   content: string
   is_approved: boolean
   created_at: string
-  article_title?: string
+  article_id: string
+  user_id: string
+  profiles: { display_name: string } | null
+  articles: { title: string } | null
 }
 
-interface Stats {
-  total: number
-  published: number
-  drafts: number
-  totalViews: number
-  pendingComments: number
-}
+type Tab = 'articles' | 'comments'
 
 export default function AdminInsightsPage() {
-  const router = useRouter()
-  const supabase = createClient()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-
-  const [tab, setTab] = useState<'articles' | 'comments'>('articles')
   const [articles, setArticles] = useState<Article[]>([])
   const [comments, setComments] = useState<Comment[]>([])
-  const [stats, setStats] = useState<Stats>({ total: 0, published: 0, drafts: 0, totalViews: 0, pendingComments: 0 })
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [catFilter, setCatFilter] = useState('All')
-  const [deleteModal, setDeleteModal] = useState<string | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null)
+  const [activeTab, setActiveTab] = useState<Tab>('articles')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const showToast = (msg: string, ok = true) => {
-    setToast({ msg, ok })
-    setTimeout(() => setToast(null), 3000)
-  }
+  const supabase = createClient()
 
-  useEffect(() => {
-    const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
-      const { data: profile } = await supabase.from('profiles').select('role').eq('user_id', session.user.id).single()
-      if (profile?.role !== 'admin') { router.push('/login'); return }
-      await loadData()
-    }
-    check()
-  }, [])
+  useEffect(() => { loadAll() }, [])
 
-  const loadData = async () => {
+  const loadAll = async () => {
     setLoading(true)
-    const { data: arts } = await supabase
-      .from('articles')
-      .select('id, title, slug, category, cover_image, is_published, is_featured, views, created_at, updated_at')
-      .order('created_at', { ascending: false })
-
-    const { data: comms } = await supabase
-      .from('article_comments')
-      .select('id, article_id, commenter_name, commenter_city, content, is_approved, created_at')
-      .order('created_at', { ascending: false })
-
-    const { data: artTitles } = await supabase.from('articles').select('id, title')
-
-    const titleMap: Record<string, string> = {}
-    artTitles?.forEach(a => { titleMap[a.id] = a.title })
-
-    const enrichedComments = (comms || []).map(c => ({ ...c, article_title: titleMap[c.article_id] || 'Unknown' }))
-    const enrichedArticles = (arts || []).map(a => ({
-      ...a,
-      comment_count: (comms || []).filter(c => c.article_id === a.id).length
-    }))
-
-    const totalViews = (arts || []).reduce((sum, a) => sum + (a.views || 0), 0)
-    const pendingComments = (comms || []).filter(c => !c.is_approved).length
-
-    setArticles(enrichedArticles)
-    setComments(enrichedComments)
-    setStats({
-      total: arts?.length || 0,
-      published: arts?.filter(a => a.is_published).length || 0,
-      drafts: arts?.filter(a => !a.is_published).length || 0,
-      totalViews,
-      pendingComments,
-    })
+    const [{ data: arts }, { data: comms }] = await Promise.all([
+      supabase.from('articles').select('id, title, slug, cover_image_url, category, is_published, is_featured, views, created_at, author_name').order('created_at', { ascending: false }),
+      supabase.from('article_comments').select('id, content, is_approved, created_at, article_id, user_id, profiles(display_name), articles(title)').order('created_at', { ascending: false })
+    ])
+    setArticles((arts || []) as Article[])
+    setComments((comms || []) as unknown as Comment[])
     setLoading(false)
   }
 
   const togglePublish = async (id: string, current: boolean) => {
-    const { error } = await supabase.from('articles')
-      .update({ is_published: !current, published_at: !current ? new Date().toISOString() : null })
-      .eq('id', id)
-    if (!error) {
-      setArticles(prev => prev.map(a => a.id === id ? { ...a, is_published: !current } : a))
-      setStats(prev => ({
-        ...prev,
-        published: prev.published + (!current ? 1 : -1),
-        drafts: prev.drafts + (!current ? -1 : 1),
-      }))
-      showToast(!current ? 'Article published' : 'Moved to draft')
-    }
+    setActionLoading(id + '_pub')
+    await supabase.from('articles').update({ is_published: !current }).eq('id', id)
+    setArticles(prev => prev.map(a => a.id === id ? { ...a, is_published: !current } : a))
+    setActionLoading(null)
   }
 
   const toggleFeatured = async (id: string, current: boolean) => {
-    const { error } = await supabase.from('articles').update({ is_featured: !current }).eq('id', id)
-    if (!error) {
-      setArticles(prev => prev.map(a => a.id === id ? { ...a, is_featured: !current } : a))
-      showToast(!current ? 'Marked as featured' : 'Removed from featured')
-    }
+    setActionLoading(id + '_feat')
+    // Only one featured at a time
+    if (!current) await supabase.from('articles').update({ is_featured: false }).neq('id', id)
+    await supabase.from('articles').update({ is_featured: !current }).eq('id', id)
+    setArticles(prev => prev.map(a => a.id === id ? { ...a, is_featured: !current } : { ...a, is_featured: current ? false : a.is_featured }))
+    setActionLoading(null)
   }
 
   const deleteArticle = async (id: string) => {
-    setDeleting(true)
-    const { error } = await supabase.from('articles').delete().eq('id', id)
-    if (!error) {
-      setArticles(prev => prev.filter(a => a.id !== id))
-      setStats(prev => ({ ...prev, total: prev.total - 1 }))
-      showToast('Article deleted')
-    }
-    setDeleteModal(null)
-    setDeleting(false)
+    await supabase.from('articles').delete().eq('id', id)
+    setArticles(prev => prev.filter(a => a.id !== id))
+    setDeleteId(null)
   }
 
-  const toggleApproveComment = async (id: string, current: boolean) => {
-    const { error } = await supabase.from('article_comments').update({ is_approved: !current }).eq('id', id)
-    if (!error) {
-      setComments(prev => prev.map(c => c.id === id ? { ...c, is_approved: !current } : c))
-      showToast(!current ? 'Comment approved' : 'Comment hidden')
-    }
-  }
-
-  const deleteComment = async (id: string) => {
-    const { error } = await supabase.from('article_comments').delete().eq('id', id)
-    if (!error) {
+  const updateComment = async (id: string, action: 'approve' | 'hide' | 'delete') => {
+    setActionLoading(id)
+    if (action === 'delete') {
+      await supabase.from('article_comments').delete().eq('id', id)
       setComments(prev => prev.filter(c => c.id !== id))
-      showToast('Comment deleted')
+    } else {
+      const val = action === 'approve' ? true : false
+      await supabase.from('article_comments').update({ is_approved: val }).eq('id', id)
+      setComments(prev => prev.map(c => c.id === id ? { ...c, is_approved: val } : c))
     }
+    setActionLoading(null)
   }
 
-  const filteredArticles = articles.filter(a => {
-    const matchSearch = !search || a.title.toLowerCase().includes(search.toLowerCase())
-    const matchCat = catFilter === 'All' || a.category === catFilter
-    return matchSearch && matchCat
-  })
+  const stats = {
+    total: articles.length,
+    published: articles.filter(a => a.is_published).length,
+    drafts: articles.filter(a => !a.is_published).length,
+    totalViews: articles.reduce((sum, a) => sum + (a.views || 0), 0),
+    pendingComments: comments.filter(c => !c.is_approved).length,
+  }
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' })
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA] p-6">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-semibold text-white transition-all ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
-          {toast.ok ? <CheckCircle size={16} /> : <XCircle size={16} />}
-          {toast.msg}
-        </div>
-      )}
-
-      {/* Delete Modal */}
-      {deleteModal && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-          <div className="bg-white rounded-2xl p-7 max-w-sm w-full shadow-2xl">
-            <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mb-4 mx-auto">
-              <AlertTriangle size={22} className="text-red-600" />
-            </div>
-            <h3 className="font-bold text-gray-800 text-lg text-center mb-2">Delete Article?</h3>
-            <p className="text-gray-500 text-sm text-center mb-6">This will permanently delete the article and all its comments. This cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteModal(null)} className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition text-sm">Cancel</button>
-              <button onClick={() => deleteArticle(deleteModal)} disabled={deleting} className="flex-1 bg-red-600 text-white font-semibold py-2.5 rounded-xl hover:bg-red-700 transition text-sm disabled:opacity-50">
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+    <div className="p-6 max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between mb-7">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-extrabold text-[#1B3060]" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>Insights Manager</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Create, manage and moderate your blog content</p>
+          <h1 className="text-2xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans']">Insights Manager</h1>
+          <p className="text-gray-500 text-sm mt-1">Manage articles and moderate comments</p>
         </div>
-        <Link href="/dashboard/admin/insights/editor"
-          className="flex items-center gap-2 bg-[#1B3060] text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-[#162550] transition shadow-sm">
+        <Link
+          href="/dashboard/admin/insights/editor"
+          className="flex items-center gap-2 bg-[#C9A227] text-white px-4 py-2.5 rounded-xl hover:bg-[#b8911f] transition-colors text-sm font-semibold"
+        >
           <Plus size={16} /> New Article
         </Link>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-7">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         {[
-          { label: 'Total Articles', value: stats.total, icon: FileText, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { label: 'Published', value: stats.published, icon: Eye, color: 'text-green-600', bg: 'bg-green-50' },
-          { label: 'Drafts', value: stats.drafts, icon: EyeOff, color: 'text-gray-500', bg: 'bg-gray-100' },
-          { label: 'Total Views', value: stats.totalViews.toLocaleString(), icon: BarChart2, color: 'text-purple-600', bg: 'bg-purple-50' },
-          { label: 'Pending Comments', value: stats.pendingComments, icon: MessageSquare, color: 'text-orange-600', bg: 'bg-orange-50' },
-        ].map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center mb-3`}>
-              <Icon size={16} className={color} />
+          { label: 'Total Articles', value: stats.total, icon: FileText, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Published', value: stats.published, icon: Globe, color: 'text-green-600 bg-green-50' },
+          { label: 'Drafts', value: stats.drafts, icon: EyeOff, color: 'text-gray-600 bg-gray-100' },
+          { label: 'Total Views', value: stats.totalViews.toLocaleString(), icon: BarChart2, color: 'text-purple-600 bg-purple-50' },
+          { label: 'Pending Comments', value: stats.pendingComments, icon: MessageSquare, color: stats.pendingComments > 0 ? 'text-orange-600 bg-orange-50' : 'text-gray-500 bg-gray-100' },
+        ].map(stat => (
+          <div key={stat.label} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${stat.color}`}>
+              <stat.icon size={18} />
             </div>
-            <p className="text-2xl font-extrabold text-[#1B3060]">{value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+            <div className="text-2xl font-bold text-[#1B3060]">{stat.value}</div>
+            <div className="text-xs text-gray-500">{stat.label}</div>
           </div>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-white rounded-2xl p-1 border border-gray-100 shadow-sm inline-flex mb-6">
-        {(['articles', 'comments'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${tab === t ? 'bg-[#1B3060] text-white' : 'text-gray-500 hover:text-[#1B3060]'}`}>
-            {t} {t === 'comments' && stats.pendingComments > 0 && (
-              <span className="ml-1.5 bg-orange-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">{stats.pendingComments}</span>
+      <div className="flex gap-2 mb-5">
+        {(['articles', 'comments'] as Tab[]).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-5 py-2 rounded-lg text-sm font-medium capitalize transition-all ${activeTab === tab ? 'bg-[#1B3060] text-white' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+          >
+            {tab}
+            {tab === 'comments' && stats.pendingComments > 0 && (
+              <span className="ml-2 bg-orange-500 text-white text-xs px-1.5 py-0.5 rounded-full">{stats.pendingComments}</span>
             )}
           </button>
         ))}
       </div>
 
-      {/* Articles Tab */}
-      {tab === 'articles' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3 p-4 border-b border-gray-100">
-            <div className="flex-1 min-w-48 flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2">
-              <Search size={14} className="text-gray-400" />
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search articles..." className="flex-1 text-sm outline-none text-gray-700 placeholder-gray-400" />
-            </div>
-            <select value={catFilter} onChange={e => setCatFilter(e.target.value)}
-              className="border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 outline-none bg-white">
-              <option value="All">All Categories</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-
+      {/* Articles Table */}
+      {activeTab === 'articles' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="w-8 h-8 border-4 border-[#1B3060]/20 border-t-[#1B3060] rounded-full animate-spin" />
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+              ))}
             </div>
-          ) : filteredArticles.length === 0 ? (
-            <div className="text-center py-16">
-              <FileText size={36} className="text-gray-200 mx-auto mb-3" />
-              <p className="font-bold text-gray-600">No articles found</p>
-              <p className="text-gray-400 text-sm mt-1">Create your first article to get started</p>
+          ) : articles.length === 0 ? (
+            <div className="p-16 text-center">
+              <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-gray-500">No articles yet.</p>
+              <Link href="/dashboard/admin/insights/editor" className="text-[#C9A227] text-sm font-medium hover:underline mt-1 inline-block">Create your first article →</Link>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead>
-                  <tr className="bg-gray-50 text-left">
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Article</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Category</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Views</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Comments</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Date</th>
-                    <th className="px-4 py-3 text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                <thead className="bg-gray-50 border-b border-gray-100">
+                  <tr>
+                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Article</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Category</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Featured</th>
+                    <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Views</th>
+                    <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                    <th className="text-right px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {filteredArticles.map(article => {
-                    const imgSrc = article.cover_image ? `${supabaseUrl}/storage/v1/object/public/articles/${article.cover_image}` : null
-                    return (
-                      <tr key={article.id} className="hover:bg-gray-50/50 transition-colors">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-9 rounded-lg overflow-hidden bg-[#1B3060]/10 shrink-0">
-                              {imgSrc ? <img src={imgSrc} alt="" className="w-full h-full object-cover" /> : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <FileText size={14} className="text-[#1B3060]/30" />
-                                </div>
-                              )}
-                            </div>
-                            <div>
-                              <p className="text-sm font-semibold text-gray-800 line-clamp-1 max-w-48">{article.title}</p>
-                              <p className="text-xs text-gray-400 mt-0.5">/{article.slug}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs font-semibold text-[#1B3060] bg-[#1B3060]/10 px-2.5 py-1 rounded-full">
-                            {article.category || 'Uncategorized'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1.5">
-                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${article.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                              {article.is_published ? 'Published' : 'Draft'}
-                            </span>
-                            {article.is_featured && (
-                              <span className="text-xs font-bold px-2 py-1 rounded-full bg-[#C9A227]/15 text-[#C9A227]">Featured</span>
+                  {articles.map(article => (
+                    <tr key={article.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="relative w-12 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                            {article.cover_image_url ? (
+                              <Image src={article.cover_image_url} alt="" fill className="object-cover" />
+                            ) : (
+                              <div className="h-full flex items-center justify-center"><BookOpen size={14} className="text-gray-400" /></div>
                             )}
                           </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm font-semibold text-gray-700">{(article.views || 0).toLocaleString()}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-sm text-gray-500">{article.comment_count || 0}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <span className="text-xs text-gray-400">{formatDate(article.created_at)}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-1">
-                            <Link href={`/dashboard/admin/insights/editor?id=${article.id}`}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-50 text-blue-500 transition" title="Edit">
-                              <PenSquare size={14} />
-                            </Link>
-                            <button onClick={() => togglePublish(article.id, article.is_published)}
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition ${article.is_published ? 'hover:bg-orange-50 text-orange-500' : 'hover:bg-green-50 text-green-500'}`}
-                              title={article.is_published ? 'Unpublish' : 'Publish'}>
-                              {article.is_published ? <EyeOff size={14} /> : <Eye size={14} />}
-                            </button>
-                            <button onClick={() => toggleFeatured(article.id, article.is_featured)}
-                              className={`w-8 h-8 flex items-center justify-center rounded-lg transition ${article.is_featured ? 'hover:bg-yellow-50 text-[#C9A227]' : 'hover:bg-gray-100 text-gray-400'}`}
-                              title={article.is_featured ? 'Remove featured' : 'Mark featured'}>
-                              {article.is_featured ? <Star size={14} className="fill-[#C9A227]" /> : <StarOff size={14} />}
-                            </button>
-                            <button onClick={() => setDeleteModal(article.id)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500 transition" title="Delete">
-                              <Trash2 size={14} />
-                            </button>
+                          <div>
+                            <p className="text-sm font-semibold text-[#1B3060] line-clamp-1">{article.title}</p>
+                            <p className="text-xs text-gray-400">by {article.author_name}</p>
                           </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full">{article.category}</span>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => togglePublish(article.id, article.is_published)}
+                          disabled={actionLoading === article.id + '_pub'}
+                          className={`text-xs px-3 py-1 rounded-full font-medium transition-all ${article.is_published ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                        >
+                          {article.is_published ? '● Published' : '○ Draft'}
+                        </button>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <button
+                          onClick={() => toggleFeatured(article.id, article.is_featured)}
+                          disabled={actionLoading === article.id + '_feat'}
+                          className="transition-colors"
+                          title={article.is_featured ? 'Remove featured' : 'Set as featured'}
+                        >
+                          {article.is_featured
+                            ? <Star size={17} className="text-[#C9A227] fill-[#C9A227]" />
+                            : <StarOff size={17} className="text-gray-300 hover:text-[#C9A227]" />
+                          }
+                        </button>
+                      </td>
+                      <td className="px-4 py-4 text-center">
+                        <span className="flex items-center justify-center gap-1 text-sm text-gray-600">
+                          <Eye size={13} className="text-gray-400" />{article.views || 0}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 text-xs text-gray-400">{formatDate(article.created_at)}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/dashboard/admin/insights/editor?id=${article.id}`}
+                            className="p-2 text-gray-500 hover:text-[#1B3060] hover:bg-gray-100 rounded-lg transition-all"
+                            title="Edit"
+                          >
+                            <Edit size={15} />
+                          </Link>
+                          <Link
+                            href={`/insights/${article.slug}`}
+                            target="_blank"
+                            className="p-2 text-gray-500 hover:text-[#1B3060] hover:bg-gray-100 rounded-lg transition-all"
+                            title="View public"
+                          >
+                            <Eye size={15} />
+                          </Link>
+                          <button
+                            onClick={() => setDeleteId(article.id)}
+                            className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -363,38 +269,61 @@ export default function AdminInsightsPage() {
       )}
 
       {/* Comments Tab */}
-      {tab === 'comments' && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-          {comments.length === 0 ? (
-            <div className="text-center py-16">
-              <MessageSquare size={36} className="text-gray-200 mx-auto mb-3" />
-              <p className="font-bold text-gray-600">No comments yet</p>
+      {activeTab === 'comments' && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          {loading ? (
+            <div className="p-6 space-y-4">
+              {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="p-16 text-center">
+              <MessageSquare size={40} className="mx-auto text-gray-300 mb-3" />
+              <p className="text-gray-500">No comments yet.</p>
             </div>
           ) : (
             <div className="divide-y divide-gray-50">
               {comments.map(comment => (
-                <div key={comment.id} className={`p-4 ${!comment.is_approved ? 'bg-orange-50/40' : ''}`}>
+                <div key={comment.id} className={`p-5 hover:bg-gray-50 transition-colors ${!comment.is_approved ? 'border-l-4 border-orange-400' : ''}`}>
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm font-semibold text-gray-800">{comment.commenter_name}</span>
-                        {comment.commenter_city && <span className="text-xs text-gray-400">{comment.commenter_city}</span>}
-                        {!comment.is_approved && (
-                          <span className="text-[10px] font-bold bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">Pending</span>
-                        )}
+                        <span className="text-sm font-semibold text-[#1B3060]">{comment.profiles?.display_name || 'User'}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${comment.is_approved ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                          {comment.is_approved ? 'Approved' : 'Pending'}
+                        </span>
+                        <span className="text-xs text-gray-400">{formatDate(comment.created_at)}</span>
                       </div>
-                      <p className="text-sm text-gray-600 mb-1">{comment.content}</p>
-                      <p className="text-xs text-gray-400">On: <span className="font-medium text-[#1B3060]">{comment.article_title}</span> · {formatDate(comment.created_at)}</p>
+                      <p className="text-sm text-gray-700 mb-1">{comment.content}</p>
+                      <p className="text-xs text-gray-400 flex items-center gap-1">
+                        <BookOpen size={10} />
+                        On: {(comment.articles as any)?.title || 'Unknown article'}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => toggleApproveComment(comment.id, comment.is_approved)}
-                        className={`w-8 h-8 flex items-center justify-center rounded-lg transition ${comment.is_approved ? 'hover:bg-orange-50 text-orange-500' : 'hover:bg-green-50 text-green-500'}`}
-                        title={comment.is_approved ? 'Hide' : 'Approve'}>
-                        {comment.is_approved ? <XCircle size={14} /> : <CheckCircle size={14} />}
-                      </button>
-                      <button onClick={() => deleteComment(comment.id)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 transition" title="Delete">
-                        <Trash2 size={14} />
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!comment.is_approved && (
+                        <button
+                          onClick={() => updateComment(comment.id, 'approve')}
+                          disabled={actionLoading === comment.id}
+                          className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-200 transition-colors font-medium"
+                        >
+                          <CheckCircle size={13} /> Approve
+                        </button>
+                      )}
+                      {comment.is_approved && (
+                        <button
+                          onClick={() => updateComment(comment.id, 'hide')}
+                          disabled={actionLoading === comment.id}
+                          className="flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                        >
+                          <EyeOff size={13} /> Hide
+                        </button>
+                      )}
+                      <button
+                        onClick={() => updateComment(comment.id, 'delete')}
+                        disabled={actionLoading === comment.id}
+                        className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium"
+                      >
+                        <Trash2 size={13} /> Delete
                       </button>
                     </div>
                   </div>
@@ -402,6 +331,27 @@ export default function AdminInsightsPage() {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-[#1B3060]">Delete Article?</h3>
+                <p className="text-gray-500 text-sm">This action cannot be undone.</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteId(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button onClick={() => deleteArticle(deleteId)} className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-medium hover:bg-red-600">Delete</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

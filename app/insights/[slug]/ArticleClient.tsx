@@ -1,434 +1,392 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Clock, Eye, ArrowLeft, Tag, Share2, MessageSquare, Send, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
-import { createClient } from '@/lib/supabase/client'
-
-const CATEGORY_COLORS: Record<string, string> = {
-  'Visa Tips': 'bg-blue-100 text-blue-700',
-  'Country Guides': 'bg-green-100 text-green-700',
-  'Immigration News': 'bg-red-100 text-red-700',
-  'Success Stories': 'bg-purple-100 text-purple-700',
-  'Consultant Advice': 'bg-orange-100 text-orange-700',
-  'Policy Updates': 'bg-teal-100 text-teal-700',
-}
+import {
+  Clock, Eye, Tag, ArrowLeft, Share2, MessageSquare,
+  ChevronRight, User, Send, CheckCircle, AlertCircle
+} from 'lucide-react'
 
 interface Article {
   id: string
   title: string
   slug: string
-  excerpt: string
   content: string
-  cover_image: string | null
+  excerpt: string
+  cover_image_url: string | null
   category: string
   tags: string[]
   author_name: string
-  author_avatar: string | null
   read_time: number
   views: number
-  is_featured: boolean
-  published_at: string
   created_at: string
+  updated_at: string
 }
 
 interface Comment {
   id: string
-  commenter_name: string
-  commenter_city: string
   content: string
   created_at: string
+  user_id: string
+  profiles: { display_name: string; avatar_url: string | null } | null
 }
 
 interface RelatedArticle {
   id: string
   title: string
   slug: string
-  cover_image: string | null
+  cover_image_url: string | null
   category: string
   read_time: number
-  created_at: string
 }
 
-function renderMarkdown(text: string): string {
-  return text
-    .replace(/^### (.+)$/gm, '<h3 style="font-size:1.1rem;font-weight:700;color:#1B3060;margin:1.5rem 0 0.5rem">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 style="font-size:1.35rem;font-weight:800;color:#1B3060;margin:2rem 0 0.75rem">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 style="font-size:1.6rem;font-weight:800;color:#1B3060;margin:2rem 0 0.75rem">$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:700;color:#111827">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code style="background:#F3F4F6;color:#1B3060;padding:2px 6px;border-radius:4px;font-size:0.85em;font-family:monospace">$1</code>')
-    .replace(/^> (.+)$/gm, '<blockquote style="border-left:4px solid #C9A227;padding:0.75rem 1rem;margin:1.5rem 0;background:#FFFBEB;color:#6B7280;font-style:italic;border-radius:0 8px 8px 0">$1</blockquote>')
-    .replace(/^- (.+)$/gm, '<li style="margin:0.35rem 0;padding-left:0.5rem;color:#374151">$1</li>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#1B3060;text-decoration:underline;font-weight:500" target="_blank">$1</a>')
-    .replace(/(<li.*<\/li>\n?)+/g, '<ul style="list-style:disc;padding-left:1.5rem;margin:1rem 0">$&</ul>')
-    .replace(/\n\n/g, '</p><p style="color:#374151;line-height:1.85;margin-bottom:1.25rem">')
-    .replace(/\n/g, '<br/>')
+// Simple markdown renderer
+function renderMarkdown(content: string): string {
+  return content
+    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold text-[#1B3060] mt-8 mb-3 font-[\'Plus_Jakarta_Sans\']">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 id="$1" class="text-2xl font-bold text-[#1B3060] mt-10 mb-4 font-[\'Plus_Jakarta_Sans\'] scroll-mt-20">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-[#1B3060] mt-10 mb-4 font-[\'Plus_Jakarta_Sans\']">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-[#1B3060]">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
+    .replace(/`(.+?)`/g, '<code class="bg-gray-100 text-[#1B3060] px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
+    .replace(/^\> (.+)$/gm, '<blockquote class="border-l-4 border-[#C9A227] pl-4 py-1 my-4 text-gray-600 italic bg-amber-50 rounded-r-lg">$1</blockquote>')
+    .replace(/^\- (.+)$/gm, '<li class="flex items-start gap-2 mb-1"><span class="text-[#C9A227] mt-1.5 flex-shrink-0">•</span><span>$1</span></li>')
+    .replace(/(<li.*<\/li>\n?)+/g, '<ul class="my-4 space-y-1">$&</ul>')
+    .replace(/^\d+\. (.+)$/gm, '<li class="mb-1 ml-4 list-decimal">$1</li>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-[#1B3060] font-medium underline hover:text-[#C9A227]" target="_blank">$1</a>')
+    .replace(/\n\n/g, '</p><p class="text-gray-700 leading-relaxed mb-4">')
+    .replace(/^(?!<[h|u|b|l|a])/gm, '')
 }
 
-export default function ArticleDetailPage() {
+function extractHeadings(content: string): { id: string; text: string }[] {
+  const matches = [...content.matchAll(/^## (.+)$/gm)]
+  return matches.map(m => ({ id: m[1], text: m[1] }))
+}
+
+export default function ArticleClient() {
   const params = useParams()
-  const router = useRouter()
-  const slug = params.slug as string
-  const supabase = createClient()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+  const slug = params?.slug as string
 
   const [article, setArticle] = useState<Article | null>(null)
-  const [comments, setComments] = useState<Comment[]>([])
   const [related, setRelated] = useState<RelatedArticle[]>([])
+  const [comments, setComments] = useState<Comment[]>([])
   const [loading, setLoading] = useState(true)
-  const [commentForm, setCommentForm] = useState({ name: '', city: '', content: '' })
+  const [commentText, setCommentText] = useState('')
   const [submitting, setSubmitting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [commentStatus, setCommentStatus] = useState<'idle' | 'success' | 'error' | 'login'>('idle')
   const [session, setSession] = useState<any>(null)
 
   useEffect(() => {
-    const load = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setSession(session)
+    if (!slug) return
+    const supabase = createClient()
+
+    const init = async () => {
+      const { data: { session: s } } = await supabase.auth.getSession()
+      setSession(s)
 
       const { data: art } = await supabase
         .from('articles')
         .select('*')
         .eq('slug', slug)
         .eq('is_published', true)
-        .single()
+        .maybeSingle()
 
-      if (!art) { router.push('/insights'); return }
-      setArticle(art)
+      if (!art) { setLoading(false); return }
+      setArticle(art as Article)
 
       // Increment view count
       await supabase.from('articles').update({ views: (art.views || 0) + 1 }).eq('id', art.id)
 
-      // Load approved comments
-      const { data: comms } = await supabase
-        .from('article_comments')
-        .select('id, commenter_name, commenter_city, content, created_at')
-        .eq('article_id', art.id)
-        .eq('is_approved', true)
-        .order('created_at', { ascending: false })
-      setComments(comms || [])
-
-      // Load related articles
+      // Related articles (same category)
       const { data: rel } = await supabase
         .from('articles')
-        .select('id, title, slug, cover_image, category, read_time, created_at')
+        .select('id, title, slug, cover_image_url, category, read_time')
         .eq('is_published', true)
         .eq('category', art.category)
         .neq('id', art.id)
         .limit(3)
-      setRelated(rel || [])
+      setRelated((rel || []) as RelatedArticle[])
+
+      // Comments (approved only)
+      const { data: comms } = await supabase
+        .from('article_comments')
+        .select('id, content, created_at, user_id, profiles(display_name, avatar_url)')
+        .eq('article_id', art.id)
+        .eq('is_approved', true)
+        .order('created_at', { ascending: true })
+      setComments((comms || []) as unknown as Comment[])
 
       setLoading(false)
     }
-    load()
+    init()
   }, [slug])
 
   const handleComment = async () => {
-    if (!commentForm.name.trim() || !commentForm.content.trim()) return
-    if (!session) return
+    if (!session) { setCommentStatus('login'); return }
+    if (!commentText.trim() || !article) return
     setSubmitting(true)
+    const supabase = createClient()
     const { error } = await supabase.from('article_comments').insert({
-      article_id: article!.id,
+      article_id: article.id,
       user_id: session.user.id,
-      commenter_name: commentForm.name.trim(),
-      commenter_city: commentForm.city.trim(),
-      content: commentForm.content.trim(),
-      is_approved: true,
+      content: commentText.trim(),
+      is_approved: false,
     })
-    if (!error) {
-      setSubmitted(true)
-      setCommentForm({ name: '', city: '', content: '' })
-      const { data: comms } = await supabase
-        .from('article_comments')
-        .select('id, commenter_name, commenter_city, content, created_at')
-        .eq('article_id', article!.id)
-        .eq('is_approved', true)
-        .order('created_at', { ascending: false })
-      setComments(comms || [])
-    }
     setSubmitting(false)
+    if (error) { setCommentStatus('error') }
+    else { setCommentStatus('success'); setCommentText('') }
   }
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'long', year: 'numeric' })
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({ title: article?.title, url: window.location.href })
+    } else {
+      navigator.clipboard.writeText(window.location.href)
+      alert('Link copied!')
+    }
+  }
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { year: 'numeric', month: 'long', day: 'numeric' })
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F6FA]">
+      <div className="min-h-screen bg-gray-50">
         <Navbar />
-        <div className="max-w-3xl mx-auto px-4 py-12 animate-pulse space-y-4">
-          <div className="h-4 w-32 bg-gray-200 rounded-full" />
-          <div className="h-8 w-full bg-gray-200 rounded-full" />
-          <div className="h-6 w-2/3 bg-gray-200 rounded-full" />
-          <div className="h-64 bg-gray-200 rounded-2xl" />
-          <div className="space-y-3">
-            {Array.from({ length: 8 }).map((_, i) => <div key={i} className={`h-4 bg-gray-100 rounded-full ${i % 3 === 0 ? 'w-3/4' : 'w-full'}`} />)}
+        <div className="max-w-4xl mx-auto px-4 pt-28 pb-10 animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-2/3 mb-4" />
+          <div className="h-64 bg-gray-200 rounded-2xl mb-8" />
+          <div className="space-y-4">
+            {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-4 bg-gray-200 rounded" style={{ width: `${70 + Math.random() * 30}%` }} />)}
           </div>
         </div>
+        <Footer />
       </div>
     )
   }
 
-  if (!article) return null
+  if (!article) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-4 pt-32 pb-10 text-center">
+          <h1 className="text-2xl font-bold text-gray-700 mb-4">Article Not Found</h1>
+          <Link href="/insights" className="text-[#1B3060] hover:underline flex items-center justify-center gap-2">
+            <ArrowLeft size={16} /> Back to Insights
+          </Link>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
 
-  const coverSrc = article.cover_image ? `${supabaseUrl}/storage/v1/object/public/articles/${article.cover_image}` : null
+  const headings = extractHeadings(article.content || '')
+  const renderedContent = `<p class="text-gray-700 leading-relaxed mb-4">${renderMarkdown(article.content || '')}</p>`
 
   return (
-    <div className="min-h-screen bg-[#F5F6FA]">
+    <div className="min-h-screen bg-gray-50">
       <Navbar />
 
       {/* Cover Image */}
-      {coverSrc && (
-        <div className="w-full h-72 lg:h-96 overflow-hidden">
-          <img src={coverSrc} alt={article.title} className="w-full h-full object-cover" />
-        </div>
-      )}
-
-      <div className="max-w-6xl mx-auto px-4 py-10 flex flex-col lg:flex-row gap-10">
-
-        {/* Article */}
-        <article className="flex-1 min-w-0">
-
-          {/* Back */}
-          <Link href="/insights" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-[#1B3060] mb-6 transition-colors">
+      <div className="relative h-72 md:h-[440px] bg-[#1B3060] mt-16">
+        {article.cover_image_url ? (
+          <Image src={article.cover_image_url} alt={article.title} fill className="object-cover opacity-60" />
+        ) : null}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 max-w-4xl mx-auto px-4 pb-8">
+          <Link href="/insights" className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-sm mb-4 transition-colors">
             <ArrowLeft size={14} /> Back to Insights
           </Link>
-
-          {/* Meta */}
-          <div className="flex items-center gap-2 flex-wrap mb-4">
-            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${CATEGORY_COLORS[article.category] || 'bg-gray-100 text-gray-600'}`}>
-              {article.category}
-            </span>
-            {article.is_featured && (
-              <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-[#C9A227]/15 text-[#C9A227]">Featured</span>
-            )}
+          <div className="flex items-center gap-2 mb-3">
+            <span className="bg-[#C9A227] text-white text-xs font-bold px-3 py-1 rounded-full">{article.category}</span>
           </div>
-
-          {/* Title */}
-          <h1 className="font-heading font-extrabold text-[#1B3060] text-2xl lg:text-3xl xl:text-4xl leading-tight mb-4" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
+          <h1 className="text-white text-2xl md:text-4xl font-bold font-['Plus_Jakarta_Sans'] leading-tight mb-3">
             {article.title}
           </h1>
-
-          {/* Excerpt */}
-          {article.excerpt && (
-            <p className="text-gray-500 text-base leading-relaxed mb-6 border-l-4 border-[#C9A227] pl-4 bg-[#C9A227]/5 py-3 rounded-r-xl">
-              {article.excerpt}
-            </p>
-          )}
-
-          {/* Author + Meta row */}
-          <div className="flex items-center gap-4 pb-6 mb-6 border-b border-gray-200 flex-wrap">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-full bg-[#1B3060] flex items-center justify-center">
-                <span className="text-white text-xs font-bold">
-                  {article.author_name?.charAt(0) || 'V'}
-                </span>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-800">{article.author_name}</p>
-                <p className="text-xs text-gray-400">{formatDate(article.published_at || article.created_at)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-gray-400 ml-auto">
-              <span className="flex items-center gap-1"><Clock size={12} /> {article.read_time || 1} min read</span>
-              <span className="flex items-center gap-1"><Eye size={12} /> {((article.views || 0) + 1).toLocaleString()} views</span>
-              <span className="flex items-center gap-1"><MessageSquare size={12} /> {comments.length} comments</span>
-            </div>
+          <div className="flex flex-wrap items-center gap-4 text-white/70 text-sm">
+            <span className="flex items-center gap-1"><User size={13} />{article.author_name}</span>
+            <span className="flex items-center gap-1"><Clock size={13} />{article.read_time} min read</span>
+            <span className="flex items-center gap-1"><Eye size={13} />{article.views} views</span>
+            <span>{formatDate(article.created_at)}</span>
           </div>
+        </div>
+      </div>
 
-          {/* Content */}
-          <div className="prose-content mb-8">
-            <div
-              style={{ color: '#374151', lineHeight: '1.85', fontSize: '1rem' }}
-              dangerouslySetInnerHTML={{
-                __html: '<p style="color:#374151;line-height:1.85;margin-bottom:1.25rem">' + renderMarkdown(article.content || '') + '</p>'
-              }}
-            />
-          </div>
+      <div className="max-w-6xl mx-auto px-4 py-10">
+        <div className="flex flex-col lg:flex-row gap-10">
 
-          {/* Tags */}
-          {Array.isArray(article.tags) && article.tags.length > 0 && (
-            <div className="flex items-center gap-2 flex-wrap mb-8 pb-8 border-b border-gray-200">
-              <Tag size={14} className="text-gray-400" />
-              {article.tags.map(tag => (
-                <span key={tag} className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full hover:bg-[#1B3060]/10 hover:text-[#1B3060] transition cursor-default">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
 
-          {/* Share */}
-          <div className="bg-[#1B3060]/5 rounded-2xl p-5 flex items-center justify-between mb-8 border border-[#1B3060]/10">
-            <div>
-              <p className="font-bold text-[#1B3060] text-sm">Found this helpful?</p>
-              <p className="text-xs text-gray-500 mt-0.5">Share it with someone planning a visa application</p>
-            </div>
-            <button
-              onClick={() => navigator.share?.({ title: article.title, url: window.location.href })}
-              className="flex items-center gap-2 bg-[#1B3060] text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-[#162550] transition">
-              <Share2 size={14} /> Share
-            </button>
-          </div>
-
-          {/* Comments Section */}
-          <div id="comments">
-            <h2 className="font-heading font-bold text-[#1B3060] text-xl mb-6" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-              Comments ({comments.length})
-            </h2>
-
-            {/* Comment Form */}
-            {session ? (
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm mb-6">
-                <h3 className="font-semibold text-gray-800 text-sm mb-4">Leave a Comment</h3>
-                {submitted && (
-                  <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-sm text-green-700 font-medium">
-                    Your comment has been posted successfully!
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-3 mb-3">
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Your Name *</label>
-                    <input
-                      value={commentForm.name}
-                      onChange={e => setCommentForm(p => ({ ...p, name: e.target.value }))}
-                      placeholder="Ahmad Hassan"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#1B3060]/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-gray-500 mb-1 block">City</label>
-                    <input
-                      value={commentForm.city}
-                      onChange={e => setCommentForm(p => ({ ...p, city: e.target.value }))}
-                      placeholder="Islamabad"
-                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#1B3060]/20"
-                    />
-                  </div>
-                </div>
-                <div className="mb-3">
-                  <label className="text-xs font-semibold text-gray-500 mb-1 block">Comment *</label>
-                  <textarea
-                    value={commentForm.content}
-                    onChange={e => setCommentForm(p => ({ ...p, content: e.target.value }))}
-                    rows={3}
-                    placeholder="Share your thoughts or questions..."
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#1B3060]/20 resize-none"
-                  />
-                </div>
-                <button
-                  onClick={handleComment}
-                  disabled={submitting || !commentForm.name.trim() || !commentForm.content.trim()}
-                  className="flex items-center gap-2 bg-[#1B3060] text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-[#162550] transition disabled:opacity-50">
-                  <Send size={14} />
-                  {submitting ? 'Posting...' : 'Post Comment'}
-                </button>
-              </div>
-            ) : (
-              <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm mb-6 text-center">
-                <p className="text-sm text-gray-500 mb-3">Please log in to leave a comment</p>
-                <Link href="/login" className="inline-flex items-center gap-1.5 bg-[#1B3060] text-white text-sm font-bold px-5 py-2.5 rounded-xl hover:bg-[#162550] transition">
-                  Log In to Comment
-                </Link>
-              </div>
-            )}
-
-            {/* Comments List */}
-            {comments.length === 0 ? (
-              <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
-                <MessageSquare size={30} className="text-gray-200 mx-auto mb-2" />
-                <p className="text-gray-400 text-sm">No comments yet. Be the first to share your thoughts!</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {comments.map(comment => (
-                  <div key={comment.id} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-                    <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#1B3060]/10 flex items-center justify-center shrink-0">
-                        <span className="text-[#1B3060] text-xs font-bold">{comment.commenter_name.charAt(0)}</span>
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-gray-800">{comment.commenter_name}</span>
-                          {comment.commenter_city && (
-                            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{comment.commenter_city}</span>
-                          )}
-                          <span className="text-xs text-gray-400 ml-auto">{formatDate(comment.created_at)}</span>
-                        </div>
-                        <p className="text-sm text-gray-600 leading-relaxed">{comment.content}</p>
-                      </div>
-                    </div>
-                  </div>
+            {/* Tags */}
+            {article.tags?.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-6">
+                {article.tags.map(tag => (
+                  <span key={tag} className="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                    <Tag size={10} />{tag}
+                  </span>
                 ))}
               </div>
             )}
-          </div>
-        </article>
 
-        {/* Sidebar */}
-        <aside className="lg:w-72 shrink-0 space-y-5">
+            {/* Article Body */}
+            <article className="bg-white rounded-2xl shadow-sm p-6 md:p-10 mb-8">
+              <div
+                className="prose max-w-none"
+                dangerouslySetInnerHTML={{ __html: renderedContent }}
+              />
+            </article>
 
-          {/* Table of Contents (auto-generated from H2s) */}
-          {article.content.includes('## ') && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm sticky top-24">
-              <h3 className="font-bold text-[#1B3060] text-sm mb-4" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                In This Article
-              </h3>
-              <div className="space-y-2">
-                {article.content.split('\n')
-                  .filter(line => line.startsWith('## '))
-                  .map((line, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-gray-600 hover:text-[#1B3060] cursor-pointer transition-colors">
-                      <ChevronRight size={12} className="text-[#C9A227] mt-0.5 shrink-0" />
-                      {line.replace('## ', '')}
-                    </div>
-                  ))}
-              </div>
+            {/* Share Button */}
+            <div className="flex items-center gap-4 mb-10">
+              <button
+                onClick={handleShare}
+                className="flex items-center gap-2 bg-[#1B3060] text-white px-5 py-2.5 rounded-xl hover:bg-[#243d7a] transition-colors text-sm font-medium"
+              >
+                <Share2 size={15} /> Share Article
+              </button>
             </div>
-          )}
 
-          {/* Related Articles */}
-          {related.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">
-              <h3 className="font-bold text-[#1B3060] text-sm mb-4" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-                Related Articles
+            {/* Comments Section */}
+            <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
+              <h3 className="text-lg font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mb-6 flex items-center gap-2">
+                <MessageSquare size={20} /> Comments ({comments.length})
               </h3>
-              <div className="space-y-4">
-                {related.map(rel => {
-                  const relSrc = rel.cover_image ? `${supabaseUrl}/storage/v1/object/public/articles/${rel.cover_image}` : null
-                  return (
-                    <Link key={rel.id} href={`/insights/${rel.slug}`} className="group flex gap-3 items-start">
-                      <div className="w-16 h-12 rounded-lg overflow-hidden bg-[#1B3060]/10 shrink-0">
-                        {relSrc ? <img src={relSrc} alt={rel.title} className="w-full h-full object-cover" /> : (
-                          <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-blue-800" />
+
+              {/* Comment Form */}
+              <div className="mb-8">
+                <textarea
+                  value={commentText}
+                  onChange={e => setCommentText(e.target.value)}
+                  placeholder={session ? "Share your thoughts..." : "Please log in to comment"}
+                  disabled={!session}
+                  rows={3}
+                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none disabled:bg-gray-50 disabled:cursor-not-allowed"
+                />
+
+                {commentStatus === 'success' && (
+                  <div className="flex items-center gap-2 text-green-600 text-sm mt-2">
+                    <CheckCircle size={14} /> Comment submitted! It will appear after approval.
+                  </div>
+                )}
+                {commentStatus === 'error' && (
+                  <div className="flex items-center gap-2 text-red-500 text-sm mt-2">
+                    <AlertCircle size={14} /> Something went wrong. Please try again.
+                  </div>
+                )}
+                {commentStatus === 'login' && (
+                  <div className="flex items-center gap-2 text-amber-600 text-sm mt-2">
+                    <AlertCircle size={14} />
+                    <Link href="/login" className="underline">Please log in</Link> to post a comment.
+                  </div>
+                )}
+
+                <div className="flex justify-end mt-3">
+                  <button
+                    onClick={handleComment}
+                    disabled={submitting || !commentText.trim()}
+                    className="flex items-center gap-2 bg-[#C9A227] text-white px-5 py-2.5 rounded-xl hover:bg-[#b8911f] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Send size={14} /> {submitting ? 'Posting...' : 'Post Comment'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Comments List */}
+              {comments.length === 0 ? (
+                <p className="text-gray-400 text-sm text-center py-6">No comments yet. Be the first!</p>
+              ) : (
+                <div className="space-y-4">
+                  {comments.map(comment => (
+                    <div key={comment.id} className="flex gap-3 p-4 bg-gray-50 rounded-xl">
+                      <div className="w-9 h-9 bg-[#1B3060] rounded-full flex items-center justify-center flex-shrink-0">
+                        {comment.profiles?.avatar_url ? (
+                          <Image src={comment.profiles.avatar_url} alt="avatar" width={36} height={36} className="rounded-full object-cover" />
+                        ) : (
+                          <User size={16} className="text-white" />
                         )}
                       </div>
                       <div>
-                        <p className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2 group-hover:text-[#1B3060] transition-colors">{rel.title}</p>
-                        <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1"><Clock size={9} /> {rel.read_time || 1} min read</p>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-semibold text-[#1B3060]">
+                            {comment.profiles?.display_name || 'User'}
+                          </span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(comment.created_at).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 text-sm leading-relaxed">{comment.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sidebar */}
+          <div className="lg:w-72 space-y-6 flex-shrink-0">
+
+            {/* Table of Contents */}
+            {headings.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm p-5 sticky top-20">
+                <h4 className="text-sm font-bold text-[#1B3060] uppercase tracking-wider mb-3">In This Article</h4>
+                <ul className="space-y-2">
+                  {headings.map(h => (
+                    <li key={h.id}>
+                      <a href={`#${h.id}`} className="flex items-start gap-2 text-sm text-gray-600 hover:text-[#C9A227] transition-colors">
+                        <ChevronRight size={14} className="mt-0.5 flex-shrink-0" />
+                        {h.text}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Related Articles */}
+            {related.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-sm p-5">
+                <h4 className="text-sm font-bold text-[#1B3060] uppercase tracking-wider mb-4">Related Articles</h4>
+                <div className="space-y-4">
+                  {related.map(rel => (
+                    <Link key={rel.id} href={`/insights/${rel.slug}`} className="flex gap-3 group">
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
+                        {rel.cover_image_url ? (
+                          <Image src={rel.cover_image_url} alt={rel.title} fill className="object-cover group-hover:scale-110 transition-transform" />
+                        ) : (
+                          <div className="h-full bg-[#1B3060]/10 flex items-center justify-center">
+                            <MessageSquare size={16} className="text-[#1B3060]/30" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#C9A227] font-medium mb-1">{rel.category}</p>
+                        <p className="text-sm font-semibold text-[#1B3060] group-hover:text-[#C9A227] transition-colors leading-snug line-clamp-2">
+                          {rel.title}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Clock size={10} />{rel.read_time} min</p>
                       </div>
                     </Link>
-                  )
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* CTA */}
-          <div className="bg-[#1B3060] rounded-2xl p-5 text-center">
-            <p className="font-bold text-white text-sm mb-1" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-              Need Visa Help?
-            </p>
-            <p className="text-white/60 text-xs mb-4">Connect with a verified consultant today</p>
-            <Link href="/consultants"
-              className="block bg-[#C9A227] text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-[#b8901f] transition">
-              Find a Consultant
-            </Link>
+            {/* Find a Consultant CTA */}
+            <div className="bg-[#1B3060] rounded-2xl p-5 text-white">
+              <h4 className="font-bold text-base mb-2 font-['Plus_Jakarta_Sans']">Need Visa Help?</h4>
+              <p className="text-white/70 text-sm mb-4">Connect with a verified consultant who specializes in your destination.</p>
+              <Link href="/consultants" className="block text-center bg-[#C9A227] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#b8911f] transition-colors">
+                Find Consultants →
+              </Link>
+            </div>
           </div>
-        </aside>
+        </div>
       </div>
 
       <Footer />
