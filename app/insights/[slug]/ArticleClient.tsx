@@ -1,4 +1,5 @@
 'use client'
+// FILE: app/insights/[slug]/ArticleClient.tsx
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
@@ -9,7 +10,8 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import {
   Clock, Eye, Tag, ArrowLeft, Share2, MessageSquare,
-  ChevronRight, User, Send, CheckCircle, AlertCircle
+  ChevronRight, User, Send, CheckCircle, AlertCircle,
+  Heart, Link2, BookOpen
 } from 'lucide-react'
 
 interface Article {
@@ -24,8 +26,8 @@ interface Article {
   author_name: string
   read_time: number
   views: number
+  likes_count: number
   created_at: string
-  updated_at: string
 }
 
 interface Comment {
@@ -45,25 +47,22 @@ interface RelatedArticle {
   read_time: number
 }
 
-// Simple markdown renderer
 function renderMarkdown(content: string): string {
   return content
-    .replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold text-[#1B3060] mt-8 mb-3 font-[\'Plus_Jakarta_Sans\']">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 id="$1" class="text-2xl font-bold text-[#1B3060] mt-10 mb-4 font-[\'Plus_Jakarta_Sans\'] scroll-mt-20">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-[#1B3060] mt-10 mb-4 font-[\'Plus_Jakarta_Sans\']">$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold text-[#1B3060]">$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em class="italic">$1</em>')
-    .replace(/`(.+?)`/g, '<code class="bg-gray-100 text-[#1B3060] px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
-    .replace(/^\> (.+)$/gm, '<blockquote class="border-l-4 border-[#C9A227] pl-4 py-1 my-4 text-gray-600 italic bg-amber-50 rounded-r-lg">$1</blockquote>')
-    .replace(/^\- (.+)$/gm, '<li class="flex items-start gap-2 mb-1"><span class="text-[#C9A227] mt-1.5 flex-shrink-0">•</span><span>$1</span></li>')
-    .replace(/(<li.*<\/li>\n?)+/g, '<ul class="my-4 space-y-1">$&</ul>')
-    .replace(/^\d+\. (.+)$/gm, '<li class="mb-1 ml-4 list-decimal">$1</li>')
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" class="text-[#1B3060] font-medium underline hover:text-[#C9A227]" target="_blank">$1</a>')
-    .replace(/\n\n/g, '</p><p class="text-gray-700 leading-relaxed mb-4">')
-    .replace(/^(?!<[h|u|b|l|a])/gm, '')
+    .replace(/^### (.+)$/gm, '<h3 style="font-size:1.15rem;font-weight:700;color:#1B3060;margin:2rem 0 0.5rem">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 id="$1" style="font-size:1.4rem;font-weight:700;color:#1B3060;margin:2.5rem 0 0.75rem;scroll-margin-top:80px">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 style="font-size:1.7rem;font-weight:700;color:#1B3060;margin:2rem 0 1rem">$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong style="font-weight:600;color:#1B3060">$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`(.+?)`/g, '<code style="background:#f3f4f6;color:#1B3060;padding:2px 6px;border-radius:4px;font-size:0.875rem;font-family:monospace">$1</code>')
+    .replace(/^\> (.+)$/gm, '<blockquote style="border-left:4px solid #C9A227;padding:8px 16px;background:#fefce8;margin:16px 0;border-radius:0 8px 8px 0;color:#555;font-style:italic">$1</blockquote>')
+    .replace(/^\- (.+)$/gm, '<li style="margin:4px 0;padding-left:4px;display:flex;gap:8px"><span style="color:#C9A227;margin-top:6px;flex-shrink:0">•</span><span>$1</span></li>')
+    .replace(/(<li.*<\/li>\n?)+/g, '<ul style="margin:16px 0">$&</ul>')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color:#1B3060;font-weight:500;text-decoration:underline" target="_blank">$1</a>')
+    .replace(/\n\n/g, '</p><p style="margin-bottom:1rem;color:#374151;line-height:1.8">')
 }
 
-function extractHeadings(content: string): { id: string; text: string }[] {
+function extractHeadings(content: string) {
   const matches = [...content.matchAll(/^## (.+)$/gm)]
   return matches.map(m => ({ id: m[1], text: m[1] }))
 }
@@ -80,11 +79,15 @@ export default function ArticleClient() {
   const [submitting, setSubmitting] = useState(false)
   const [commentStatus, setCommentStatus] = useState<'idle' | 'success' | 'error' | 'login'>('idle')
   const [session, setSession] = useState<any>(null)
+  const [liked, setLiked] = useState(false)
+  const [likeCount, setLikeCount] = useState(0)
+  const [likeLoading, setLikeLoading] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!slug) return
     const supabase = createClient()
-
     const init = async () => {
       const { data: { session: s } } = await supabase.auth.getSession()
       setSession(s)
@@ -98,11 +101,20 @@ export default function ArticleClient() {
 
       if (!art) { setLoading(false); return }
       setArticle(art as Article)
+      setLikeCount(art.likes_count || 0)
 
-      // Increment view count
       await supabase.from('articles').update({ views: (art.views || 0) + 1 }).eq('id', art.id)
 
-      // Related articles (same category)
+      if (s) {
+        const { data: like } = await supabase
+          .from('article_likes')
+          .select('id')
+          .eq('article_id', art.id)
+          .eq('user_id', s.user.id)
+          .maybeSingle()
+        setLiked(!!like)
+      }
+
       const { data: rel } = await supabase
         .from('articles')
         .select('id, title, slug, cover_image_url, category, read_time')
@@ -112,7 +124,6 @@ export default function ArticleClient() {
         .limit(3)
       setRelated((rel || []) as RelatedArticle[])
 
-      // Comments (approved only)
       const { data: comms } = await supabase
         .from('article_comments')
         .select('id, content, created_at, user_id, profiles(display_name, avatar_url)')
@@ -126,6 +137,33 @@ export default function ArticleClient() {
     init()
   }, [slug])
 
+  const handleLike = async () => {
+    if (!session) { setCommentStatus('login'); return }
+    if (!article || likeLoading) return
+    setLikeLoading(true)
+    const supabase = createClient()
+    if (liked) {
+      await supabase.from('article_likes').delete().eq('article_id', article.id).eq('user_id', session.user.id)
+      const n = Math.max(0, likeCount - 1)
+      setLikeCount(n)
+      await supabase.from('articles').update({ likes_count: n }).eq('id', article.id)
+      setLiked(false)
+    } else {
+      await supabase.from('article_likes').insert({ article_id: article.id, user_id: session.user.id })
+      const n = likeCount + 1
+      setLikeCount(n)
+      await supabase.from('articles').update({ likes_count: n }).eq('id', article.id)
+      setLiked(true)
+    }
+    setLikeLoading(false)
+  }
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(window.location.href)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   const handleComment = async () => {
     if (!session) { setCommentStatus('login'); return }
     if (!commentText.trim() || !article) return
@@ -138,17 +176,9 @@ export default function ArticleClient() {
       is_approved: false,
     })
     setSubmitting(false)
-    if (error) { setCommentStatus('error') }
+    if (error) setCommentStatus('error')
     else { setCommentStatus('success'); setCommentText('') }
-  }
-
-  const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({ title: article?.title, url: window.location.href })
-    } else {
-      navigator.clipboard.writeText(window.location.href)
-      alert('Link copied!')
-    }
+    setTimeout(() => setCommentStatus('idle'), 4000)
   }
 
   const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -161,7 +191,9 @@ export default function ArticleClient() {
           <div className="h-8 bg-gray-200 rounded w-2/3 mb-4" />
           <div className="h-64 bg-gray-200 rounded-2xl mb-8" />
           <div className="space-y-4">
-            {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-4 bg-gray-200 rounded" style={{ width: `${70 + Math.random() * 30}%` }} />)}
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-4 bg-gray-200 rounded" style={{ width: `${70 + Math.random() * 30}%` }} />
+            ))}
           </div>
         </div>
         <Footer />
@@ -185,17 +217,18 @@ export default function ArticleClient() {
   }
 
   const headings = extractHeadings(article.content || '')
-  const renderedContent = `<p class="text-gray-700 leading-relaxed mb-4">${renderMarkdown(article.content || '')}</p>`
+  const renderedContent = `<p style="margin-bottom:1rem;color:#374151;line-height:1.8">${renderMarkdown(article.content || '')}</p>`
+  const pageUrl = typeof window !== 'undefined' ? window.location.href : `https://visagate.pk/insights/${article.slug}`
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Cover Image */}
+      {/* Cover Hero */}
       <div className="relative h-72 md:h-[440px] bg-[#1B3060] mt-16">
-        {article.cover_image_url ? (
+        {article.cover_image_url && (
           <Image src={article.cover_image_url} alt={article.title} fill className="object-cover opacity-60" />
-        ) : null}
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 max-w-4xl mx-auto px-4 pb-8">
           <Link href="/insights" className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-sm mb-4 transition-colors">
@@ -211,6 +244,7 @@ export default function ArticleClient() {
             <span className="flex items-center gap-1"><User size={13} />{article.author_name}</span>
             <span className="flex items-center gap-1"><Clock size={13} />{article.read_time} min read</span>
             <span className="flex items-center gap-1"><Eye size={13} />{article.views} views</span>
+            <span className="flex items-center gap-1"><Heart size={13} />{likeCount} likes</span>
             <span>{formatDate(article.created_at)}</span>
           </div>
         </div>
@@ -234,87 +268,187 @@ export default function ArticleClient() {
             )}
 
             {/* Article Body */}
-            <article className="bg-white rounded-2xl shadow-sm p-6 md:p-10 mb-8">
-              <div
-                className="prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: renderedContent }}
-              />
+            <article className="bg-white rounded-2xl shadow-sm p-6 md:p-10 mb-6">
+              <div dangerouslySetInnerHTML={{ __html: renderedContent }} />
             </article>
 
-            {/* Share Button */}
-            <div className="flex items-center gap-4 mb-10">
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 bg-[#1B3060] text-white px-5 py-2.5 rounded-xl hover:bg-[#243d7a] transition-colors text-sm font-medium"
-              >
-                <Share2 size={15} /> Share Article
-              </button>
+            {/* Like + Share Bar */}
+            <div className="bg-white rounded-2xl shadow-sm p-4 mb-6 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                {/* Like */}
+                <button
+                  onClick={handleLike}
+                  disabled={likeLoading}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all border ${
+                    liked
+                      ? 'bg-red-50 text-red-500 border-red-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500 border-transparent'
+                  }`}
+                >
+                  <Heart size={16} className={liked ? 'fill-red-500' : ''} />
+                  {liked ? 'Liked' : 'Like'}
+                  <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${liked ? 'bg-red-100 text-red-500' : 'bg-gray-200 text-gray-600'}`}>
+                    {likeCount}
+                  </span>
+                </button>
+
+                {/* Comment scroll */}
+                <a
+                  href="#comments"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-[#1B3060] text-sm font-medium transition-all"
+                >
+                  <MessageSquare size={16} />
+                  {comments.length} Comments
+                </a>
+              </div>
+
+              {/* Share */}
+              <div className="relative">
+                <button
+                  onClick={() => setShareOpen(!shareOpen)}
+                  className="flex items-center gap-2 bg-[#1B3060] text-white px-5 py-2.5 rounded-xl hover:bg-[#243d7a] transition-colors text-sm font-medium"
+                >
+                  <Share2 size={15} /> Share
+                </button>
+
+                {shareOpen && (
+                  <div className="absolute right-0 top-full mt-2 bg-white rounded-2xl shadow-xl border border-gray-100 p-3 w-52 z-20">
+                    <p className="text-xs text-gray-400 font-semibold px-2 mb-2 uppercase tracking-wider">Share via</p>
+
+                    {/* Twitter/X */}
+                    <a
+                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(pageUrl)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-sm text-gray-700 transition-colors"
+                      onClick={() => setShareOpen(false)}
+                    >
+                      <div className="w-7 h-7 bg-black rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-xs">𝕏</span>
+                      </div>
+                      Twitter / X
+                    </a>
+
+                    {/* Facebook */}
+                    <a
+                      href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(pageUrl)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-sm text-gray-700 transition-colors"
+                      onClick={() => setShareOpen(false)}
+                    >
+                      <div className="w-7 h-7 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-sm">f</span>
+                      </div>
+                      Facebook
+                    </a>
+
+                    {/* WhatsApp */}
+                    <a
+                      href={`https://wa.me/?text=${encodeURIComponent(article.title + ' ' + pageUrl)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-sm text-gray-700 transition-colors"
+                      onClick={() => setShareOpen(false)}
+                    >
+                      <div className="w-7 h-7 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-sm">W</span>
+                      </div>
+                      WhatsApp
+                    </a>
+
+                    {/* Copy Link */}
+                    <button
+                      onClick={() => { handleCopyLink(); setShareOpen(false) }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 text-sm text-gray-700 transition-colors"
+                    >
+                      <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        {copied
+                          ? <CheckCircle size={14} className="text-green-600" />
+                          : <Link2 size={14} className="text-gray-600" />
+                        }
+                      </div>
+                      {copied ? 'Link Copied!' : 'Copy Link'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Comments Section */}
-            <div className="bg-white rounded-2xl shadow-sm p-6 md:p-8">
+            <div id="comments" className="bg-white rounded-2xl shadow-sm p-6 md:p-8 scroll-mt-20">
               <h3 className="text-lg font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mb-6 flex items-center gap-2">
                 <MessageSquare size={20} /> Comments ({comments.length})
               </h3>
 
               {/* Comment Form */}
-              <div className="mb-8">
+              <div className="mb-8 bg-gray-50 rounded-2xl p-4">
                 <textarea
                   value={commentText}
                   onChange={e => setCommentText(e.target.value)}
-                  placeholder={session ? "Share your thoughts..." : "Please log in to comment"}
+                  placeholder={session ? "Share your thoughts..." : "Log in to join the discussion"}
                   disabled={!session}
                   rows={3}
-                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  className="w-full border border-gray-200 rounded-xl p-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none disabled:bg-gray-100 disabled:cursor-not-allowed bg-white"
                 />
 
                 {commentStatus === 'success' && (
                   <div className="flex items-center gap-2 text-green-600 text-sm mt-2">
-                    <CheckCircle size={14} /> Comment submitted! It will appear after approval.
+                    <CheckCircle size={14} /> Comment submitted — will appear after approval.
                   </div>
                 )}
                 {commentStatus === 'error' && (
                   <div className="flex items-center gap-2 text-red-500 text-sm mt-2">
-                    <AlertCircle size={14} /> Something went wrong. Please try again.
+                    <AlertCircle size={14} /> Something went wrong. Try again.
                   </div>
                 )}
                 {commentStatus === 'login' && (
                   <div className="flex items-center gap-2 text-amber-600 text-sm mt-2">
                     <AlertCircle size={14} />
-                    <Link href="/login" className="underline">Please log in</Link> to post a comment.
+                    <Link href="/login" className="underline font-medium">Please log in</Link> to interact.
                   </div>
                 )}
 
-                <div className="flex justify-end mt-3">
-                  <button
-                    onClick={handleComment}
-                    disabled={submitting || !commentText.trim()}
-                    className="flex items-center gap-2 bg-[#C9A227] text-white px-5 py-2.5 rounded-xl hover:bg-[#b8911f] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send size={14} /> {submitting ? 'Posting...' : 'Post Comment'}
-                  </button>
+                <div className="flex items-center justify-between mt-3">
+                  {!session && (
+                    <Link href="/login" className="text-sm text-[#1B3060] font-semibold hover:underline flex items-center gap-1">
+                      <User size={14} /> Log in to comment
+                    </Link>
+                  )}
+                  <div className="ml-auto">
+                    <button
+                      onClick={handleComment}
+                      disabled={submitting || !commentText.trim() || !session}
+                      className="flex items-center gap-2 bg-[#C9A227] text-white px-5 py-2.5 rounded-xl hover:bg-[#b8911f] transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send size={14} /> {submitting ? 'Posting...' : 'Post Comment'}
+                    </button>
+                  </div>
                 </div>
               </div>
 
               {/* Comments List */}
               {comments.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-6">No comments yet. Be the first!</p>
+                <div className="text-center py-8">
+                  <MessageSquare size={32} className="mx-auto text-gray-300 mb-2" />
+                  <p className="text-gray-400 text-sm">No comments yet. Be the first!</p>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {comments.map(comment => (
-                    <div key={comment.id} className="flex gap-3 p-4 bg-gray-50 rounded-xl">
-                      <div className="w-9 h-9 bg-[#1B3060] rounded-full flex items-center justify-center flex-shrink-0">
+                    <div key={comment.id} className="flex gap-3 p-4 bg-gray-50 rounded-2xl">
+                      <div className="w-9 h-9 bg-[#1B3060] rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden">
                         {comment.profiles?.avatar_url ? (
                           <Image src={comment.profiles.avatar_url} alt="avatar" width={36} height={36} className="rounded-full object-cover" />
                         ) : (
-                          <User size={16} className="text-white" />
+                          <span className="text-white font-bold text-sm">
+                            {comment.profiles?.display_name?.[0]?.toUpperCase() || 'U'}
+                          </span>
                         )}
                       </div>
-                      <div>
+                      <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-semibold text-[#1B3060]">
-                            {comment.profiles?.display_name || 'User'}
-                          </span>
+                          <span className="text-sm font-semibold text-[#1B3060]">{comment.profiles?.display_name || 'User'}</span>
                           <span className="text-xs text-gray-400">
                             {new Date(comment.created_at).toLocaleDateString('en-PK', { month: 'short', day: 'numeric', year: 'numeric' })}
                           </span>
@@ -331,7 +465,7 @@ export default function ArticleClient() {
           {/* Sidebar */}
           <div className="lg:w-72 space-y-6 flex-shrink-0">
 
-            {/* Table of Contents */}
+            {/* TOC */}
             {headings.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm p-5 sticky top-20">
                 <h4 className="text-sm font-bold text-[#1B3060] uppercase tracking-wider mb-3">In This Article</h4>
@@ -339,8 +473,7 @@ export default function ArticleClient() {
                   {headings.map(h => (
                     <li key={h.id}>
                       <a href={`#${h.id}`} className="flex items-start gap-2 text-sm text-gray-600 hover:text-[#C9A227] transition-colors">
-                        <ChevronRight size={14} className="mt-0.5 flex-shrink-0" />
-                        {h.text}
+                        <ChevronRight size={14} className="mt-0.5 flex-shrink-0" />{h.text}
                       </a>
                     </li>
                   ))}
@@ -348,27 +481,40 @@ export default function ArticleClient() {
               </div>
             )}
 
-            {/* Related Articles */}
+            {/* Stats */}
+            <div className="bg-white rounded-2xl shadow-sm p-5">
+              <h4 className="text-sm font-bold text-[#1B3060] uppercase tracking-wider mb-4">Stats</h4>
+              <div className="space-y-3">
+                {[
+                  { label: 'Views', value: article.views, icon: Eye },
+                  { label: 'Likes', value: likeCount, icon: Heart },
+                  { label: 'Comments', value: comments.length, icon: MessageSquare },
+                  { label: 'Read Time', value: `${article.read_time} min`, icon: Clock },
+                ].map(s => (
+                  <div key={s.label} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-500 flex items-center gap-2"><s.icon size={14} />{s.label}</span>
+                    <span className="font-semibold text-[#1B3060]">{s.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Related */}
             {related.length > 0 && (
               <div className="bg-white rounded-2xl shadow-sm p-5">
                 <h4 className="text-sm font-bold text-[#1B3060] uppercase tracking-wider mb-4">Related Articles</h4>
                 <div className="space-y-4">
                   {related.map(rel => (
                     <Link key={rel.id} href={`/insights/${rel.slug}`} className="flex gap-3 group">
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100">
-                        {rel.cover_image_url ? (
-                          <Image src={rel.cover_image_url} alt={rel.title} fill className="object-cover group-hover:scale-110 transition-transform" />
-                        ) : (
-                          <div className="h-full bg-[#1B3060]/10 flex items-center justify-center">
-                            <MessageSquare size={16} className="text-[#1B3060]/30" />
-                          </div>
-                        )}
+                      <div className="relative w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-gray-100">
+                        {rel.cover_image_url
+                          ? <Image src={rel.cover_image_url} alt={rel.title} fill className="object-cover group-hover:scale-110 transition-transform" />
+                          : <div className="h-full flex items-center justify-center"><BookOpen size={16} className="text-gray-300" /></div>
+                        }
                       </div>
                       <div>
                         <p className="text-xs text-[#C9A227] font-medium mb-1">{rel.category}</p>
-                        <p className="text-sm font-semibold text-[#1B3060] group-hover:text-[#C9A227] transition-colors leading-snug line-clamp-2">
-                          {rel.title}
-                        </p>
+                        <p className="text-sm font-semibold text-[#1B3060] group-hover:text-[#C9A227] transition-colors line-clamp-2">{rel.title}</p>
                         <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Clock size={10} />{rel.read_time} min</p>
                       </div>
                     </Link>
@@ -377,10 +523,10 @@ export default function ArticleClient() {
               </div>
             )}
 
-            {/* Find a Consultant CTA */}
+            {/* CTA */}
             <div className="bg-[#1B3060] rounded-2xl p-5 text-white">
               <h4 className="font-bold text-base mb-2 font-['Plus_Jakarta_Sans']">Need Visa Help?</h4>
-              <p className="text-white/70 text-sm mb-4">Connect with a verified consultant who specializes in your destination.</p>
+              <p className="text-white/70 text-sm mb-4">Connect with a verified consultant.</p>
               <Link href="/consultants" className="block text-center bg-[#C9A227] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#b8911f] transition-colors">
                 Find Consultants →
               </Link>
