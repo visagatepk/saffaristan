@@ -1,12 +1,14 @@
 'use client'
+// FILE: app/login/page.tsx
 
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Mail, Lock, AlertCircle } from 'lucide-react'
-import { signIn, getProfile } from '@/lib/supabase/auth'
+import { createClient } from '@/lib/supabase/client'
 import GoogleAuthButton from '@/components/GoogleAuthButton'
+
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -20,24 +22,39 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
 
-    const { data, error } = await signIn(email, password)
+    const supabase = createClient()
 
-    if (error) {
-      setError(error.message)
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (signInError) {
+      setError(signInError.message)
       setLoading(false)
       return
     }
 
-    if (data.user) {
-      const { data: profile } = await getProfile(data.user.id)
+    if (!data.user) {
+      setError('Login failed. Please try again.')
+      setLoading(false)
+      return
+    }
 
-      if (profile?.role === 'consultant') {
-        router.push('/dashboard/consultant')
-      } else if (profile?.role === 'admin') {
-        router.push('/dashboard/admin')
-      } else {
-        router.push('/dashboard/seeker')
-      }
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('user_id', data.user.id)
+      .single()
+
+    if (profile?.role === 'consultant') {
+      router.push('/dashboard/consultant')
+    } else if (profile?.role === 'admin') {
+      router.push('/dashboard/admin')
+    } else if (profile?.role === 'editor') {
+      router.push('/dashboard/editor')
+    } else {
+      router.push('/dashboard/seeker')
     }
   }
 
@@ -108,7 +125,7 @@ export default function LoginPage() {
               </label>
               <Link
                 href="/forgot-password"
-                className="font-body text-xs text-gold hover:text-gold-dark transition-colors"
+                className="font-body text-xs text-gold hover:underline transition-colors"
               >
                 Forgot password?
               </Link>
@@ -144,27 +161,27 @@ export default function LoginPage() {
 
         </form>
 
-       {/* Divider */}
-<div className="flex items-center gap-4 my-6">
-  <div className="flex-1 h-px bg-gray-200" />
-  <span className="font-body text-xs text-gray-400">or continue with</span>
-  <div className="flex-1 h-px bg-gray-200" />
-</div>
+        {/* Divider */}
+        <div className="flex items-center gap-4 my-6">
+          <div className="flex-1 h-px bg-gray-200" />
+          <span className="font-body text-xs text-gray-400">or continue with</span>
+          <div className="flex-1 h-px bg-gray-200" />
+        </div>
 
-{/* Google Login */}
-<GoogleAuthButton label="Continue with Google" />
+        {/* Google Login */}
+        <GoogleAuthButton label="Continue with Google" />
 
-{/* Register link */}
-<p className="font-body text-center text-sm text-gray-500 mt-5">
-  Don't have an account?{' '}
-  <Link href="/register" className="font-semibold text-navy hover:text-gold transition-colors">
-    Create one free
-  </Link>
-</p>
+        {/* Register link */}
+        <p className="font-body text-center text-sm text-gray-500 mt-5">
+          Don&apos;t have an account?{' '}
+          <Link href="/register" className="font-semibold text-navy hover:text-gold transition-colors">
+            Create one free
+          </Link>
+        </p>
 
       </div>
 
-      {/* Right — Decorative panel (hidden on mobile) */}
+      {/* Right — Decorative panel */}
       <div className="hidden lg:flex flex-1 bg-navy items-center justify-center p-16 relative overflow-hidden">
 
         {/* Decorative circles */}
@@ -178,7 +195,7 @@ export default function LoginPage() {
             </svg>
           </div>
           <h2 className="font-heading font-bold text-white text-2xl mb-3">
-            Pakistan's Most Trusted Platform
+            Pakistan&apos;s Most Trusted Platform
           </h2>
           <p className="font-urdu text-gold/80 text-base mb-6">
             پاکستان کا سب سے قابل اعتماد پلیٹ فارم

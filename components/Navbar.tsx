@@ -134,6 +134,7 @@ useEffect(() => {
     { href: '/visa-categories', label: 'Visa Types' },
     { href: '/destinations', label: 'Destinations' },
     { href: '/insights', label: 'Insights', isNew: true },
+    { href: '/for-consultants', label: 'For Consultants' },
   ]
 
   return (
@@ -353,6 +354,10 @@ useEffect(() => {
                     className="block text-center font-heading text-sm font-semibold border border-navy text-navy py-2.5 rounded-xl hover:bg-navy hover:text-white transition-colors">
                     Log In
                   </Link>
+                  <Link href="/for-consultants" onClick={() => setIsOpen(false)}
+  className="block px-4 py-2.5 text-sm font-medium text-[#C9A227] hover:bg-gray-50 rounded-xl">
+  For Consultants
+</Link>
                   <Link href="/register/seeker" onClick={() => setIsOpen(false)}
                     className="flex items-center justify-center gap-2 font-heading text-sm font-semibold bg-navy-light text-navy py-2.5 rounded-xl hover:bg-navy hover:text-white transition-colors">
                     <User size={15} /> Sign Up as Seeker
