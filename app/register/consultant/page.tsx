@@ -1,10 +1,8 @@
 'use client'
 // FILE: app/register/consultant/page.tsx
-// FIXED: Handles both new signups AND seeker → consultant role switch
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import {
   User, Mail, Lock, Phone, Building2, MapPin,
@@ -28,9 +26,9 @@ function StepIndicator({ step }: { step: number }) {
       <div className="flex items-center justify-between mb-3">
         {STEPS.map((s, i) => (
           <div key={s} className="flex items-center">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-heading font-bold transition-all ${
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
               i < step ? 'bg-green-500 text-white' :
-              i === step ? 'bg-navy text-white' :
+              i === step ? 'bg-[#1B3060] text-white' :
               'bg-gray-100 text-gray-400'
             }`}>
               {i < step ? <CheckCircle size={14} /> : i + 1}
@@ -45,8 +43,8 @@ function StepIndicator({ step }: { step: number }) {
       </div>
       <div className="flex justify-between">
         {STEPS.map((s, i) => (
-          <span key={s} className={`font-body text-xs ${
-            i === step ? 'text-navy font-semibold' : 'text-gray-400'
+          <span key={s} className={`text-xs ${
+            i === step ? 'text-[#1B3060] font-semibold' : 'text-gray-400'
           }`}>{s}</span>
         ))}
       </div>
@@ -60,12 +58,9 @@ export default function ConsultantSignupPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [userId, setUserId] = useState('')
-
-  // Check if already logged in (seeker switching to consultant)
   const [isExistingUser, setIsExistingUser] = useState(false)
-  const [existingEmail, setExistingEmail] = useState('')
 
-  // Step 1
+  // Step 1 fields
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -73,20 +68,20 @@ export default function ConsultantSignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
 
-  // Step 2
+  // Step 2 fields
   const [displayName, setDisplayName] = useState('')
   const [businessName, setBusinessName] = useState('')
   const [city, setCity] = useState('')
   const [address, setAddress] = useState('')
   const [experience, setExperience] = useState('')
 
-  // Step 3
+  // Step 3 fields
   const [oepLicenseNumber, setOepLicenseNumber] = useState('')
   const [oepExpiryDate, setOepExpiryDate] = useState('')
   const [secpDate, setSecpDate] = useState('')
   const [ntnNumber, setNtnNumber] = useState('')
 
-  // Check if user is already logged in as seeker
+  // ── Check if already logged in as seeker ─────────────────────
   useEffect(() => {
     const supabase = createClient()
     const check = async () => {
@@ -94,18 +89,16 @@ export default function ConsultantSignupPage() {
       if (session?.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role, display_name, full_name, phone, email')
+          .select('role, display_name, full_name, phone')
           .eq('user_id', session.user.id)
           .single()
 
         if (profile?.role === 'seeker') {
-          // Existing seeker switching to consultant
           setIsExistingUser(true)
           setUserId(session.user.id)
-          setExistingEmail(session.user.email || '')
           setFullName(profile.full_name || profile.display_name || '')
           setPhone(profile.phone || '')
-          setStep(1) // Skip step 1 (account creation), go to business info
+          setStep(1) // skip account creation
         } else if (profile?.role === 'consultant') {
           router.push('/dashboard/consultant')
         }
@@ -114,7 +107,7 @@ export default function ConsultantSignupPage() {
     check()
   }, [])
 
-  // ── Step 1 (New user only) ────────────────────────────────────
+  // ── Step 1: Create account (new users only) ───────────────────
   const handleStep1 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -124,60 +117,99 @@ export default function ConsultantSignupPage() {
 
     setLoading(true)
     const supabase = createClient()
-    const { data, error } = await supabase.auth.signUp({
+
+    // Check phone uniqueness
+    const { data: existingPhone } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('phone', phone.trim())
+    if (existingPhone && existingPhone.length > 0) {
+      setError('This phone number is already registered. Please use a different number.')
+      setLoading(false)
+      return
+    }
+
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: { data: { full_name: fullName, role: 'consultant' } },
     })
-    if (error) { setError(error.message); setLoading(false); return }
+    if (signUpError) { setError(signUpError.message); setLoading(false); return }
     if (data.user) {
       setUserId(data.user.id)
       await supabase.from('profiles').update({
         role: 'consultant',
         full_name: fullName,
-        phone,
+        phone: phone.trim(),
       }).eq('user_id', data.user.id)
     }
     setLoading(false)
     setStep(1)
   }
 
-  // ── Step 2 ────────────────────────────────────────────────────
+  // ── Step 2: Business info ─────────────────────────────────────
   const handleStep2 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!displayName.trim() || !city) { setError('Please fill all required fields.'); return }
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.from('profiles').update({
-      display_name: displayName,
-      business_name: businessName,
+    const { error: updateError } = await supabase.from('profiles').update({
+      display_name: displayName.trim(),
+      business_name: businessName.trim(),
       city,
-      office_address: address,
+      office_address: address.trim(),
       years_experience: parseInt(experience) || 0,
-      role: 'consultant', // ensure role is set for existing seekers
+      role: 'consultant',
     }).eq('user_id', userId)
-    if (error) { setError(error.message); setLoading(false); return }
+    if (updateError) { setError(updateError.message); setLoading(false); return }
     setLoading(false)
     setStep(2)
   }
 
-  // ── Step 3 ────────────────────────────────────────────────────
+  // ── Step 3: Verification ──────────────────────────────────────
   const handleStep3 = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
     const oepFormat = /^OEPL\s*No\.\s*\d{1,6}\/[A-Z]{2,5}$/i
     if (!oepFormat.test(oepLicenseNumber.trim())) {
-      setError('Format must be: OEPL No. 3702/LHR')
+      setError('OEP format must be: OEPL No. 3702/LHR')
       return
     }
     if (!oepExpiryDate || !secpDate || !ntnNumber.trim()) {
       setError('Please fill in all required fields.')
       return
     }
+
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.from('profiles').update({
+
+    // Check OEP uniqueness
+    const { data: existingOep } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('oep_license_number', oepLicenseNumber.trim().toUpperCase())
+      .neq('user_id', userId)
+    if (existingOep && existingOep.length > 0) {
+      setError('This OEP license number is already registered on VisaGate.pk.')
+      setLoading(false)
+      return
+    }
+
+    // Check NTN uniqueness
+    const { data: existingNtn } = await supabase
+      .from('profiles')
+      .select('user_id')
+      .eq('ntn_number', ntnNumber.trim())
+      .neq('user_id', userId)
+    if (existingNtn && existingNtn.length > 0) {
+      setError('This NTN number is already registered on VisaGate.pk.')
+      setLoading(false)
+      return
+    }
+
+    const { error: updateError } = await supabase.from('profiles').update({
       oep_license_number: oepLicenseNumber.trim().toUpperCase(),
       oep_expiry_date: oepExpiryDate,
       secp_registration_date: secpDate,
@@ -185,11 +217,13 @@ export default function ConsultantSignupPage() {
       verification_status: 'pending_verification',
       role: 'consultant',
     }).eq('user_id', userId)
-    if (error) { setError(error.message); setLoading(false); return }
+
+    if (updateError) { setError(updateError.message); setLoading(false); return }
     setLoading(false)
     setStep(3)
   }
 
+  // ── RENDER ────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-lg">
@@ -215,18 +249,19 @@ export default function ConsultantSignupPage() {
           <StepIndicator step={step} />
 
           {error && (
-            <div className="flex items-center gap-2 bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">
-              <AlertCircle size={15} className="shrink-0" />
+            <div className="flex items-start gap-2 bg-red-50 border border-red-100 text-red-700 text-sm px-4 py-3 rounded-xl mb-5">
+              <AlertCircle size={15} className="shrink-0 mt-0.5" />
               {error}
             </div>
           )}
 
-          {/* ── STEP 0: Account Creation (new users only) ── */}
+          {/* ── STEP 0: Account Creation ── */}
           {step === 0 && !isExistingUser && (
             <form onSubmit={handleStep1} className="space-y-4">
               <h2 className="font-bold text-[#1B3060] text-lg font-['Plus_Jakarta_Sans'] mb-4">Create Your Account</h2>
 
               <GoogleAuthButton role="consultant" />
+
               <div className="flex items-center gap-3 my-4">
                 <div className="flex-1 h-px bg-gray-200" />
                 <span className="text-gray-400 text-xs">or with email</span>
@@ -238,7 +273,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required
-                    placeholder="Ahmad Khan" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="Ahmad Khan"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
@@ -247,16 +283,22 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <Mail size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                    placeholder="you@email.com" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="you@email.com"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mobile Number <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                  Mobile Number <span className="text-red-500">*</span>
+                </label>
                 <div className="relative">
-                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-600 font-medium border-r border-gray-200 pr-3">🇵🇰 +92</div>
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-gray-600 font-medium border-r border-gray-200 pr-3">
+                    🇵🇰 +92
+                  </div>
                   <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} required
-                    placeholder="3XX XXXXXXX" className="w-full pl-24 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="3XX XXXXXXX"
+                    className="w-full pl-24 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
@@ -265,7 +307,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type={showPass ? 'text' : 'password'} value={password} onChange={e => setPassword(e.target.value)} required
-                    placeholder="Min. 8 characters" className="w-full pl-10 pr-11 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="Min. 8 characters"
+                    className="w-full pl-10 pr-11 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                   <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                     {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
@@ -277,7 +320,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <Lock size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required
-                    placeholder="Re-enter password" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="Re-enter password"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
@@ -287,7 +331,8 @@ export default function ConsultantSignupPage() {
               </button>
 
               <p className="text-center text-sm text-gray-500">
-                Already have an account? <Link href="/login" className="text-[#C9A227] font-semibold hover:underline">Sign in</Link>
+                Already have an account?{' '}
+                <Link href="/login" className="text-[#C9A227] font-semibold hover:underline">Sign in</Link>
               </p>
             </form>
           )}
@@ -302,7 +347,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <User size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" value={displayName} onChange={e => setDisplayName(e.target.value)} required
-                    placeholder="Name shown to clients" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="Name shown to clients"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
@@ -311,7 +357,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <Building2 size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" value={businessName} onChange={e => setBusinessName(e.target.value)}
-                    placeholder="Optional" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="Optional"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
@@ -332,7 +379,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <MapPin size={15} className="absolute left-3.5 top-3.5 text-gray-400" />
                   <textarea value={address} onChange={e => setAddress(e.target.value)} rows={2}
-                    placeholder="Office address" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none" />
+                    placeholder="Office address"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none" />
                 </div>
               </div>
 
@@ -341,7 +389,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <Briefcase size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="number" min="0" max="50" value={experience} onChange={e => setExperience(e.target.value)}
-                    placeholder="e.g. 5" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="e.g. 5"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
@@ -364,7 +413,7 @@ export default function ConsultantSignupPage() {
           {step === 2 && (
             <form onSubmit={handleStep3} className="space-y-4">
               <h2 className="font-bold text-[#1B3060] text-lg font-['Plus_Jakarta_Sans'] mb-1">Verification Details</h2>
-              <p className="text-gray-500 text-sm mb-4">These will be reviewed by our admin team within 24 hours.</p>
+              <p className="text-gray-500 text-sm mb-4">Reviewed by our admin team within 24 hours.</p>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">
@@ -373,13 +422,14 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <Hash size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" value={oepLicenseNumber} onChange={e => setOepLicenseNumber(e.target.value)} required
-                    placeholder="OEPL No. 3702/LHR" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="OEPL No. 3702/LHR"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
                 <p className="text-xs text-gray-400 mt-1">Format: OEPL No. 3702/LHR</p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">OEP License Expiry Date <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">OEP Expiry Date <span className="text-red-500">*</span></label>
                 <div className="relative">
                   <Calendar size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="date" value={oepExpiryDate} onChange={e => setOepExpiryDate(e.target.value)} required
@@ -401,7 +451,8 @@ export default function ConsultantSignupPage() {
                 <div className="relative">
                   <Hash size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="text" value={ntnNumber} onChange={e => setNtnNumber(e.target.value)} required
-                    placeholder="e.g. 1234567-8" className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
+                    placeholder="e.g. 1234567-8"
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
                 </div>
               </div>
 
@@ -432,7 +483,6 @@ export default function ConsultantSignupPage() {
               </p>
               <p className="text-gray-400 text-xs mb-6">
                 Our admin team will verify your credentials within 24 hours.
-                You'll receive an email once approved.
               </p>
               <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-6 text-left">
                 <p className="text-amber-800 text-sm font-semibold mb-2">⏳ What happens next?</p>

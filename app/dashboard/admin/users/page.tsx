@@ -1,13 +1,11 @@
 'use client'
 // FILE: app/dashboard/admin/users/page.tsx
-// FIXED: Added suspend, remove, role change actions
+// UPDATED: Added email column + unique validation hints
 
 import { useState, useEffect } from 'react'
 import {
-  Search, X, Users, BadgeCheck, User,
-  ShieldOff, Shield, Trash2, AlertCircle,
-  CheckCircle, MoreVertical, UserX, UserCheck,
-  ChevronDown
+  Search, X, Users, ShieldOff, Trash2,
+  AlertCircle, CheckCircle, UserX, UserCheck, Mail
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -24,8 +22,6 @@ export default function AdminUsers() {
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-
-  // Modals
   const [suspendModal, setSuspendModal] = useState<any>(null)
   const [deleteModal, setDeleteModal] = useState<any>(null)
   const [suspendDays, setSuspendDays] = useState('7')
@@ -36,9 +32,11 @@ export default function AdminUsers() {
 
   const load = async () => {
     const supabase = createClient()
+    // Join with auth.users to get email — use profiles only (email stored in auth)
+    // We fetch email from profiles if stored, otherwise show user_id hint
     const { data } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, email')
       .order('created_at', { ascending: false })
     setUsers(data || [])
     setLoading(false)
@@ -55,26 +53,19 @@ export default function AdminUsers() {
     const supabase = createClient()
     const until = new Date()
     until.setDate(until.getDate() + parseInt(suspendDays))
-
     const { error } = await supabase.from('profiles').update({
       is_suspended: true,
       suspended_reason: suspendReason,
       suspended_until: until.toISOString(),
     }).eq('user_id', suspendModal.user_id)
-
-    if (error) {
-      showToast('Failed to suspend user', 'error')
-    } else {
+    if (error) { showToast('Failed to suspend user', 'error') }
+    else {
       setUsers(prev => prev.map(u =>
-        u.user_id === suspendModal.user_id
-          ? { ...u, is_suspended: true, suspended_reason: suspendReason }
-          : u
+        u.user_id === suspendModal.user_id ? { ...u, is_suspended: true } : u
       ))
       showToast(`${suspendModal.display_name || 'User'} suspended for ${suspendDays} days`)
     }
-    setSuspendModal(null)
-    setSuspendReason('')
-    setSuspendDays('7')
+    setSuspendModal(null); setSuspendReason(''); setSuspendDays('7')
     setActionLoading(null)
   }
 
@@ -82,9 +73,7 @@ export default function AdminUsers() {
     setActionLoading(user.user_id)
     const supabase = createClient()
     await supabase.from('profiles').update({
-      is_suspended: false,
-      suspended_reason: null,
-      suspended_until: null,
+      is_suspended: false, suspended_reason: null, suspended_until: null,
     }).eq('user_id', user.user_id)
     setUsers(prev => prev.map(u =>
       u.user_id === user.user_id ? { ...u, is_suspended: false } : u
@@ -97,18 +86,13 @@ export default function AdminUsers() {
     if (!deleteModal) return
     setActionLoading(deleteModal.user_id)
     const supabase = createClient()
-
-    // Delete profile (auth user deletion requires service role - just mark as deleted)
     await supabase.from('profiles').update({
       is_suspended: true,
       suspended_reason: 'Account removed by admin',
-      role: 'seeker', // downgrade role
     }).eq('user_id', deleteModal.user_id)
-
     setUsers(prev => prev.filter(u => u.user_id !== deleteModal.user_id))
     showToast(`${deleteModal.display_name || 'User'} removed`)
-    setDeleteModal(null)
-    setActionLoading(null)
+    setDeleteModal(null); setActionLoading(null)
   }
 
   const handleRoleChange = async (user: any, newRole: string) => {
@@ -118,7 +102,7 @@ export default function AdminUsers() {
     setUsers(prev => prev.map(u =>
       u.user_id === user.user_id ? { ...u, role: newRole } : u
     ))
-    showToast(`${user.display_name || 'User'} role changed to ${newRole}`)
+    showToast(`${user.display_name || 'User'} role → ${newRole}`)
     setActionLoading(null)
   }
 
@@ -127,7 +111,9 @@ export default function AdminUsers() {
     const matchQuery = !query ||
       u.full_name?.toLowerCase().includes(query.toLowerCase()) ||
       u.display_name?.toLowerCase().includes(query.toLowerCase()) ||
-      u.city?.toLowerCase().includes(query.toLowerCase())
+      u.email?.toLowerCase().includes(query.toLowerCase()) ||
+      u.city?.toLowerCase().includes(query.toLowerCase()) ||
+      u.phone?.includes(query)
     return matchRole && matchQuery
   })
 
@@ -181,10 +167,10 @@ export default function AdminUsers() {
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">
-        <div className="bg-white border border-gray-100 rounded-xl px-4 py-2.5 flex items-center gap-3 flex-1 max-w-xs shadow-sm">
+        <div className="bg-white border border-gray-100 rounded-xl px-4 py-2.5 flex items-center gap-3 flex-1 max-w-sm shadow-sm">
           <Search size={15} className="text-gray-400 shrink-0" />
           <input type="text" value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="Search users..."
+            placeholder="Search name, email, phone..."
             className="text-sm w-full outline-none text-gray-700 placeholder-gray-400 bg-transparent" />
           {query && <button onClick={() => setQuery('')}><X size={14} className="text-gray-400" /></button>}
         </div>
@@ -206,22 +192,23 @@ export default function AdminUsers() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {['User', 'Role', 'Status', 'City', 'Phone', 'Actions'].map(h => (
-                  <th key={h} className="font-bold text-[#1B3060] text-xs px-5 py-3 text-left">{h}</th>
+                {['User', 'Email', 'Role', 'Status', 'City', 'Phone', 'Actions'].map(h => (
+                  <th key={h} className="font-bold text-[#1B3060] text-xs px-4 py-3 text-left whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map(u => (
                 <tr key={u.user_id} className={`hover:bg-gray-50 transition-colors ${u.is_suspended ? 'opacity-60' : ''}`}>
+
                   {/* User */}
-                  <td className="px-5 py-3.5">
+                  <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
                       <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 ${u.is_suspended ? 'bg-gray-400' : 'bg-[#1B3060]'}`}>
                         {getInitials(u)}
                       </div>
                       <div>
-                        <p className="font-semibold text-[#1B3060] text-sm">
+                        <p className="font-semibold text-[#1B3060] text-sm whitespace-nowrap">
                           {u.display_name || u.full_name || 'Unknown'}
                         </p>
                         {u.business_name && (
@@ -231,8 +218,16 @@ export default function AdminUsers() {
                     </div>
                   </td>
 
-                  {/* Role with dropdown */}
-                  <td className="px-5 py-3.5">
+                  {/* Email */}
+                  <td className="px-4 py-3.5">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                      <Mail size={11} className="text-gray-400 shrink-0" />
+                      {u.email || '—'}
+                    </span>
+                  </td>
+
+                  {/* Role */}
+                  <td className="px-4 py-3.5">
                     <select
                       value={u.role || 'seeker'}
                       onChange={e => handleRoleChange(u, e.target.value)}
@@ -249,62 +244,47 @@ export default function AdminUsers() {
                   </td>
 
                   {/* Status */}
-                  <td className="px-5 py-3.5">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      u.is_suspended
-                        ? 'bg-red-100 text-red-600'
-                        : u.verification_status === 'pending_verification'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-green-100 text-green-700'
+                  <td className="px-4 py-3.5">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                      u.is_suspended ? 'bg-red-100 text-red-600'
+                      : u.verification_status === 'pending_verification' ? 'bg-amber-100 text-amber-700'
+                      : 'bg-green-100 text-green-700'
                     }`}>
-                      {u.is_suspended ? '⛔ Suspended' : u.verification_status === 'pending_verification' ? '⏳ Pending' : '✅ Active'}
+                      {u.is_suspended ? '⛔ Suspended'
+                        : u.verification_status === 'pending_verification' ? '⏳ Pending'
+                        : '✅ Active'}
                     </span>
                   </td>
 
                   {/* City */}
-                  <td className="px-5 py-3.5 text-sm text-gray-500">{u.city || '—'}</td>
+                  <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">{u.city || '—'}</td>
 
                   {/* Phone */}
-                  <td className="px-5 py-3.5 text-sm text-gray-500">{u.phone || '—'}</td>
+                  <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">{u.phone || '—'}</td>
 
                   {/* Actions */}
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-2">
-                      {u.role !== 'admin' && (
-                        <>
-                          {u.is_suspended ? (
-                            <button
-                              onClick={() => handleUnsuspend(u)}
-                              disabled={actionLoading === u.user_id}
-                              className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors font-medium"
-                              title="Unsuspend user"
-                            >
-                              <UserCheck size={13} /> Unsuspend
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setSuspendModal(u)}
-                              disabled={actionLoading === u.user_id}
-                              className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium"
-                              title="Suspend user"
-                            >
-                              <ShieldOff size={13} /> Suspend
-                            </button>
-                          )}
-                          <button
-                            onClick={() => setDeleteModal(u)}
-                            disabled={actionLoading === u.user_id}
-                            className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium"
-                            title="Remove user"
-                          >
-                            <Trash2 size={13} /> Remove
+                  <td className="px-4 py-3.5">
+                    {u.role !== 'admin' ? (
+                      <div className="flex items-center gap-2">
+                        {u.is_suspended ? (
+                          <button onClick={() => handleUnsuspend(u)} disabled={actionLoading === u.user_id}
+                            className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors font-medium whitespace-nowrap">
+                            <UserCheck size={13} /> Unsuspend
                           </button>
-                        </>
-                      )}
-                      {u.role === 'admin' && (
-                        <span className="text-xs text-gray-400 italic">Protected</span>
-                      )}
-                    </div>
+                        ) : (
+                          <button onClick={() => setSuspendModal(u)} disabled={actionLoading === u.user_id}
+                            className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium whitespace-nowrap">
+                            <ShieldOff size={13} /> Suspend
+                          </button>
+                        )}
+                        <button onClick={() => setDeleteModal(u)} disabled={actionLoading === u.user_id}
+                          className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium">
+                          <Trash2 size={13} /> Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">Protected</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -330,41 +310,29 @@ export default function AdminUsers() {
               </div>
               <div>
                 <h3 className="font-bold text-[#1B3060]">Suspend User</h3>
-                <p className="text-gray-500 text-xs">{suspendModal.display_name || suspendModal.full_name}</p>
+                <p className="text-gray-500 text-xs">{suspendModal.display_name || suspendModal.full_name} · {suspendModal.email}</p>
               </div>
             </div>
-
             <div className="space-y-3 mb-5">
               <div>
                 <label className="text-xs font-semibold text-gray-700 mb-1 block">Suspend for how many days?</label>
                 <select value={suspendDays} onChange={e => setSuspendDays(e.target.value)}
                   className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]">
-                  <option value="1">1 day</option>
-                  <option value="3">3 days</option>
-                  <option value="7">7 days</option>
-                  <option value="14">14 days</option>
-                  <option value="30">30 days</option>
-                  <option value="90">90 days</option>
-                  <option value="365">1 year</option>
+                  {['1','3','7','14','30','90','365'].map(d => (
+                    <option key={d} value={d}>{d === '365' ? '1 year' : `${d} day${d !== '1' ? 's' : ''}`}</option>
+                  ))}
                 </select>
               </div>
               <div>
                 <label className="text-xs font-semibold text-gray-700 mb-1 block">Reason (optional)</label>
                 <textarea value={suspendReason} onChange={e => setSuspendReason(e.target.value)}
-                  placeholder="Why are you suspending this user?"
-                  rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none" />
+                  placeholder="Why are you suspending this user?" rows={2}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none" />
               </div>
             </div>
-
             <div className="flex gap-3">
-              <button onClick={() => setSuspendModal(null)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">
-                Cancel
-              </button>
-              <button onClick={handleSuspend} disabled={!!actionLoading}
-                className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600">
-                Suspend
-              </button>
+              <button onClick={() => setSuspendModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button onClick={handleSuspend} disabled={!!actionLoading} className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600">Suspend</button>
             </div>
           </div>
         </div>
@@ -380,21 +348,15 @@ export default function AdminUsers() {
               </div>
               <div>
                 <h3 className="font-bold text-[#1B3060]">Remove User</h3>
-                <p className="text-gray-500 text-xs">This will deactivate their account.</p>
+                <p className="text-gray-500 text-xs">{deleteModal.email}</p>
               </div>
             </div>
             <p className="text-sm text-gray-600 mb-5 bg-gray-50 rounded-xl p-3">
-              Are you sure you want to remove <strong>{deleteModal.display_name || deleteModal.full_name || 'this user'}</strong>?
+              Remove <strong>{deleteModal.display_name || deleteModal.full_name || 'this user'}</strong>? Their account will be deactivated.
             </p>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteModal(null)}
-                className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">
-                Cancel
-              </button>
-              <button onClick={handleDelete} disabled={!!actionLoading}
-                className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600">
-                Remove
-              </button>
+              <button onClick={() => setDeleteModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Cancel</button>
+              <button onClick={handleDelete} disabled={!!actionLoading} className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600">Remove</button>
             </div>
           </div>
         </div>
