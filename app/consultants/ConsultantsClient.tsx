@@ -7,8 +7,6 @@ import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import { createClient } from '@/lib/supabase/client'
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
 const VISA_TYPES = ['Student Visa','Work Permit','Visit Visa','Family Visa','Business Visa','PR & Immigration','Umrah Visa','Spouse Visa']
 
 const SORT_OPTIONS = [
@@ -72,8 +70,6 @@ function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-// ─── Skeleton ────────────────────────────────────────────────────────────────
-
 function SkeletonCard() {
   return (
     <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
@@ -101,20 +97,18 @@ function SkeletonCard() {
   )
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
-
 export default function ConsultantsClient() {
-  const [services, setServices]       = useState<Service[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [error, setError]             = useState('')
-  const [query, setQuery]             = useState('')
-  const [visaType, setVisaType]       = useState('All')
-  const [destination, setDestination] = useState('')
-  const [sortBy, setSortBy]           = useState('newest')
-  const [saved, setSaved]             = useState<string[]>([])
-  const [showFilters, setShowFilters] = useState(false)
+  const [services, setServices]         = useState<Service[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [error, setError]               = useState('')
+  const [query, setQuery]               = useState('')
+  const [visaType, setVisaType]         = useState('All')
+  const [destination, setDestination]   = useState('')
+  const [sortBy, setSortBy]             = useState('newest')
+  const [saved, setSaved]               = useState<string[]>([])
+  const [showFilters, setShowFilters]   = useState(false)
   const [verifyFilter, setVerifyFilter] = useState({ secp: false, beoe: false, fbr: false })
-  const [maxBudget, setMaxBudget]     = useState(200000)
+  const [maxBudget, setMaxBudget]       = useState(200000)
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
@@ -137,9 +131,8 @@ export default function ConsultantsClient() {
           .eq('is_active', true)
           .order('created_at', { ascending: false })
           .limit(60)
-
         if (error) setError(error.message)
-       else setServices((data || []) as unknown as Service[])
+        else setServices((data || []) as unknown as Service[])
       } catch { setError('Failed to load services') }
       finally { setLoading(false) }
     }
@@ -150,13 +143,13 @@ export default function ConsultantsClient() {
     return services
       .filter(s => {
         const q = query.toLowerCase()
-        const matchQ   = !query || s.title?.toLowerCase().includes(q) || s.destination_country?.toLowerCase().includes(q) || s.consultant?.display_name?.toLowerCase().includes(q)
-        const matchVisa = visaType === 'All' || s.visa_type === visaType
-        const matchDest = !destination || s.destination_country?.toLowerCase().includes(destination.toLowerCase())
+        const matchQ      = !query || s.title?.toLowerCase().includes(q) || s.destination_country?.toLowerCase().includes(q) || s.consultant?.display_name?.toLowerCase().includes(q)
+        const matchVisa   = visaType === 'All' || s.visa_type === visaType
+        const matchDest   = !destination || s.destination_country?.toLowerCase().includes(destination.toLowerCase())
         const matchBudget = !s.price_min || s.price_min <= maxBudget
-        const matchSecp = !verifyFilter.secp || s.consultant?.is_secp_verified
-        const matchBeoe = !verifyFilter.beoe || s.consultant?.is_beoe_verified
-        const matchFbr  = !verifyFilter.fbr  || s.consultant?.is_fbr_verified
+        const matchSecp   = !verifyFilter.secp || s.consultant?.is_secp_verified
+        const matchBeoe   = !verifyFilter.beoe || s.consultant?.is_beoe_verified
+        const matchFbr    = !verifyFilter.fbr  || s.consultant?.is_fbr_verified
         return matchQ && matchVisa && matchDest && matchBudget && matchSecp && matchBeoe && matchFbr
       })
       .sort((a, b) => {
@@ -351,15 +344,15 @@ export default function ConsultantsClient() {
 
               {/* Service Cards */}
               {!loading && !error && filtered.map((service, i) => {
-                const isSaved    = saved.includes(service.id)
-                const name       = service.consultant?.display_name || service.consultant?.full_name || 'Consultant'
-                const avatarSrc  = service.consultant?.avatar_url
+                const isSaved   = saved.includes(service.id)
+                const name      = service.consultant?.display_name || service.consultant?.full_name || 'Consultant'
+                const avatarSrc = service.consultant?.avatar_url
                   ? `${supabaseUrl}/storage/v1/object/public/avatars/${service.consultant.avatar_url}`
                   : null
-                const imageSrc   = service.image_url
+                const imageSrc  = service.image_url
                   ? `${supabaseUrl}/storage/v1/object/public/services/${service.image_url}`
                   : null
-                const badgeBg    = VISA_BADGE_COLORS[service.visa_type] || '#1B3060'
+                const badgeBg   = VISA_BADGE_COLORS[service.visa_type] || '#1B3060'
 
                 return (
                   <div key={service.id}
@@ -378,14 +371,14 @@ export default function ConsultantsClient() {
                         </div>
                       )}
 
-                      {/* Visa type badge — top left */}
+                      {/* Visa type badge */}
                       <span
                         className="absolute top-3 left-3 text-[11px] font-bold text-white px-2.5 py-1 rounded-full shadow-sm"
                         style={{ backgroundColor: badgeBg }}>
                         {service.visa_type}
                       </span>
 
-                      {/* Heart — top right */}
+                      {/* Heart */}
                       <button onClick={() => toggleSave(service.id)}
                         className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform">
                         <Heart size={14} className={isSaved ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
@@ -397,6 +390,7 @@ export default function ConsultantsClient() {
 
                       {/* Consultant row */}
                       <div className="flex items-start gap-3 mb-3">
+
                         {/* Avatar */}
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-[#1B3060] flex items-center justify-center shrink-0 border-2 border-gray-100">
                           {avatarSrc ? (
@@ -405,44 +399,64 @@ export default function ConsultantsClient() {
                             <span className="text-white text-xs font-bold">{getInitials(name)}</span>
                           )}
                         </div>
+
                         {/* Name + badges */}
                         <div className="min-w-0 flex-1">
+
                           {/* Name row */}
                           <div className="flex items-center gap-1.5 mb-1.5">
                             <span className="text-sm font-semibold text-gray-800 truncate">{name}</span>
                             <BadgeCheck size={15} className="text-blue-500 shrink-0" />
                           </div>
-                          {/* Verification pills — exactly like sample */}
+
+                          {/* ── Verification Badges ── */}
                           <div className="flex items-center gap-1 flex-wrap">
-                            {service.consultant?.is_verified && (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-green-500 px-2 py-0.5 rounded-full">
-                                <CheckCircle size={9} strokeWidth={3} />
-                                Verified
-                              </span>
-                            )}
-                            {service.consultant?.is_secp_verified && (
-                              <span className="text-[10px] font-bold text-white bg-blue-600 px-2 py-0.5 rounded-full">
-                                SECP
-                              </span>
-                            )}
-                            {service.consultant?.is_beoe_verified && (
-                              <span className="text-[10px] font-bold text-white bg-purple-600 px-2 py-0.5 rounded-full">
-                                BEOE
-                              </span>
-                            )}
-                            {service.consultant?.is_oep_verified && (
-                              <span className="text-[10px] font-bold text-white bg-indigo-600 px-2 py-0.5 rounded-full">
-                                OEP
-                              </span>
-                            )}
-                            {service.consultant?.is_fbr_verified && (
-                              <span className="text-[10px] font-bold text-white bg-orange-500 px-2 py-0.5 rounded-full">
-                                FBR
+                            {service.consultant?.is_verified ? (
+                              <div className="inline-flex items-center gap-1 border-2 border-green-500 rounded-full px-0.5 py-0.5">
+                                {/* Verified */}
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-green-500 px-2 py-0.5 rounded-full">
+                                  <CheckCircle size={9} strokeWidth={3} />
+                                  Verified
+                                </span>
+                                {/* BEOE */}
+                                {service.consultant?.is_beoe_verified && (
+                                  <span className="text-[10px] font-bold text-white bg-[#29B6C5] px-2 py-0.5 rounded-full">
+                                    BEOE
+                                  </span>
+                                )}
+                                {/* SECP */}
+                                {service.consultant?.is_secp_verified && (
+                                  <span className="text-[10px] font-bold text-white bg-[#C9A227] px-2 py-0.5 rounded-full">
+                                    SECP
+                                  </span>
+                                )}
+                                {/* OEP */}
+                                {service.consultant?.is_oep_verified && (
+                                  <span className="text-[10px] font-bold text-white bg-[#1B3060] px-2 py-0.5 rounded-full">
+                                    OEP
+                                  </span>
+                                )}
+                                {/* FBR */}
+                                {service.consultant?.is_fbr_verified && (
+                                  <span className="text-[10px] font-bold text-white bg-orange-500 px-2 py-0.5 rounded-full">
+                                    FBR
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-500 border-2 border-red-500 px-2.5 py-0.5 rounded-full">
+                                <X size={9} strokeWidth={3} />
+                                Not Verified
                               </span>
                             )}
                           </div>
+                          {/* ── End Badges ── */}
+
                         </div>
+                        {/* End Name + badges */}
+
                       </div>
+                      {/* End Consultant row */}
 
                       {/* Title */}
                       <p className="text-sm text-gray-700 leading-snug mb-3 line-clamp-2 flex-1">
@@ -478,12 +492,19 @@ export default function ConsultantsClient() {
                           View Profile <ArrowRight size={13} />
                         </Link>
                       </div>
+
                     </div>
+                    {/* End Body */}
+
                   </div>
                 )
               })}
             </div>
+            {/* End Cards Grid */}
+
           </div>
+          {/* End Main */}
+
         </div>
       </div>
 
