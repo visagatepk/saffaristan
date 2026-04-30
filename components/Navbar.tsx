@@ -112,11 +112,12 @@ useEffect(() => {
     router.refresh()
   }
 
-  const getDashboardPath = () => {
-    if (profile?.role === 'consultant') return '/dashboard/consultant'
-    if (profile?.role === 'admin') return '/dashboard/admin'
-    return '/dashboard/seeker'
-  }
+const getDashboardPath = () => {
+  if (profile?.role === 'consultant') return '/dashboard/consultant'
+  if (profile?.role === 'admin') return '/dashboard/admin'
+  if (profile?.role === 'editor') return '/dashboard/editor'
+  return '/dashboard/seeker'
+}
 
   const getInitials = (name: string | null) => {
     if (!name) return 'U'
