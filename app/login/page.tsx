@@ -47,17 +47,17 @@ export default function LoginPage() {
       .eq('user_id', data.user.id)
       .single()
 
-    if (profile?.role === 'consultant') {
-      router.push('/dashboard/consultant')
-    } else if (profile?.role === 'admin') {
-      router.push('/dashboard/admin')
-    } else if (profile?.role === 'editor') {
-      router.push('/dashboard/editor')
-    } else {
-      router.push('/dashboard/seeker')
-    }
-  }
-
+  if (profile?.role === 'consultant') {
+  router.push('/dashboard/consultant')
+} else if (profile?.role === 'admin') {
+  router.push('/dashboard/admin')
+} else if (profile?.role === 'editor') {
+  router.push('/dashboard/editor')
+} else {
+  router.push('/dashboard/seeker')
+}
+router.refresh()
+} 
   return (
     <div className="min-h-screen bg-gray-50 flex">
 

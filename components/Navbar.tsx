@@ -23,60 +23,55 @@ export default function Navbar() {
   const userMenuRef = useRef<HTMLDivElement>(null)
   const signupMenuRef = useRef<HTMLDivElement>(null)
 
+  // ── Scroll listener ──────────────────────────────────────────────────────
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // ── Close dropdowns on outside click ────────────────────────────────────
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setShowUserMenu(false)
-      if (signupMenuRef.current && !signupMenuRef.current.contains(e.target as Node)) setShowSignupMenu(false)
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false)
+      }
+      if (signupMenuRef.current && !signupMenuRef.current.contains(e.target as Node)) {
+        setShowSignupMenu(false)
+      }
     }
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  // ── SINGLE auth effect — one client, one subscription ───────────────────
   useEffect(() => {
     const supabase = createClient()
 
-    const loadUser = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession()
-        if (session?.user) {
-          setUser(session.user)
-          const { data: prof } = await supabase
-            .from('profiles')
-            .select('role, full_name, display_name, avatar_url')
-            .eq('user_id', session.user.id)
-            .single()
-          setProfile(prof)
-        } else {
-          setUser(null)
-          setProfile(null)
-        }
-      } catch (err) {
-        setUser(null)
-        setProfile(null)
-      } finally {
-        setLoading(false)
-      }
+    const loadProfile = async (userId: string) => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url, role')
+        .eq('id', userId)
+        .single()
+      setProfile(data)
     }
 
-    const timeout = setTimeout(() => setLoading(false), 2000)
-    loadUser().finally(() => clearTimeout(timeout))
+    // 1. Check existing session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser(session.user)
+        loadProfile(session.user.id)
+      }
+      setLoading(false)
+    })
 
+    // 2. Listen for auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (session?.user) {
           setUser(session.user)
-          const { data: prof } = await supabase
-            .from('profiles')
-            .select('role, full_name, display_name, avatar_url')
-            .eq('user_id', session.user.id)
-            .single()
-          setProfile(prof)
+          await loadProfile(session.user.id)
         } else {
           setUser(null)
           setProfile(null)
@@ -85,23 +80,10 @@ export default function Navbar() {
       }
     )
 
-    return () => {
-      subscription.unsubscribe()
-      clearTimeout(timeout)
-    }
-}, [])
-// ADD this NEW useEffect after the existing one:
-useEffect(() => {
-  // Only re-check auth on navigation, not full reload
-  if (pathname !== '/') {
-    const supabase = createClient()
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user)
-      }
-    })
-  }
-}, [pathname])
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // ── Logout ───────────────────────────────────────────────────────────────
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -112,193 +94,164 @@ useEffect(() => {
     router.refresh()
   }
 
-const getDashboardPath = () => {
-  if (profile?.role === 'consultant') return '/dashboard/consultant'
-  if (profile?.role === 'admin') return '/dashboard/admin'
-  if (profile?.role === 'editor') return '/dashboard/editor'
-  return '/dashboard/seeker'
-}
-
-  const getInitials = (name: string | null) => {
-    if (!name) return 'U'
-    return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  // ── Dashboard redirect based on role ────────────────────────────────────
+  const getDashboardLink = () => {
+    if (profile?.role === 'consultant') return '/dashboard/consultant'
+    if (profile?.role === 'admin') return '/dashboard/admin'
+    return '/dashboard/seeker'
   }
 
-  const displayName = profile?.display_name || profile?.full_name || user?.email?.split('@')[0] || 'User'
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-  const avatarUrl = profile?.avatar_url
-    ? `${supabaseUrl}/storage/v1/object/public/avatars/${profile.avatar_url}`
-    : null
+  const isActive = (path: string) => pathname === path
 
-  const NAV_LINKS = [
-    { href: '/consultants', label: 'Find Consultants' },
-    { href: '/visa-categories', label: 'Visa Types' },
-    { href: '/destinations', label: 'Destinations' },
-    { href: '/insights', label: 'Insights', isNew: true },
-    { href: '/for-consultants', label: 'For Consultants' },
-  ]
-
+  // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <nav className={`sticky top-0 z-50 transition-all duration-300 ${
-      scrolled
-        ? 'bg-white/95 backdrop-blur-md shadow-[0_1px_20px_rgba(0,0,0,0.08)]'
-        : 'bg-white border-b border-gray-100'
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      scrolled ? 'bg-white shadow-md' : 'bg-white/95 backdrop-blur-sm'
     }`}>
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between py-3.5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
 
           {/* Logo */}
-          <Link href="/" className="flex items-center shrink-0">
-            <Image src="/logo.png" alt="VisaGate.pk" width={160} height={40} priority className="h-9 w-auto" />
+          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+            <Image src="/logo.png" alt="VisaGate" width={140} height={36} priority />
           </Link>
 
           {/* Desktop Nav Links */}
-          <div className="hidden lg:flex items-center gap-7">
-            {NAV_LINKS.map(link => (
-              <Link key={link.href} href={link.href}
-                className="flex items-center gap-1.5 font-body text-sm text-gray-600 hover:text-navy font-medium transition-colors duration-200 relative group">
-                {link.label}
-                {link.isNew && <Lightbulb size={12} className="text-gold" />}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gold rounded-full group-hover:w-full transition-all duration-300" />
-              </Link>
-            ))}
+          <div className="hidden md:flex items-center gap-6">
+            <Link href="/consultants" className={`text-sm font-medium transition-colors ${
+              isActive('/consultants') ? 'text-[#1B3060]' : 'text-gray-600 hover:text-[#1B3060]'
+            }`}>
+              Find Consultants
+            </Link>
+            <Link href="/insights" className={`text-sm font-medium transition-colors ${
+              isActive('/insights') ? 'text-[#1B3060]' : 'text-gray-600 hover:text-[#1B3060]'
+            }`}>
+              Insights
+            </Link>
+            <Link href="/visa-categories" className={`text-sm font-medium transition-colors ${
+              isActive('/visa-categories') ? 'text-[#1B3060]' : 'text-gray-600 hover:text-[#1B3060]'
+            }`}>
+              Visa Categories
+            </Link>
+            <Link href="/for-consultants" className={`text-sm font-medium transition-colors ${
+              isActive('/for-consultants') ? 'text-[#1B3060]' : 'text-gray-600 hover:text-[#1B3060]'
+            }`}>
+              For Consultants
+            </Link>
           </div>
 
           {/* Desktop Auth */}
-          <div className="hidden lg:flex items-center gap-2.5 min-w-[200px] justify-end">
-
-            {/* Loading skeleton */}
-            {loading && (
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 px-3 py-2 rounded-xl animate-pulse">
-                <div className="w-7 h-7 rounded-lg bg-gray-200" />
-                <div className="w-16 h-3.5 bg-gray-200 rounded" />
-              </div>
-            )}
-
-            {/* Logged IN */}
-            {!loading && user && profile && (
+          <div className="hidden md:flex items-center gap-3">
+            {loading ? (
+              <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
+            ) : user ? (
+              /* Logged-in user menu */
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2.5 bg-gray-50 hover:bg-navy-light border border-gray-200 hover:border-navy/20 px-3 py-2 rounded-xl transition-all duration-200"
+                  className="flex items-center gap-2 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  <div className="w-8 h-8 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                    ) : (
-                      <span className="font-heading font-bold text-white text-xs">{getInitials(displayName)}</span>
-                    )}
-                  </div>
-                  <span className="font-heading font-semibold text-navy text-sm truncate max-w-[100px]">
-                    {displayName}
+                  {profile?.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
+                      alt={profile?.full_name || 'User'}
+                      width={34}
+                      height={34}
+                      className="rounded-full object-cover border-2 border-[#1B3060]"
+                    />
+                  ) : (
+                    <div className="w-[34px] h-[34px] rounded-full bg-[#1B3060] flex items-center justify-center">
+                      <User size={16} className="text-white" />
+                    </div>
+                  )}
+                  <span className="text-sm font-medium text-gray-700 max-w-[100px] truncate">
+                    {profile?.full_name?.split(' ')[0] || 'Account'}
                   </span>
-                  {profile.role === 'consultant' && (
-                    <span className="font-body text-xs bg-gold-light text-gold font-semibold px-1.5 py-0.5 rounded-full shrink-0">Pro</span>
-                  )}
-                  {profile.role === 'admin' && (
-                    <span className="font-body text-xs bg-red-50 text-red-600 font-semibold px-1.5 py-0.5 rounded-full shrink-0">Admin</span>
-                  )}
-                  <ChevronDown size={14} className={`text-gray-400 transition-transform duration-200 shrink-0 ${showUserMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={14} className="text-gray-500" />
                 </button>
 
                 {showUserMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50">
-                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0">
-                          {avatarUrl ? (
-                            <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-                          ) : (
-                            <span className="font-heading font-bold text-white text-xs">{getInitials(displayName)}</span>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-heading font-bold text-navy text-sm truncate">{displayName}</p>
-                          <p className="font-body text-gray-400 text-xs truncate">{user.email}</p>
-                        </div>
-                      </div>
-                      <span className={`inline-block mt-2 text-xs font-body font-semibold px-2 py-0.5 rounded-full capitalize ${
-                        profile.role === 'consultant' ? 'bg-gold-light text-gold' :
-                        profile.role === 'admin' ? 'bg-red-50 text-red-600' :
-                        'bg-navy-light text-navy'
-                      }`}>
-                        {profile.role === 'consultant' ? 'Consultant' :
-                         profile.role === 'admin' ? 'Administrator' : 'Visa Seeker'}
-                      </span>
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs text-gray-500">Signed in as</p>
+                      <p className="text-sm font-semibold text-[#1B3060] truncate">
+                        {profile?.full_name || user.email}
+                      </p>
                     </div>
-
-                    <div className="py-1.5">
-                      <Link href={getDashboardPath()} onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-body text-gray-600 hover:text-navy hover:bg-navy-light transition-colors">
-                        <LayoutDashboard size={15} className="text-navy/50 shrink-0" /> Dashboard
+                    <Link
+                      href={getDashboardLink()}
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <LayoutDashboard size={15} className="text-[#1B3060]" />
+                      Dashboard
+                    </Link>
+                    {profile?.role === 'consultant' && (
+                      <Link
+                        href="/dashboard/consultant/services"
+                        onClick={() => setShowUserMenu(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Briefcase size={15} className="text-[#1B3060]" />
+                        My Services
                       </Link>
-                      <Link href={`${getDashboardPath()}/profile`} onClick={() => setShowUserMenu(false)}
-                        className="flex items-center gap-3 px-4 py-2.5 text-sm font-body text-gray-600 hover:text-navy hover:bg-navy-light transition-colors">
-                        <User size={15} className="text-navy/50 shrink-0" /> My Profile
-                      </Link>
-                      {profile.role === 'consultant' && (
-                        <Link href="/dashboard/consultant/services" onClick={() => setShowUserMenu(false)}
-                          className="flex items-center gap-3 px-4 py-2.5 text-sm font-body text-gray-600 hover:text-navy hover:bg-navy-light transition-colors">
-                          <Briefcase size={15} className="text-navy/50 shrink-0" /> My Services
-                        </Link>
-                      )}
-                    </div>
-
-                    <div className="border-t border-gray-100 py-1.5">
-                      <button onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-body text-red-500 hover:bg-red-50 transition-colors">
-                        <LogOut size={15} className="shrink-0" /> Sign Out
-                      </button>
-                    </div>
+                    )}
+                    <Link
+                      href="/insights"
+                      onClick={() => setShowUserMenu(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Lightbulb size={15} className="text-[#1B3060]" />
+                      Insights
+                    </Link>
+                    <hr className="my-1 border-gray-100" />
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut size={15} />
+                      Sign Out
+                    </button>
                   </div>
                 )}
               </div>
-            )}
-
-            {/* NOT logged in */}
-            {!loading && !user && (
+            ) : (
+              /* Guest buttons */
               <>
-                <Link href="/login"
-                  className="font-heading text-sm font-semibold text-navy px-4 py-2 rounded-xl hover:bg-navy-light transition-all duration-200">
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-[#1B3060] hover:text-[#243d7a] transition-colors"
+                >
                   Log In
                 </Link>
 
+                {/* Sign Up dropdown */}
                 <div className="relative" ref={signupMenuRef}>
-                  <button onClick={() => setShowSignupMenu(!showSignupMenu)}
-                    className="font-heading text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 flex items-center gap-1.5 text-white hover:opacity-90"
-                    style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
+                  <button
+                    onClick={() => setShowSignupMenu(!showSignupMenu)}
+                    className="flex items-center gap-1.5 text-sm font-semibold text-white bg-[#1B3060] px-4 py-2 rounded-xl hover:bg-[#243d7a] transition-colors"
+                  >
                     Sign Up
-                    <ChevronDown size={14} className={`transition-transform duration-200 ${showSignupMenu ? 'rotate-180' : ''}`} />
+                    <ChevronDown size={14} />
                   </button>
-
                   {showSignupMenu && (
-                    <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-gray-100 shadow-xl overflow-hidden z-50">
-                      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-                        <p className="font-body text-xs text-gray-400 font-medium">Create a free account as</p>
-                      </div>
-                      <div className="py-1.5">
-                        <Link href="/register/seeker" onClick={() => setShowSignupMenu(false)}
-                          className="flex items-start gap-3 px-4 py-3 hover:bg-navy-light transition-colors group">
-                          <div className="w-8 h-8 bg-navy-light group-hover:bg-navy rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors">
-                            <User size={14} className="text-navy group-hover:text-white transition-colors" />
-                          </div>
-                          <div>
-                            <p className="font-heading font-bold text-navy text-sm">Visa Seeker</p>
-                            <p className="font-body text-gray-400 text-xs mt-0.5">Find & contact consultants</p>
-                          </div>
-                        </Link>
-                        <Link href="/register/consultant" onClick={() => setShowSignupMenu(false)}
-                          className="flex items-start gap-3 px-4 py-3 hover:bg-gold-light transition-colors group">
-                          <div className="w-8 h-8 bg-gold-light group-hover:bg-gold rounded-lg flex items-center justify-center shrink-0 mt-0.5 transition-colors">
-                            <Briefcase size={14} className="text-gold group-hover:text-white transition-colors" />
-                          </div>
-                          <div>
-                            <p className="font-heading font-bold text-navy text-sm">Consultant</p>
-                            <p className="font-body text-gray-400 text-xs mt-0.5">List your services free</p>
-                          </div>
-                        </Link>
-                      </div>
+                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
+                      <Link
+                        href="/register/seeker"
+                        onClick={() => setShowSignupMenu(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <User size={15} className="text-[#1B3060]" />
+                        I'm a Visa Seeker
+                      </Link>
+                      <Link
+                        href="/register/consultant"
+                        onClick={() => setShowSignupMenu(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Briefcase size={15} className="text-[#1B3060]" />
+                        I'm a Consultant
+                      </Link>
                     </div>
                   )}
                 </div>
@@ -306,74 +259,65 @@ const getDashboardPath = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
-          <button onClick={() => setIsOpen(!isOpen)}
-            className="lg:hidden p-2 text-navy rounded-lg hover:bg-navy-light transition-colors">
+          {/* Mobile menu button */}
+          <button
+            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+            onClick={() => setIsOpen(!isOpen)}
+          >
             {isOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
         </div>
-
-        {/* Mobile Menu */}
-        {isOpen && (
-          <div className="lg:hidden border-t border-gray-100 py-4 space-y-1">
-            {NAV_LINKS.map(link => (
-              <Link key={link.href} href={link.href} onClick={() => setIsOpen(false)}
-                className="flex items-center gap-2 px-3 py-2.5 font-body text-sm text-gray-700 hover:text-navy hover:bg-navy-light rounded-xl transition-colors">
-                {link.isNew && <Lightbulb size={13} className="text-gold" />}
-                {link.label}
-              </Link>
-            ))}
-
-            <div className="pt-3 border-t border-gray-100 space-y-2 mt-2">
-              {!loading && user && profile ? (
-                <>
-                  <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 rounded-xl">
-                    <div className="w-9 h-9 rounded-xl overflow-hidden bg-navy flex items-center justify-center shrink-0">
-                      {avatarUrl ? (
-                        <img src={avatarUrl} alt={displayName} className="w-full h-full object-cover" />
-                      ) : (
-                        <span className="font-heading font-bold text-white text-sm">{getInitials(displayName)}</span>
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-heading font-bold text-navy text-sm">{displayName}</p>
-                      <p className="font-body text-gray-400 text-xs capitalize">{profile.role}</p>
-                    </div>
-                  </div>
-                  <Link href={getDashboardPath()} onClick={() => setIsOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2.5 font-body text-sm text-gray-700 hover:text-navy hover:bg-navy-light rounded-xl transition-colors">
-                    <LayoutDashboard size={15} /> Dashboard
-                  </Link>
-                  <button onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 font-body text-sm text-red-500 hover:bg-red-50 rounded-xl transition-colors">
-                    <LogOut size={15} /> Sign Out
-                  </button>
-                </>
-              ) : !loading && !user ? (
-                <>
-                  <Link href="/login" onClick={() => setIsOpen(false)}
-                    className="block text-center font-heading text-sm font-semibold border border-navy text-navy py-2.5 rounded-xl hover:bg-navy hover:text-white transition-colors">
-                    Log In
-                  </Link>
-                  <Link href="/for-consultants" onClick={() => setIsOpen(false)}
-  className="block px-4 py-2.5 text-sm font-medium text-[#C9A227] hover:bg-gray-50 rounded-xl">
-  For Consultants
-</Link>
-                  <Link href="/register/seeker" onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-center gap-2 font-heading text-sm font-semibold bg-navy-light text-navy py-2.5 rounded-xl hover:bg-navy hover:text-white transition-colors">
-                    <User size={15} /> Sign Up as Seeker
-                  </Link>
-                  <Link href="/register/consultant" onClick={() => setIsOpen(false)}
-                    className="flex items-center justify-center gap-2 font-heading text-sm font-semibold text-white py-2.5 rounded-xl transition-colors"
-                    style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
-                    <Briefcase size={15} /> List Your Service
-                  </Link>
-                </>
-              ) : null}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Mobile Menu */}
+      {isOpen && (
+        <div className="md:hidden bg-white border-t border-gray-100 px-4 py-4 space-y-3 shadow-lg">
+          <Link href="/consultants" onClick={() => setIsOpen(false)}
+            className="block text-sm font-medium text-gray-700 hover:text-[#1B3060] py-2">
+            Find Consultants
+          </Link>
+          <Link href="/insights" onClick={() => setIsOpen(false)}
+            className="block text-sm font-medium text-gray-700 hover:text-[#1B3060] py-2">
+            Insights
+          </Link>
+          <Link href="/visa-categories" onClick={() => setIsOpen(false)}
+            className="block text-sm font-medium text-gray-700 hover:text-[#1B3060] py-2">
+            Visa Categories
+          </Link>
+          <Link href="/for-consultants" onClick={() => setIsOpen(false)}
+            className="block text-sm font-medium text-gray-700 hover:text-[#1B3060] py-2">
+            For Consultants
+          </Link>
+          <hr className="border-gray-100" />
+          {user ? (
+            <>
+              <Link href={getDashboardLink()} onClick={() => setIsOpen(false)}
+                className="block text-sm font-semibold text-[#1B3060] py-2">
+                Dashboard
+              </Link>
+              <button onClick={handleLogout}
+                className="block w-full text-left text-sm font-medium text-red-600 py-2">
+                Sign Out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link href="/login" onClick={() => setIsOpen(false)}
+                className="block text-sm font-medium text-gray-700 hover:text-[#1B3060] py-2">
+                Log In
+              </Link>
+              <Link href="/register/seeker" onClick={() => setIsOpen(false)}
+                className="block text-sm font-semibold text-white bg-[#1B3060] px-4 py-2.5 rounded-xl text-center">
+                Sign Up as Seeker
+              </Link>
+              <Link href="/register/consultant" onClick={() => setIsOpen(false)}
+                className="block text-sm font-semibold text-[#1B3060] border border-[#1B3060] px-4 py-2.5 rounded-xl text-center">
+                Sign Up as Consultant
+              </Link>
+            </>
+          )}
+        </div>
+      )}
     </nav>
   )
 }
