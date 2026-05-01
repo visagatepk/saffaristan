@@ -109,13 +109,18 @@ export default function ConsultantsClient() {
   const [showFilters, setShowFilters]   = useState(false)
   const [verifyFilter, setVerifyFilter] = useState({ secp: false, beoe: false, fbr: false })
   const [maxBudget, setMaxBudget]       = useState(200000)
-
+const [session, setSession]           = useState<any>(null)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
-  useEffect(() => {
+ useEffect(() => {
     const load = async () => {
       try {
         const supabase = createClient()
+
+        // Load session separately - don't block data fetch
+        const { data: { session } } = await supabase.auth.getSession()
+        setSession(session)
+
         const { data, error } = await supabase
           .from('services')
           .select(`
@@ -487,6 +492,18 @@ export default function ConsultantsClient() {
                             PKR {service.price_min?.toLocaleString()}
                           </p>
                         </div>
+
+                        <button
+  onClick={() => {
+    if (!session) {
+      window.location.href = '/login'
+    } else {
+      window.location.href = `/consultants/${service.consultant_id}`
+    }
+  }}
+  className="flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#1B3060] px-4 py-2 rounded-xl transition-all duration-200 hover:bg-[#243d7a]">
+  Message
+</button>
                         <Link href={`/consultants/${service.consultant_id}`}
                           className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1B3060] hover:text-white hover:bg-[#1B3060] border border-[#1B3060]/25 hover:border-[#1B3060] px-4 py-2 rounded-xl transition-all duration-200">
                           View Profile <ArrowRight size={13} />
