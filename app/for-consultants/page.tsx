@@ -1,319 +1,215 @@
 'use client'
-// FILE: app/for-consultants/page.tsx
 
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import Navbar from '@/components/Navbar'
-import Footer from '@/components/Footer'
 import {
   CheckCircle, Star, TrendingUp, Shield, Users, MessageSquare,
-  Calendar, Award, ChevronRight, ArrowRight, BadgeCheck,
-  Zap, Globe, Clock, DollarSign, BarChart2, Phone,
-  Plus, Minus
+  Calendar, Award, ChevronDown, ArrowRight, Briefcase, Globe,
+  BarChart2, Zap, Clock, BadgeCheck
 } from 'lucide-react'
-import { useState } from 'react'
 
-// ── DATA ──────────────────────────────────────────────────────────
+// ── Animated counter ──────────────────────────────────────────────────────
+function Counter({ end, suffix = '', duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
+  const [count, setCount] = useState(0)
+  const ref = useRef<HTMLSpanElement>(null)
+  const started = useRef(false)
 
-const STATS = [
-  { value: '50,000+', label: 'Active Visa Seekers', icon: Users },
-  { value: '4.8★', label: 'Average Consultant Rating', icon: Star },
-  { value: '120+', label: 'Cities Covered', icon: Globe },
-  { value: '95%', label: 'Client Satisfaction Rate', icon: TrendingUp },
-]
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting && !started.current) {
+        started.current = true
+        const start = performance.now()
+        const animate = (now: number) => {
+          const elapsed = now - start
+          const progress = Math.min(elapsed / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          setCount(Math.floor(eased * end))
+          if (progress < 1) requestAnimationFrame(animate)
+          else setCount(end)
+        }
+        requestAnimationFrame(animate)
+      }
+    }, { threshold: 0.3 })
+    if (ref.current) observer.observe(ref.current)
+    return () => observer.disconnect()
+  }, [end, duration])
 
-const HOW_IT_WORKS = [
-  {
-    step: '01',
-    title: 'Create Your Profile',
-    desc: 'Sign up in minutes. Add your OEP license, SECP registration, services, and expertise. Our team verifies your credentials within 24 hours.',
-    icon: Shield,
-    color: 'bg-blue-50 text-blue-600',
-  },
-  {
-    step: '02',
-    title: 'Get Discovered',
-    desc: 'Your verified profile appears in front of thousands of visa seekers searching for consultants in your city and specialization.',
-    icon: Globe,
-    color: 'bg-green-50 text-green-600',
-  },
-  {
-    step: '03',
-    title: 'Grow Your Business',
-    desc: 'Receive appointment requests, chat with clients, collect reviews, and build a 5-star reputation on Pakistan\'s most trusted visa platform.',
-    icon: TrendingUp,
-    color: 'bg-purple-50 text-purple-600',
-  },
-]
+  return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
+}
 
-const FEATURES = [
-  {
-    icon: BadgeCheck,
-    title: 'Verified Badge',
-    desc: 'Get BEOE, OEP, SECP, and FBR verification badges that build instant trust with clients.',
-    color: 'text-[#C9A227]',
-    bg: 'bg-amber-50',
-  },
-  {
-    icon: Calendar,
-    title: 'Appointment System',
-    desc: 'Clients can book appointments directly through your profile. Manage your schedule effortlessly.',
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-  },
-  {
-    icon: MessageSquare,
-    title: 'Real-time Messaging',
-    desc: 'Chat directly with potential clients. Answer queries instantly and convert leads faster.',
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-  },
-  {
-    icon: Star,
-    title: 'Review System',
-    desc: 'Build your reputation with verified client reviews. 5-star consultants get featured placement.',
-    color: 'text-orange-500',
-    bg: 'bg-orange-50',
-  },
-  {
-    icon: BarChart2,
-    title: 'Analytics Dashboard',
-    desc: 'Track profile views, inquiries, bookings, and revenue all in one powerful dashboard.',
-    color: 'text-purple-600',
-    bg: 'bg-purple-50',
-  },
-  {
-    icon: Phone,
-    title: 'WhatsApp Integration',
-    desc: 'Clients can reach you via WhatsApp directly from your profile. Never miss a lead.',
-    color: 'text-[#1B3060]',
-    bg: 'bg-blue-50',
-  },
-]
-
-const TESTIMONIALS = [
-  {
-    name: 'Tariq Mahmood',
-    title: 'OEP Licensed Consultant · Lahore',
-    rating: 5,
-    text: 'VisaGate completely transformed my business. I was struggling to find new clients, but within 2 months of joining I had a full appointment calendar. The verification badge made all the difference.',
-    avatar: 'TM',
-    clients: '47 clients via VisaGate',
-  },
-  {
-    name: 'Sana Khalid',
-    title: 'SECP Registered · Karachi',
-    rating: 5,
-    text: 'As a female consultant, the professional platform gave me credibility I needed. My profile gets 200+ views monthly and the messaging system makes client communication so easy.',
-    avatar: 'SK',
-    clients: '63 clients via VisaGate',
-  },
-  {
-    name: 'Ahmed Raza',
-    title: 'Immigration Specialist · Islamabad',
-    rating: 5,
-    text: 'The dashboard analytics help me understand which services are most in demand. I\'ve doubled my revenue since joining VisaGate 6 months ago. Highly recommended for serious consultants.',
-    avatar: 'AR',
-    clients: '89 clients via VisaGate',
-  },
-]
-
-const BADGES = [
-  { name: 'BEOE', label: 'Bureau of Emigration', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  { name: 'OEP', label: 'Overseas Employment', color: 'bg-green-100 text-green-700 border-green-200' },
-  { name: 'SECP', label: 'Company Registration', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-  { name: 'FBR', label: 'Tax Registration', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-]
-
-const FAQS = [
-  {
-    q: 'Is it free to join VisaGate?',
-    a: 'Yes! Creating your consultant profile and getting listed is completely free. We believe in growing together with Pakistan\'s visa consultants.',
-  },
-  {
-    q: 'How does the verification process work?',
-    a: 'After you submit your OEP license number, SECP registration date, and other credentials, our admin team reviews and verifies them within 24 hours. Verified consultants get special badges on their profile.',
-  },
-  {
-    q: 'What cities are covered?',
-    a: 'VisaGate currently covers all major cities across Pakistan including Karachi, Lahore, Islamabad, Rawalpindi, Faisalabad, Multan, Peshawar, Quetta, and 100+ more.',
-  },
-  {
-    q: 'Can I list multiple services?',
-    a: 'Absolutely! You can add unlimited services to your profile — each with its own description, pricing, and thumbnail image. Show clients exactly what you specialize in.',
-  },
-  {
-    q: 'How do clients find me?',
-    a: 'Clients search by city, visa type, destination country, and verification status. Having a complete profile with all verifications significantly increases your visibility.',
-  },
-  {
-    q: 'What happens after a client books an appointment?',
-    a: 'You receive a notification and the appointment appears in your dashboard. You can confirm, reschedule, or decline. Real-time messaging lets you communicate with the client instantly.',
-  },
-]
-
-// ── COMPONENTS ────────────────────────────────────────────────────
-
+// ── FAQ Item ──────────────────────────────────────────────────────────────
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
   return (
-    <div className={`border rounded-2xl transition-all duration-200 ${open ? 'border-[#C9A227] bg-amber-50/50' : 'border-gray-200 bg-white'}`}>
+    <div className="border border-gray-200 rounded-2xl overflow-hidden">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between p-5 text-left gap-4"
+        className="w-full flex items-center justify-between px-6 py-5 text-left hover:bg-gray-50 transition-colors"
       >
-        <span className={`font-semibold text-sm md:text-base transition-colors ${open ? 'text-[#1B3060]' : 'text-gray-800'}`}>{q}</span>
-        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${open ? 'bg-[#C9A227] text-white' : 'bg-gray-100 text-gray-500'}`}>
-          {open ? <Minus size={14} /> : <Plus size={14} />}
-        </div>
+        <span className="font-semibold text-[#1B3060] pr-4">{q}</span>
+        <ChevronDown
+          size={20}
+          className={`text-[#C9A227] flex-shrink-0 transition-transform duration-300 ${open ? 'rotate-180' : ''}`}
+        />
       </button>
       {open && (
-        <div className="px-5 pb-5">
-          <p className="text-gray-600 text-sm leading-relaxed">{a}</p>
+        <div className="px-6 pb-5 text-gray-600 leading-relaxed border-t border-gray-100 pt-4">
+          {a}
         </div>
       )}
     </div>
   )
 }
 
-// ── PAGE ──────────────────────────────────────────────────────────
-
 export default function ForConsultantsPage() {
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar />
+    <main className="bg-white">
 
-      {/* ── HERO ── */}
-      <section className="relative bg-[#1B3060] overflow-hidden pt-28 pb-20 md:pt-36 md:pb-28">
+      {/* ── HERO ──────────────────────────────────────────────────────── */}
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-[#0f1f45]">
         {/* Background pattern */}
-        <div className="absolute inset-0 opacity-5">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[#C9A227] rounded-full blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-80 h-80 bg-white rounded-full blur-3xl" />
-        </div>
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(201,162,39,0.08) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.05) 0%, transparent 50%)'
-        }} />
+        <div className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, #C9A227 1px, transparent 0)`,
+            backgroundSize: '48px 48px'
+          }}
+        />
+        {/* Gold accent blobs */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(30%, -30%)' }}
+        />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-5"
+          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(-30%, 30%)' }}
+        />
 
-        <div className="relative max-w-6xl mx-auto px-4">
-          <div className="flex flex-col lg:flex-row items-center gap-12">
-
-            {/* Left */}
-            <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 bg-[#C9A227]/15 text-[#C9A227] text-sm font-semibold px-4 py-2 rounded-full mb-6 border border-[#C9A227]/20">
-                <Zap size={14} />
-                Pakistan's #1 Visa Consultant Platform
-              </div>
-
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white font-['Plus_Jakarta_Sans'] leading-tight mb-6">
-                Grow Your Visa<br />
-                <span className="text-[#C9A227]">Consultancy Business</span><br />
-                Online
-              </h1>
-
-              <p className="text-white/70 text-lg md:text-xl leading-relaxed mb-8 max-w-xl">
-                Join 5,000+ verified visa consultants on VisaGate.pk. Get discovered by seekers, manage appointments, and build your 5-star reputation — all for free.
-              </p>
-
-              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
-                <Link
-                  href="/register/consultant"
-                  className="flex items-center gap-2 bg-[#C9A227] text-white px-8 py-4 rounded-xl font-bold text-base hover:bg-[#b8911f] transition-all shadow-lg shadow-[#C9A227]/25 group"
-                >
-                  Join Free Today
-                  <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
-                <Link
-                  href="/consultants"
-                  className="flex items-center gap-2 border border-white/20 text-white px-8 py-4 rounded-xl font-semibold text-base hover:bg-white/10 transition-all"
-                >
-                  See Live Profiles
-                </Link>
-              </div>
-
-              <div className="flex items-center gap-6 mt-8 justify-center lg:justify-start">
-                <div className="flex items-center gap-1.5 text-white/60 text-sm">
-                  <CheckCircle size={14} className="text-green-400" />
-                  Free to join
-                </div>
-                <div className="flex items-center gap-1.5 text-white/60 text-sm">
-                  <CheckCircle size={14} className="text-green-400" />
-                  Verified in 24hrs
-                </div>
-                <div className="flex items-center gap-1.5 text-white/60 text-sm">
-                  <CheckCircle size={14} className="text-green-400" />
-                  No commission
-                </div>
-              </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 grid lg:grid-cols-2 gap-16 items-center">
+          {/* Left */}
+          <div>
+            <div className="inline-flex items-center gap-2 bg-[#C9A227]/20 border border-[#C9A227]/30 text-[#C9A227] text-sm font-semibold px-4 py-2 rounded-full mb-8">
+              <Zap size={14} />
+              Pakistan's #1 Visa Consultant Platform
             </div>
+            <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+              Grow Your Visa <br />
+              <span className="text-[#C9A227]">Consultancy</span> <br />
+              Business Online
+            </h1>
+            <p className="text-lg text-blue-100 leading-relaxed mb-10 max-w-lg">
+              Join thousands of verified visa consultants on VisaGate.pk — Pakistan's first trusted platform connecting you with genuine clients actively seeking visa guidance.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link
+                href="/register/consultant"
+                className="inline-flex items-center gap-2 bg-[#C9A227] text-[#0f1f45] font-bold px-8 py-4 rounded-2xl hover:bg-[#b8911f] transition-all duration-200 shadow-lg shadow-[#C9A227]/30 text-lg"
+              >
+                Join Free Today
+                <ArrowRight size={20} />
+              </Link>
+              <Link
+                href="/consultants"
+                className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/20 transition-all duration-200 border border-white/20 text-lg"
+              >
+                See Live Profiles
+              </Link>
+            </div>
+            <p className="text-blue-200 text-sm mt-6">
+              ✓ Free to join &nbsp;&nbsp; ✓ No commission taken &nbsp;&nbsp; ✓ Verified badge included
+            </p>
+          </div>
 
-            {/* Right — Mock Profile Card */}
-            <div className="flex-shrink-0 w-full max-w-sm">
-              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-                {/* Card Header */}
-                <div className="h-24 bg-gradient-to-r from-[#1B3060] to-[#2a4a8a] relative">
-                  <div className="absolute -bottom-8 left-6">
-                    <div className="w-16 h-16 rounded-2xl bg-[#C9A227] flex items-center justify-center text-white font-bold text-xl shadow-lg border-4 border-white">
-                      AK
-                    </div>
+          {/* Right — Profile card mockup */}
+          <div className="hidden lg:flex justify-center">
+            <div className="relative">
+              {/* Main card */}
+              <div className="bg-white rounded-3xl shadow-2xl p-6 w-80">
+                {/* Cover */}
+                <div className="h-24 rounded-2xl mb-12 relative" style={{ background: 'linear-gradient(135deg, #1B3060, #2d4a8a)' }}>
+                  <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-[#C9A227] flex items-center justify-center shadow-lg">
+                    <Briefcase size={28} className="text-white" />
                   </div>
-                  <div className="absolute top-3 right-3 flex gap-1">
-                    <span className="bg-green-500 text-white text-xs px-2 py-0.5 rounded-full font-semibold">✓ Verified</span>
+                  <div className="absolute top-3 right-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                    Verified
                   </div>
                 </div>
-
-                <div className="pt-10 px-6 pb-6">
-                  <h3 className="font-bold text-[#1B3060] text-lg font-['Plus_Jakarta_Sans']">Ahmad Khan</h3>
-                  <p className="text-gray-500 text-sm mb-3">Immigration Consultant · Lahore</p>
-
-                  {/* Badges */}
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {BADGES.map(b => (
-                      <span key={b.name} className={`text-xs font-bold px-2.5 py-1 rounded-full border ${b.color}`}>
-                        {b.name}
-                      </span>
+                <div className="mb-4">
+                  <h3 className="font-bold text-[#1B3060] text-lg">Ahmed Consultant</h3>
+                  <p className="text-gray-500 text-sm">Immigration Specialist · Lahore</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} size={13} className="fill-[#C9A227] text-[#C9A227]" />
                     ))}
+                    <span className="text-xs text-gray-500 ml-1">4.9 (47 reviews)</span>
                   </div>
-
-                  {/* Stats row */}
-                  <div className="grid grid-cols-3 gap-2 mb-4 bg-gray-50 rounded-2xl p-3">
-                    {[
-                      { val: '4.9', label: 'Rating' },
-                      { val: '127', label: 'Clients' },
-                      { val: '8yr', label: 'Experience' },
-                    ].map(s => (
-                      <div key={s.label} className="text-center">
-                        <div className="font-bold text-[#1B3060] text-base">{s.val}</div>
-                        <div className="text-xs text-gray-400">{s.label}</div>
-                      </div>
-                    ))}
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {['UK Visa', 'Canada', 'Schengen'].map(tag => (
+                    <span key={tag} className="bg-blue-50 text-[#1B3060] text-xs font-medium px-2 py-1 rounded-lg text-center">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="border-t border-gray-100 pt-4 grid grid-cols-3 text-center gap-2">
+                  <div>
+                    <div className="font-bold text-[#1B3060] text-lg">142</div>
+                    <div className="text-gray-400 text-xs">Clients</div>
                   </div>
-
-                  {/* CTA Buttons */}
-                  <div className="flex gap-2">
-                    <button className="flex-1 bg-[#1B3060] text-white text-sm font-semibold py-2.5 rounded-xl">
-                      Book Appointment
-                    </button>
-                    <button className="flex-1 border border-gray-200 text-gray-700 text-sm font-semibold py-2.5 rounded-xl">
-                      WhatsApp
-                    </button>
+                  <div>
+                    <div className="font-bold text-[#1B3060] text-lg">8yr</div>
+                    <div className="text-gray-400 text-xs">Experience</div>
+                  </div>
+                  <div>
+                    <div className="font-bold text-[#1B3060] text-lg">98%</div>
+                    <div className="text-gray-400 text-xs">Success</div>
                   </div>
                 </div>
               </div>
 
-              <p className="text-center text-white/50 text-xs mt-3">← Your profile will look like this</p>
+              {/* Floating badges */}
+              <div className="absolute -left-14 top-16 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                  <Users size={15} className="text-green-600" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">New inquiry</div>
+                  <div className="text-sm font-bold text-[#1B3060]">Just now</div>
+                </div>
+              </div>
+              <div className="absolute -right-10 bottom-24 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-[#C9A227]/20 flex items-center justify-center">
+                  <TrendingUp size={15} className="text-[#C9A227]" />
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500">Profile views</div>
+                  <div className="text-sm font-bold text-[#1B3060]">+340 this week</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Wave */}
+        <div className="absolute bottom-0 left-0 right-0">
+          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M0 60L1440 60L1440 0C1440 0 1080 60 720 60C360 60 0 0 0 0L0 60Z" fill="white" />
+          </svg>
+        </div>
       </section>
 
-      {/* ── STATS ── */}
-      <section className="bg-white border-b border-gray-100 py-12">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {STATS.map(stat => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mb-1">
-                  {stat.value}
+      {/* ── STATS ──────────────────────────────────────────────────────── */}
+      <section className="py-16 bg-white">
+        <div className="max-w-5xl mx-auto px-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {[
+              { value: 200000, suffix: '+', label: 'Active Seekers' },
+              { value: 2000, suffix: '+', label: 'Verified Consultants' },
+              { value: 20, suffix: '+', label: 'Visa Categories' },
+              { value: 98, suffix: '%', label: 'Satisfaction Rate' },
+            ].map((stat, i) => (
+              <div key={i} className="text-center">
+                <div className="text-4xl font-bold text-[#1B3060] mb-1">
+                  <Counter end={stat.value} suffix={stat.suffix} />
                 </div>
                 <div className="text-gray-500 text-sm">{stat.label}</div>
               </div>
@@ -322,68 +218,204 @@ export default function ForConsultantsPage() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ── */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <span className="text-[#C9A227] font-semibold text-sm uppercase tracking-wider">Simple Process</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mt-2 mb-4">
-              Start Getting Clients in 3 Steps
+      {/* ── WHY VISAGATE ──────────────────────────────────────────────── */}
+      <section className="py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <div className="inline-block bg-[#1B3060]/10 text-[#1B3060] text-sm font-semibold px-4 py-2 rounded-full mb-4">
+              Why VisaGate?
+            </div>
+            <h2 className="text-4xl font-bold text-[#1B3060] mb-4">
+              Everything You Need to <span className="text-[#C9A227]">Succeed</span>
             </h2>
             <p className="text-gray-500 max-w-xl mx-auto">
-              Join Pakistan's fastest growing visa consultant network in minutes.
+              We built VisaGate specifically for Pakistani visa consultants — with tools, visibility, and trust-building features you won't find anywhere else.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {HOW_IT_WORKS.map((item, i) => (
-              <div key={i} className="relative bg-white rounded-3xl p-7 shadow-sm border border-gray-100 group hover:shadow-md hover:border-[#C9A227]/30 transition-all">
-                <div className="flex items-start justify-between mb-5">
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${item.color}`}>
-                    <item.icon size={22} />
-                  </div>
-                  <span className="text-5xl font-black text-gray-100 font-['Plus_Jakarta_Sans'] group-hover:text-[#C9A227]/20 transition-colors">
-                    {item.step}
-                  </span>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: <BadgeCheck size={24} />,
+                title: 'Official Verification Badge',
+                desc: 'Get verified with your OEP license and SECP registration. Clients trust verified consultants 3x more.',
+                color: 'blue'
+              },
+              {
+                icon: <Globe size={24} />,
+                title: 'Pakistan-Wide Visibility',
+                desc: 'Your profile is visible to thousands of visa seekers searching from Karachi to Peshawar and everywhere in between.',
+                color: 'gold'
+              },
+              {
+                icon: <MessageSquare size={24} />,
+                title: 'Real-Time Messaging',
+                desc: 'Communicate directly with clients through our built-in messaging system. No third-party apps needed.',
+                color: 'blue'
+              },
+              {
+                icon: <Calendar size={24} />,
+                title: 'Appointment Management',
+                desc: 'Accept or decline appointment requests from your dashboard. Full control over your schedule.',
+                color: 'gold'
+              },
+              {
+                icon: <BarChart2 size={24} />,
+                title: 'Profile Analytics',
+                desc: 'See how many people viewed your profile, which services are most popular, and track your growth.',
+                color: 'blue'
+              },
+              {
+                icon: <Shield size={24} />,
+                title: 'Zero Commission',
+                desc: 'We never take a cut from your earnings. Payments go directly between you and your client — always.',
+                color: 'gold'
+              },
+            ].map((feature, i) => (
+              <div key={i} className="bg-white rounded-3xl p-7 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-5 ${
+                  feature.color === 'gold'
+                    ? 'bg-[#C9A227]/15 text-[#C9A227]'
+                    : 'bg-[#1B3060]/10 text-[#1B3060]'
+                }`}>
+                  {feature.icon}
                 </div>
-                <h3 className="text-lg font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mb-2">{item.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
-                {i < 2 && (
-                  <div className="hidden md:block absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#C9A227] rounded-full flex items-center justify-center z-10">
-                    <ChevronRight size={14} className="text-white" />
-                  </div>
-                )}
+                <h3 className="font-bold text-[#1B3060] text-lg mb-2">{feature.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{feature.desc}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── VERIFICATION BADGES ── */}
-      <section className="py-20 bg-[#1B3060]">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col lg:flex-row items-center gap-12">
-            <div className="flex-1 text-center lg:text-left">
-              <span className="text-[#C9A227] font-semibold text-sm uppercase tracking-wider">Trust & Credibility</span>
-              <h2 className="text-3xl md:text-4xl font-bold text-white font-['Plus_Jakarta_Sans'] mt-2 mb-4">
-                Your Credentials,<br />Displayed Proudly
+      {/* ── HOW IT WORKS ─────────────────────────────────────────────── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="text-center mb-16">
+            <div className="inline-block bg-[#C9A227]/15 text-[#C9A227] text-sm font-semibold px-4 py-2 rounded-full mb-4">
+              Simple Process
+            </div>
+            <h2 className="text-4xl font-bold text-[#1B3060] mb-4">
+              Get Listed in <span className="text-[#C9A227]">3 Easy Steps</span>
+            </h2>
+            <p className="text-gray-500">From signup to your first client inquiry — it's faster than you think.</p>
+          </div>
+
+          <div className="relative">
+            {/* Connector line */}
+            <div className="hidden md:block absolute top-16 left-[16.66%] right-[16.66%] h-0.5 bg-gradient-to-r from-[#1B3060] via-[#C9A227] to-[#1B3060] opacity-20" />
+
+            <div className="grid md:grid-cols-3 gap-10">
+              {[
+                {
+                  step: '01',
+                  icon: <Briefcase size={28} />,
+                  title: 'Create Your Profile',
+                  desc: 'Sign up and complete your consultant profile with your specializations, experience, and services.',
+                  time: '5 minutes'
+                },
+                {
+                  step: '02',
+                  icon: <BadgeCheck size={28} />,
+                  title: 'Get Verified',
+                  desc: 'Submit your OEP license number and SECP registration. Our team verifies and adds your official badge.',
+                  time: '24-48 hours'
+                },
+                {
+                  step: '03',
+                  icon: <Users size={28} />,
+                  title: 'Start Getting Clients',
+                  desc: 'Your profile goes live and clients start finding you. Respond to inquiries and grow your business.',
+                  time: 'Immediately'
+                },
+              ].map((step, i) => (
+                <div key={i} className="text-center">
+                  <div className="relative inline-flex mb-6">
+                    <div className="w-32 h-32 rounded-3xl bg-[#1B3060] flex items-center justify-center text-white shadow-xl shadow-[#1B3060]/20">
+                      {step.icon}
+                    </div>
+                    <div className="absolute -top-3 -right-3 w-10 h-10 rounded-full bg-[#C9A227] flex items-center justify-center text-white font-bold text-sm shadow-lg">
+                      {step.step}
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-[#1B3060] text-xl mb-3">{step.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed mb-3">{step.desc}</p>
+                  <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full">
+                    <Clock size={12} />
+                    {step.time}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── SERVICES SHOWCASE ─────────────────────────────────────────── */}
+      <section className="py-24 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-16 items-center">
+            <div>
+              <div className="inline-block bg-[#1B3060]/10 text-[#1B3060] text-sm font-semibold px-4 py-2 rounded-full mb-6">
+                Service Listings
+              </div>
+              <h2 className="text-4xl font-bold text-[#1B3060] mb-6">
+                Showcase Your <span className="text-[#C9A227]">Services</span> Like a Pro
               </h2>
-              <p className="text-white/70 leading-relaxed mb-8 max-w-lg">
-                Verified badges tell clients you're the real deal. Consultants with verification badges receive 3x more inquiries than unverified profiles.
+              <p className="text-gray-500 leading-relaxed mb-8">
+                Create beautiful service listings for each visa type you offer. Add pricing, turnaround time, and what's included — just like Fiverr, but built specifically for Pakistani visa consultants.
               </p>
-              <Link href="/register/consultant" className="inline-flex items-center gap-2 bg-[#C9A227] text-white px-7 py-3.5 rounded-xl font-bold hover:bg-[#b8911f] transition-colors">
-                Get Verified Today <ArrowRight size={16} />
+              <div className="space-y-4">
+                {[
+                  'List multiple services with custom pricing',
+                  'Add service images and detailed descriptions',
+                  'Show your processing time and success rate',
+                  'Clients can directly book an appointment',
+                  'Manage all bookings from one dashboard',
+                ].map((item, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <CheckCircle size={18} className="text-[#C9A227] flex-shrink-0" />
+                    <span className="text-gray-700 text-sm">{item}</span>
+                  </div>
+                ))}
+              </div>
+              <Link
+                href="/register/consultant"
+                className="inline-flex items-center gap-2 bg-[#1B3060] text-white font-semibold px-7 py-3.5 rounded-2xl hover:bg-[#243d7a] transition-colors mt-8"
+              >
+                Create Your Profile
+                <ArrowRight size={18} />
               </Link>
             </div>
 
-            <div className="flex-1 grid grid-cols-2 gap-4 w-full max-w-md">
-              {BADGES.map(badge => (
-                <div key={badge.name} className="bg-white/10 backdrop-blur rounded-2xl p-5 border border-white/10 hover:bg-white/15 transition-colors">
-                  <div className={`inline-flex items-center gap-2 text-sm font-bold px-3 py-1.5 rounded-full border mb-3 ${badge.color}`}>
-                    <BadgeCheck size={14} />
-                    {badge.name}
+            {/* Service card mockup */}
+            <div className="space-y-4">
+              {[
+                { title: 'UK Student Visa Consultation', price: 'PKR 8,000', tag: 'Most Popular', days: '7-10 days' },
+                { title: 'Canada PR Assessment', price: 'PKR 15,000', tag: 'Premium', days: '14-21 days' },
+                { title: 'Schengen Tourist Visa', price: 'PKR 5,500', tag: 'Quick Process', days: '5-7 days' },
+              ].map((service, i) => (
+                <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-[#1B3060]/10 flex items-center justify-center">
+                      <Globe size={20} className="text-[#1B3060]" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-[#1B3060] text-sm mb-1">{service.title}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-[#C9A227]/15 text-[#C9A227] text-xs font-medium px-2 py-0.5 rounded-full">
+                          {service.tag}
+                        </span>
+                        <span className="text-gray-400 text-xs flex items-center gap-1">
+                          <Clock size={11} /> {service.days}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="text-white/70 text-xs leading-relaxed">{badge.label} verified — builds maximum client trust</p>
+                  <div className="text-right">
+                    <div className="font-bold text-[#1B3060]">{service.price}</div>
+                    <div className="text-xs text-gray-400">per consultation</div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -391,173 +423,193 @@ export default function ForConsultantsPage() {
         </div>
       </section>
 
-      {/* ── FEATURES ── */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <span className="text-[#C9A227] font-semibold text-sm uppercase tracking-wider">Everything You Need</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mt-2 mb-4">
-              Powerful Tools for Your Practice
+      {/* ── TESTIMONIALS ─────────────────────────────────────────────── */}
+      <section className="py-24 bg-[#1B3060]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <div className="inline-block bg-[#C9A227]/20 text-[#C9A227] text-sm font-semibold px-4 py-2 rounded-full mb-4">
+              Consultant Stories
+            </div>
+            <h2 className="text-4xl font-bold text-white mb-4">
+              What Our Consultants Say
             </h2>
-            <p className="text-gray-500 max-w-xl mx-auto">
-              Everything you need to manage, grow, and scale your visa consultancy business in one place.
-            </p>
+            <p className="text-blue-200">Real results from real consultants across Pakistan.</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {FEATURES.map((f, i) => (
-              <div key={i} className="group p-6 rounded-2xl border border-gray-100 hover:border-[#C9A227]/30 hover:shadow-md transition-all bg-white">
-                <div className={`w-11 h-11 rounded-xl flex items-center justify-center mb-4 ${f.bg} group-hover:scale-110 transition-transform`}>
-                  <f.icon size={20} className={f.color} />
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              {
+                name: 'Tariq Mahmood',
+                city: 'Lahore',
+                specialty: 'UK & Canada Visas',
+                review: 'VisaGate completely transformed my consultancy. I went from 5 clients a month to over 30 within 3 months of joining. The verification badge gives clients instant trust.',
+                rating: 5,
+                clients: 142
+              },
+              {
+                name: 'Nadia Ansari',
+                city: 'Karachi',
+                specialty: 'Schengen & Europe',
+                review: 'The platform is incredibly easy to use. I set up my profile in 30 minutes and received my first inquiry the same evening. No commission taken — I keep everything I earn.',
+                rating: 5,
+                clients: 89
+              },
+              {
+                name: 'Bilal Khan',
+                city: 'Islamabad',
+                specialty: 'Australia & New Zealand',
+                review: 'As a newly registered consultant, getting clients was my biggest challenge. VisaGate solved that immediately. The messaging system makes communication professional and easy.',
+                rating: 5,
+                clients: 56
+              },
+            ].map((t, i) => (
+              <div key={i} className="bg-white/10 backdrop-blur rounded-3xl p-7 border border-white/10">
+                <div className="flex items-center gap-1 mb-4">
+                  {[...Array(t.rating)].map((_, j) => (
+                    <Star key={j} size={15} className="fill-[#C9A227] text-[#C9A227]" />
+                  ))}
                 </div>
-                <h3 className="font-bold text-[#1B3060] mb-2 font-['Plus_Jakarta_Sans']">{f.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{f.desc}</p>
+                <p className="text-blue-100 text-sm leading-relaxed mb-6 italic">"{t.review}"</p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#C9A227] flex items-center justify-center text-[#1B3060] font-bold">
+                      {t.name[0]}
+                    </div>
+                    <div>
+                      <div className="text-white font-semibold text-sm">{t.name}</div>
+                      <div className="text-blue-300 text-xs">{t.specialty} · {t.city}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[#C9A227] font-bold">{t.clients}+</div>
+                    <div className="text-blue-300 text-xs">clients served</div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── PRICING ── */}
-      <section className="py-20 bg-gradient-to-br from-amber-50 to-white">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <span className="text-[#C9A227] font-semibold text-sm uppercase tracking-wider">Pricing</span>
-          <h2 className="text-3xl md:text-4xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mt-2 mb-4">
-            Simple, Transparent Pricing
+      {/* ── PRICING ──────────────────────────────────────────────────── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-3xl mx-auto px-4 text-center">
+          <div className="inline-block bg-green-50 text-green-700 text-sm font-semibold px-4 py-2 rounded-full mb-6">
+            Transparent Pricing
+          </div>
+          <h2 className="text-4xl font-bold text-[#1B3060] mb-4">
+            Always <span className="text-[#C9A227]">Free</span> to Join
           </h2>
-          <p className="text-gray-500 mb-10">No hidden fees. No commissions. Grow your business freely.</p>
+          <p className="text-gray-500 mb-12">
+            No signup fees, no monthly charges, no commission. VisaGate is completely free for consultants — now and always.
+          </p>
 
-          <div className="bg-white rounded-3xl shadow-xl border-2 border-[#C9A227] p-8 md:p-12 relative overflow-hidden">
-            <div className="absolute top-0 right-0 bg-[#C9A227] text-white text-xs font-bold px-4 py-2 rounded-bl-2xl">
-              MOST POPULAR
-            </div>
-
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-6xl font-black text-[#1B3060] font-['Plus_Jakarta_Sans']">FREE</span>
-            </div>
-            <p className="text-gray-500 mb-8">Forever free for consultants. We grow when you grow.</p>
-
-            <div className="grid md:grid-cols-2 gap-3 mb-8 text-left">
+          <div className="bg-gradient-to-br from-[#1B3060] to-[#243d7a] rounded-3xl p-10 text-white shadow-2xl shadow-[#1B3060]/30">
+            <div className="text-6xl font-bold text-[#C9A227] mb-2">PKR 0</div>
+            <div className="text-blue-200 mb-8">Forever free for consultants</div>
+            <div className="grid sm:grid-cols-2 gap-4 text-left mb-8">
               {[
                 'Verified consultant profile',
                 'Unlimited service listings',
-                'Appointment booking system',
                 'Real-time client messaging',
-                'WhatsApp & call integration',
-                'Client reviews & ratings',
-                'Analytics dashboard',
-                'BEOE / OEP / SECP / FBR badges',
-                'Featured placement (top rated)',
-                'No commission on bookings',
-              ].map(feature => (
-                <div key={feature} className="flex items-center gap-2.5">
-                  <CheckCircle size={16} className="text-green-500 flex-shrink-0" />
-                  <span className="text-gray-700 text-sm">{feature}</span>
+                'Appointment management',
+                'Profile analytics dashboard',
+                'Official verification badge',
+                'Pakistan-wide visibility',
+                '0% commission on earnings',
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <CheckCircle size={16} className="text-[#C9A227] flex-shrink-0" />
+                  <span className="text-blue-100 text-sm">{item}</span>
                 </div>
               ))}
             </div>
-
             <Link
               href="/register/consultant"
-              className="inline-flex items-center gap-2 bg-[#1B3060] text-white px-10 py-4 rounded-xl font-bold text-base hover:bg-[#243d7a] transition-colors shadow-lg group"
+              className="inline-flex items-center gap-2 bg-[#C9A227] text-[#1B3060] font-bold px-10 py-4 rounded-2xl hover:bg-[#b8911f] transition-colors text-lg shadow-lg shadow-[#C9A227]/30"
             >
-              Create Free Profile Now
-              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+              Get Started Free
+              <ArrowRight size={20} />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ── */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4">
+      {/* ── FAQ ──────────────────────────────────────────────────────── */}
+      <section className="py-24 bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
-            <span className="text-[#C9A227] font-semibold text-sm uppercase tracking-wider">Success Stories</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mt-2">
-              Consultants Love VisaGate
+            <h2 className="text-4xl font-bold text-[#1B3060] mb-4">
+              Frequently Asked <span className="text-[#C9A227]">Questions</span>
             </h2>
+            <p className="text-gray-500">Everything you need to know before joining.</p>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {TESTIMONIALS.map((t, i) => (
-              <div key={i} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col">
-                <div className="flex gap-0.5 mb-4">
-                  {Array.from({ length: t.rating }).map((_, j) => (
-                    <Star key={j} size={14} className="text-[#C9A227] fill-[#C9A227]" />
-                  ))}
-                </div>
-                <p className="text-gray-600 text-sm leading-relaxed flex-1 mb-5">"{t.text}"</p>
-                <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                  <div className="w-10 h-10 bg-[#1B3060] rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                    {t.avatar}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-[#1B3060] text-sm">{t.name}</div>
-                    <div className="text-xs text-gray-400">{t.title}</div>
-                  </div>
-                </div>
-                <div className="mt-3 bg-green-50 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full inline-flex items-center gap-1 self-start">
-                  <TrendingUp size={11} /> {t.clients}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FAQ ── */}
-      <section className="py-20 bg-white">
-        <div className="max-w-3xl mx-auto px-4">
-          <div className="text-center mb-12">
-            <span className="text-[#C9A227] font-semibold text-sm uppercase tracking-wider">FAQ</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans'] mt-2">
-              Frequently Asked Questions
-            </h2>
-          </div>
-
           <div className="space-y-3">
-            {FAQS.map((faq, i) => (
+            {[
+              {
+                q: 'Is VisaGate really free for consultants?',
+                a: 'Yes, 100% free. There are no signup fees, no monthly subscriptions, and no commission on your earnings. Payments are handled directly between you and your client — we are not involved.'
+              },
+              {
+                q: 'How does the verification process work?',
+                a: 'During registration, you provide your OEP (Overseas Employment Promoters) license number, OEP license title, and SECP registration date. Our team manually verifies this information and adds the official verification badge to your profile within 24-48 hours.'
+              },
+              {
+                q: 'Can I list multiple visa services?',
+                a: 'Absolutely. You can create as many service listings as you offer — UK visas, Canada PR, Schengen, Australia, and more. Each service can have its own pricing, description, and turnaround time.'
+              },
+              {
+                q: 'How do clients contact me?',
+                a: 'Clients can message you directly through the VisaGate messaging system, call you via your listed number, WhatsApp you, or book a formal appointment through the platform. You have full control over how you prefer to be contacted.'
+              },
+              {
+                q: 'What happens after I register?',
+                a: 'After completing your profile, your listing goes live immediately. The verification badge is added within 24-48 hours after we verify your credentials. You can start receiving inquiries right away.'
+              },
+              {
+                q: 'Can I update my profile and services anytime?',
+                a: 'Yes, your consultant dashboard gives you full control to update your profile, add or remove services, set your availability, and manage appointments — all in real time.'
+              },
+            ].map((faq, i) => (
               <FAQItem key={i} q={faq.q} a={faq.a} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── FINAL CTA ── */}
-      <section className="py-20 bg-[#1B3060] relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-1/2 w-96 h-96 bg-[#C9A227] rounded-full blur-3xl -translate-x-1/2" />
-        </div>
-        <div className="relative max-w-4xl mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-5xl font-black text-white font-['Plus_Jakarta_Sans'] mb-4 leading-tight">
-            Ready to Grow Your<br />
-            <span className="text-[#C9A227]">Visa Consultancy?</span>
-          </h2>
-          <p className="text-white/70 text-lg mb-8 max-w-xl mx-auto">
-            Join thousands of verified consultants already growing their business on Pakistan's most trusted visa platform.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
-            <Link
-              href="/register/consultant"
-              className="flex items-center gap-2 bg-[#C9A227] text-white px-10 py-4 rounded-xl font-bold text-base hover:bg-[#b8911f] transition-all shadow-lg shadow-[#C9A227]/30 group"
-            >
-              Create Free Profile
-              <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
-            </Link>
-            <Link
-              href="/contact"
-              className="flex items-center gap-2 border border-white/20 text-white px-8 py-4 rounded-xl font-semibold text-base hover:bg-white/10 transition-all"
-            >
-              Talk to Our Team
-            </Link>
+      {/* ── FINAL CTA ────────────────────────────────────────────────── */}
+      <section className="py-24 bg-white">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <div className="bg-gradient-to-br from-[#1B3060] to-[#2d4a8a] rounded-3xl px-8 py-16 relative overflow-hidden shadow-2xl shadow-[#1B3060]/20">
+            <div className="absolute inset-0 opacity-5"
+              style={{
+                backgroundImage: `radial-gradient(circle at 1px 1px, #C9A227 1px, transparent 0)`,
+                backgroundSize: '32px 32px'
+              }}
+            />
+            <div className="relative">
+              <Award size={48} className="text-[#C9A227] mx-auto mb-6" />
+              <h2 className="text-4xl font-bold text-white mb-4">
+                Ready to Grow Your Business?
+              </h2>
+              <p className="text-blue-200 text-lg mb-8 max-w-xl mx-auto">
+                Join Pakistan's most trusted visa consultant platform today. Free forever. No credit card required.
+              </p>
+              <Link
+                href="/register/consultant"
+                className="inline-flex items-center gap-2 bg-[#C9A227] text-[#1B3060] font-bold px-10 py-4 rounded-2xl hover:bg-[#b8911f] transition-all duration-200 text-lg shadow-lg shadow-[#C9A227]/30"
+              >
+                Create Your Free Profile
+                <ArrowRight size={20} />
+              </Link>
+              <p className="text-blue-300 text-sm mt-4">
+                Already a member? <Link href="/login" className="text-[#C9A227] hover:underline">Log in here</Link>
+              </p>
+            </div>
           </div>
-          <p className="text-white/40 text-sm mt-6">
-            No credit card required · Free forever · Get verified in 24 hours
-          </p>
         </div>
       </section>
 
-      <Footer />
-    </div>
+    </main>
   )
 }
