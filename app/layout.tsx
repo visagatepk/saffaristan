@@ -1,4 +1,5 @@
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, Inter } from 'next/font/google'
 import { WebsiteStructuredData, OrganizationStructuredData } from '@/components/StructuredData'
@@ -113,6 +114,7 @@ export default function RootLayout({
       <body className={`${jakarta.variable} ${inter.variable} font-body antialiased`}>
         {children}
            <Analytics />
+           <SpeedInsights />
       </body>
     </html>
   )
