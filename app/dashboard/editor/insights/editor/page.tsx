@@ -1,7 +1,7 @@
 'use client'
 // FILE: app/dashboard/editor/insights/editor/page.tsx
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
@@ -76,9 +76,9 @@ function toSlug(text: string) {
     .replace(/-+/g, '-')
 }
 
-// ── Main Component ───────────────────────────────────────────────────────────
+// ── Inner editor — uses useSearchParams safely inside Suspense ───────────────
 
-export default function ArticleEditorPage() {
+function ArticleEditor() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const editId = searchParams.get('id')
@@ -217,7 +217,6 @@ export default function ArticleEditorPage() {
               ✓ {savedMsg}
             </span>
           )}
-
           {articleId && title && (
             <Link
               href={`/insights/${toSlug(title)}`}
@@ -227,7 +226,6 @@ export default function ArticleEditorPage() {
               <Eye size={13} /> Preview
             </Link>
           )}
-
           <button
             onClick={() => save(false)}
             disabled={saving}
@@ -236,7 +234,6 @@ export default function ArticleEditorPage() {
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             Save Draft
           </button>
-
           <button
             onClick={() => save(true)}
             disabled={publishing}
@@ -250,8 +247,6 @@ export default function ArticleEditorPage() {
 
       {/* ── Metadata Card ────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-
-        {/* Title */}
         <input
           type="text"
           value={title}
@@ -259,13 +254,9 @@ export default function ArticleEditorPage() {
           placeholder="Article title…"
           className="w-full text-[22px] font-bold text-[#1B3060] placeholder-gray-300 border-none outline-none font-['Plus_Jakarta_Sans'] bg-transparent"
         />
-
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Category */}
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
-              Category
-            </label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Category</label>
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
@@ -274,12 +265,8 @@ export default function ArticleEditorPage() {
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
-
-          {/* Cover Image */}
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
-              Cover Image URL
-            </label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Cover Image URL</label>
             <input
               type="url"
               value={coverImageUrl}
@@ -289,14 +276,9 @@ export default function ArticleEditorPage() {
             />
           </div>
         </div>
-
-        {/* Excerpt */}
         <div>
           <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
-            Excerpt{' '}
-            <span className="text-gray-400 font-normal normal-case">
-              (auto-generated from content if blank)
-            </span>
+            Excerpt <span className="text-gray-400 font-normal normal-case">(auto-generated if blank)</span>
           </label>
           <textarea
             value={excerpt}
@@ -313,43 +295,23 @@ export default function ArticleEditorPage() {
 
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-0.5 px-3 py-2.5 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
-
-          {/* History */}
-          <ToolbarBtn title="Undo (Ctrl+Z)" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
+          <ToolbarBtn title="Undo" onClick={() => editor.chain().focus().undo().run()} disabled={!editor.can().undo()}>
             <Undo size={15} />
           </ToolbarBtn>
-          <ToolbarBtn title="Redo (Ctrl+Y)" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
+          <ToolbarBtn title="Redo" onClick={() => editor.chain().focus().redo().run()} disabled={!editor.can().redo()}>
             <Redo size={15} />
           </ToolbarBtn>
-
           <Sep />
-
-          {/* Headings */}
-          <ToolbarBtn
-            title="Heading 1"
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-            active={editor.isActive('heading', { level: 1 })}
-          >
+          <ToolbarBtn title="Heading 1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })}>
             <Heading1 size={15} />
           </ToolbarBtn>
-          <ToolbarBtn
-            title="Heading 2"
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-            active={editor.isActive('heading', { level: 2 })}
-          >
+          <ToolbarBtn title="Heading 2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })}>
             <Heading2 size={15} />
           </ToolbarBtn>
-          <ToolbarBtn
-            title="Heading 3"
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-            active={editor.isActive('heading', { level: 3 })}
-          >
+          <ToolbarBtn title="Heading 3" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })}>
             <Heading3 size={15} />
           </ToolbarBtn>
-
           <Sep />
-
-          {/* Formatting */}
           <ToolbarBtn title="Bold (Ctrl+B)" onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')}>
             <Bold size={15} />
           </ToolbarBtn>
@@ -359,20 +321,14 @@ export default function ArticleEditorPage() {
           <ToolbarBtn title="Underline (Ctrl+U)" onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')}>
             <UnderlineIcon size={15} />
           </ToolbarBtn>
-
           <Sep />
-
-          {/* Lists */}
           <ToolbarBtn title="Bullet List" onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')}>
             <List size={15} />
           </ToolbarBtn>
           <ToolbarBtn title="Numbered List" onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')}>
             <ListOrdered size={15} />
           </ToolbarBtn>
-
           <Sep />
-
-          {/* Alignment */}
           <ToolbarBtn title="Align Left" onClick={() => editor.chain().focus().setTextAlign('left').run()} active={editor.isActive({ textAlign: 'left' })}>
             <AlignLeft size={15} />
           </ToolbarBtn>
@@ -382,21 +338,16 @@ export default function ArticleEditorPage() {
           <ToolbarBtn title="Align Right" onClick={() => editor.chain().focus().setTextAlign('right').run()} active={editor.isActive({ textAlign: 'right' })}>
             <AlignRight size={15} />
           </ToolbarBtn>
-
           <Sep />
-
-          {/* Quote */}
           <ToolbarBtn title="Blockquote" onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')}>
             <Quote size={15} />
           </ToolbarBtn>
-
-          {/* Keyboard shortcuts hint */}
           <span className="ml-auto text-[10px] text-gray-400 hidden md:block pr-1">
             Ctrl+B Bold · Ctrl+I Italic · Ctrl+Z Undo
           </span>
         </div>
 
-        {/* Tiptap editor area */}
+        {/* Editor content styles */}
         <style>{`
           .ProseMirror h1 { font-size: 1.75rem; font-weight: 800; color: #1B3060; margin: 1.5rem 0 0.75rem; line-height: 1.2; }
           .ProseMirror h2 { font-size: 1.35rem; font-weight: 700; color: #1B3060; margin: 1.25rem 0 0.5rem; line-height: 1.3; }
@@ -410,7 +361,6 @@ export default function ArticleEditorPage() {
           .ProseMirror li { margin: 0.3rem 0; color: #374151; }
           .ProseMirror blockquote { border-left: 4px solid #C9A227; padding: 0.75rem 1rem; margin: 1rem 0; background: #fffbf0; border-radius: 0 8px 8px 0; color: #6b7280; font-style: italic; }
           .ProseMirror code { background: #f3f4f6; padding: 0.15rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.875em; color: #1B3060; }
-          .ProseMirror hr { border: none; border-top: 2px solid #e5e7eb; margin: 1.5rem 0; }
           .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #d1d5db; pointer-events: none; float: left; height: 0; }
         `}</style>
 
@@ -443,5 +393,19 @@ export default function ArticleEditorPage() {
       </div>
 
     </div>
+  )
+}
+
+// ── Default export — Suspense wrapper fixes Next.js 14 prerender error ────────
+
+export default function ArticleEditorPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-96">
+        <Loader2 className="animate-spin text-[#1B3060]" size={32} />
+      </div>
+    }>
+      <ArticleEditor />
+    </Suspense>
   )
 }
