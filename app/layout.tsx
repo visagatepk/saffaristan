@@ -1,9 +1,10 @@
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/next';
+import { Analytics } from '@vercel/analytics/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans, Inter } from 'next/font/google'
 import { WebsiteStructuredData, OrganizationStructuredData } from '@/components/StructuredData'
 import './globals.css'
+
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-jakarta',
@@ -24,7 +25,8 @@ export const metadata: Metadata = {
     default: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
     template: '%s | VisaGate.pk',
   },
-  description: "Pakistan's first platform to find verified visa consultants and immigration agents in Islamabad, Rawalpindi, Lahore, Karachi and across Pakistan. Compare experts, read reviews and apply with confidence.",
+  description:
+    "Pakistan's first platform to find verified visa consultants and immigration agents in Islamabad, Rawalpindi, Lahore, Karachi and across Pakistan. Compare experts, read reviews and apply with confidence.",
   keywords: [
     'visa consultant Pakistan',
     'immigration agent Islamabad',
@@ -64,7 +66,8 @@ export const metadata: Metadata = {
     url: 'https://visagate.pk',
     siteName: 'VisaGate.pk',
     title: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
-    description: "Pakistan's first verified visa consultant platform. Compare 300+ verified immigration experts across Pakistan.",
+    description:
+      "Pakistan's first verified visa consultant platform. Compare 300+ verified immigration experts across Pakistan.",
     images: [
       {
         url: '/og-image.png',
@@ -84,9 +87,10 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://visagate.pk',
   },
-  verification: {
-    google: 'ADD_YOUR_GOOGLE_VERIFICATION_CODE_HERE',
-  },
+  // ── Add your real Google Search Console verification code below ──────────
+  // verification: {
+  //   google: 'YOUR_ACTUAL_CODE_HERE',
+  // },
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
@@ -103,18 +107,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="manifest" href="/site.webmanifest" />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap"
-    rel="stylesheet"
-  />
-  <WebsiteStructuredData />
-  <OrganizationStructuredData />
-</head>
+        {/* Urdu font — loaded here because next/font doesn't support Noto Nastaliq */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+        <WebsiteStructuredData />
+        <OrganizationStructuredData />
+      </head>
       <body className={`${jakarta.variable} ${inter.variable} font-body antialiased`}>
         {children}
-           <Analytics />
-           <SpeedInsights />
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
