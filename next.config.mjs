@@ -2,21 +2,29 @@
 const nextConfig = {
   images: {
     remotePatterns: [
+      // ── Unsplash — article cover images ─────────────────────────────────
       {
         protocol: 'https',
-        hostname: '*.supabase.co',
+        hostname: 'images.unsplash.com',
+      },
+      // ── Supabase Storage — avatars, service images ───────────────────────
+      {
+        protocol: 'https',
+        hostname: 'kwwgundgdznlzssyosxl.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+      // ── Google profile pictures (OAuth login) ────────────────────────────
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+      },
+      // ── UI Avatars fallback ──────────────────────────────────────────────
+      {
+        protocol: 'https',
+        hostname: 'ui-avatars.com',
       },
     ],
-    formats: ['image/avif', 'image/webp'],
-  },
-  // ✅ Ignore ESLint errors during build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  // ✅ Ignore TypeScript errors during build
-  typescript: {
-    ignoreBuildErrors: true,
   },
 }
 
-export default nextConfig
+module.exports = nextConfig
