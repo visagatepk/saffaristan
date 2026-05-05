@@ -1,4 +1,5 @@
 'use client'
+// FILE: app/dashboard/admin/insights/editor/page.tsx
 
 import { useEffect, useState, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -25,22 +26,22 @@ function EditorContent() {
   const editId = searchParams?.get('id')
   const router = useRouter()
 
-  const [title, setTitle] = useState('')
-  const [slug, setSlug] = useState('')
+  const [title, setTitle]           = useState('')
+  const [slug, setSlug]             = useState('')
   const [slugEdited, setSlugEdited] = useState(false)
-  const [content, setContent] = useState('')
-  const [excerpt, setExcerpt] = useState('')
-  const [category, setCategory] = useState('General')
-  const [tags, setTags] = useState('')
+  const [content, setContent]       = useState('')
+  const [excerpt, setExcerpt]       = useState('')
+  const [category, setCategory]     = useState('General')
+  const [tags, setTags]             = useState('')
   const [authorName, setAuthorName] = useState('')
-  const [coverUrl, setCoverUrl] = useState('')
+  const [coverUrl, setCoverUrl]     = useState('')
   const [isPublished, setIsPublished] = useState(false)
-  const [isFeatured, setIsFeatured] = useState(false)
-  const [preview, setPreview] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [status, setStatus] = useState<'idle' | 'saved' | 'published' | 'error'>('idle')
-  const [statusMsg, setStatusMsg] = useState('')
+  const [isFeatured, setIsFeatured]   = useState(false)
+  const [preview, setPreview]         = useState(false)
+  const [uploading, setUploading]     = useState(false)
+  const [saving, setSaving]           = useState(false)
+  const [status, setStatus]           = useState<'idle' | 'saved' | 'published' | 'error'>('idle')
+  const [statusMsg, setStatusMsg]     = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -50,15 +51,13 @@ function EditorContent() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
 
-      // Auto fill author name
       const { data: profile } = await supabase
         .from('profiles')
         .select('display_name, full_name')
-        .eq('user_id', session.user.id)
+        .eq('id', session.user.id)
         .single()
       if (profile) setAuthorName(profile.display_name || profile.full_name || 'Admin')
 
-      // Load existing article if editing
       if (editId) {
         const { data: art } = await supabase.from('articles').select('*').eq('id', editId).single()
         if (art) {
@@ -70,7 +69,7 @@ function EditorContent() {
           setCategory(art.category || 'General')
           setTags((art.tags || []).join(', '))
           setAuthorName(art.author_name || '')
-          setCoverUrl(art.cover_image_url || '')
+          setCoverUrl(art.cover_image || '')   // ✅ correct column
           setIsPublished(art.is_published || false)
           setIsFeatured(art.is_featured || false)
         }
@@ -79,7 +78,6 @@ function EditorContent() {
     init()
   }, [editId])
 
-  // Auto-generate slug from title
   useEffect(() => {
     if (!slugEdited && title) setSlug(slugify(title))
   }, [title, slugEdited])
@@ -99,14 +97,14 @@ function EditorContent() {
   }
 
   const toolbarActions = [
-    { icon: Bold, label: 'Bold', action: () => insertMarkdown('**', '**') },
-    { icon: Italic, label: 'Italic', action: () => insertMarkdown('*', '*') },
-    { icon: Heading2, label: 'H2', action: () => insertMarkdown('\n## ') },
-    { icon: Heading3, label: 'H3', action: () => insertMarkdown('\n### ') },
-    { icon: List, label: 'List', action: () => insertMarkdown('\n- ') },
-    { icon: Quote, label: 'Quote', action: () => insertMarkdown('\n> ') },
-    { icon: Code, label: 'Code', action: () => insertMarkdown('`', '`') },
-    { icon: LinkIcon, label: 'Link', action: () => insertMarkdown('[', '](url)') },
+    { icon: Bold,     label: 'Bold',  action: () => insertMarkdown('**', '**') },
+    { icon: Italic,   label: 'Italic', action: () => insertMarkdown('*', '*') },
+    { icon: Heading2, label: 'H2',    action: () => insertMarkdown('\n## ') },
+    { icon: Heading3, label: 'H3',    action: () => insertMarkdown('\n### ') },
+    { icon: List,     label: 'List',  action: () => insertMarkdown('\n- ') },
+    { icon: Quote,    label: 'Quote', action: () => insertMarkdown('\n> ') },
+    { icon: Code,     label: 'Code',  action: () => insertMarkdown('`', '`') },
+    { icon: LinkIcon, label: 'Link',  action: () => insertMarkdown('[', '](url)') },
   ]
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,19 +135,19 @@ function EditorContent() {
     if (!session) { setSaving(false); return }
 
     const payload = {
-      title: title.trim(),
-      slug: slug.trim() || slugify(title),
-      content: content.trim(),
-      excerpt: excerpt.trim(),
+      title:       title.trim(),
+      slug:        slug.trim() || slugify(title),
+      content:     content.trim(),
+      excerpt:     excerpt.trim(),
       category,
-      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+      tags:        tags.split(',').map(t => t.trim()).filter(Boolean),
       author_name: authorName,
-      author_id: session.user.id,
-      cover_image_url: coverUrl || null,
+      author_id:   session.user.id,
+      cover_image: coverUrl || null,          // ✅ correct column
       is_published: publish ? true : isPublished,
-      is_featured: isFeatured,
-      read_time: calcReadTime(content),
-      updated_at: new Date().toISOString(),
+      is_featured:  isFeatured,
+      read_time:    calcReadTime(content),
+      updated_at:   new Date().toISOString(),
     }
 
     let error = null
@@ -157,7 +155,7 @@ function EditorContent() {
       const res = await supabase.from('articles').update(payload).eq('id', editId)
       error = res.error
     } else {
-      const res = await supabase.from('articles').insert({ ...payload, views: 0 })
+      const res = await supabase.from('articles').insert({ ...payload, views: 0, likes_count: 0 })
       error = res.error
     }
 
@@ -205,7 +203,6 @@ function EditorContent() {
               </div>
             </div>
           </div>
-
           <div className="flex items-center gap-3">
             {status !== 'idle' && (
               <span className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg ${status === 'error' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'}`}>
@@ -213,25 +210,17 @@ function EditorContent() {
                 {statusMsg}
               </span>
             )}
-            <button
-              onClick={() => setPreview(!preview)}
-              className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border transition-all ${preview ? 'bg-[#1B3060] text-white border-[#1B3060]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
-            >
+            <button onClick={() => setPreview(!preview)}
+              className={`flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg border transition-all ${preview ? 'bg-[#1B3060] text-white border-[#1B3060]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               {preview ? <EyeOff size={14} /> : <Eye size={14} />}
               {preview ? 'Edit' : 'Preview'}
             </button>
-            <button
-              onClick={() => save(false)}
-              disabled={saving}
-              className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all font-medium"
-            >
+            <button onClick={() => save(false)} disabled={saving}
+              className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all font-medium">
               <Save size={14} /> {saving ? 'Saving...' : 'Save Draft'}
             </button>
-            <button
-              onClick={() => save(true)}
-              disabled={saving}
-              className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#C9A227] text-white hover:bg-[#b8911f] transition-all font-semibold"
-            >
+            <button onClick={() => save(true)} disabled={saving}
+              className="flex items-center gap-1.5 text-sm px-4 py-2 rounded-lg bg-[#C9A227] text-white hover:bg-[#b8911f] transition-all font-semibold">
               <Globe size={14} /> Publish
             </button>
           </div>
@@ -239,29 +228,16 @@ function EditorContent() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
-
         {/* Main Editor */}
         <div className="flex-1 space-y-4">
-
-          {/* Title */}
-          <input
-            type="text"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
+          <input type="text" value={title} onChange={e => setTitle(e.target.value)}
             placeholder="Article title..."
-            className="w-full text-2xl font-bold text-[#1B3060] placeholder-gray-300 border-0 border-b-2 border-gray-200 focus:border-[#C9A227] outline-none bg-transparent pb-2 font-['Plus_Jakarta_Sans'] transition-colors"
-          />
+            className="w-full text-2xl font-bold text-[#1B3060] placeholder-gray-300 border-0 border-b-2 border-gray-200 focus:border-[#C9A227] outline-none bg-transparent pb-2 font-['Plus_Jakarta_Sans'] transition-colors" />
 
-          {/* Slug */}
           <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-4 py-2">
             <span className="text-gray-500 text-sm">visagate.pk/insights/</span>
-            <input
-              type="text"
-              value={slug}
-              onChange={e => { setSlug(e.target.value); setSlugEdited(true) }}
-              className="flex-1 text-sm text-[#1B3060] bg-transparent outline-none font-mono"
-              placeholder="article-slug"
-            />
+            <input type="text" value={slug} onChange={e => { setSlug(e.target.value); setSlugEdited(true) }}
+              className="flex-1 text-sm text-[#1B3060] bg-transparent outline-none font-mono" placeholder="article-slug" />
           </div>
 
           {/* Cover Image */}
@@ -277,11 +253,8 @@ function EditorContent() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="w-full h-40 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[#C9A227] hover:bg-amber-50 transition-all text-gray-400 hover:text-[#C9A227]"
-              >
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
+                className="w-full h-40 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[#C9A227] hover:bg-amber-50 transition-all text-gray-400 hover:text-[#C9A227]">
                 <Upload size={24} />
                 <span className="text-sm font-medium">{uploading ? 'Uploading...' : 'Click to upload cover image'}</span>
                 <span className="text-xs">JPG, PNG up to 5MB</span>
@@ -292,129 +265,78 @@ function EditorContent() {
 
           {/* Content Editor */}
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            {/* Toolbar */}
             <div className="flex items-center gap-1 p-3 border-b border-gray-100 bg-gray-50 flex-wrap">
               {toolbarActions.map(({ icon: Icon, label, action }) => (
-                <button
-                  key={label}
-                  onClick={action}
-                  title={label}
-                  className="flex items-center gap-1 px-2.5 py-1.5 text-gray-600 hover:text-[#1B3060] hover:bg-white rounded-lg text-xs font-medium transition-all border border-transparent hover:border-gray-200"
-                >
+                <button key={label} onClick={action} title={label}
+                  className="flex items-center gap-1 px-2.5 py-1.5 text-gray-600 hover:text-[#1B3060] hover:bg-white rounded-lg text-xs font-medium transition-all border border-transparent hover:border-gray-200">
                   <Icon size={14} />
                   <span className="hidden sm:inline">{label}</span>
                 </button>
               ))}
             </div>
-
             {preview ? (
-              <div
-                className="p-6 min-h-64 prose max-w-none"
-                dangerouslySetInnerHTML={{ __html: `<p style="margin-bottom:1rem;color:#374151;line-height:1.75">${renderPreview(content)}</p>` }}
-              />
+              <div className="p-6 min-h-64 prose max-w-none"
+                dangerouslySetInnerHTML={{ __html: `<p style="margin-bottom:1rem;color:#374151;line-height:1.75">${renderPreview(content)}</p>` }} />
             ) : (
-              <textarea
-                ref={textareaRef}
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                placeholder="Write your article content here...&#10;&#10;Use ## for section headings&#10;Use **text** for bold&#10;Use *text* for italic&#10;Use > for quotes&#10;Use - for bullet points"
-                rows={20}
-                className="w-full p-6 text-gray-700 text-sm leading-relaxed resize-none outline-none font-mono"
-              />
+              <textarea ref={textareaRef} value={content} onChange={e => setContent(e.target.value)}
+                placeholder="Write your article content here...&#10;&#10;Use ## for section headings&#10;Use **text** for bold&#10;Use > for quotes&#10;Use - for bullet points"
+                rows={20} className="w-full p-6 text-gray-700 text-sm leading-relaxed resize-none outline-none font-mono" />
             )}
           </div>
         </div>
 
-        {/* Sidebar Settings */}
+        {/* Sidebar */}
         <div className="w-72 flex-shrink-0 space-y-4">
-
-          {/* Status Toggles */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h3 className="text-sm font-bold text-[#1B3060] mb-3">Publication</h3>
             <div className="space-y-3">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm text-gray-700 flex items-center gap-2"><Globe size={14} /> Published</span>
-                <div
-                  onClick={() => setIsPublished(!isPublished)}
-                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${isPublished ? 'bg-green-500' : 'bg-gray-200'}`}
-                >
-                  <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${isPublished ? 'translate-x-5.5 left-0.5' : 'left-0.5'}`} style={{ transform: isPublished ? 'translateX(22px)' : 'translateX(0)' }} />
-                </div>
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm text-gray-700 flex items-center gap-2"><Globe size={14} /> Featured</span>
-                <div
-                  onClick={() => setIsFeatured(!isFeatured)}
-                  className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${isFeatured ? 'bg-[#C9A227]' : 'bg-gray-200'}`}
-                >
-                  <div className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform left-0.5" style={{ transform: isFeatured ? 'translateX(22px)' : 'translateX(0)' }} />
-                </div>
-              </label>
+              {[
+                { label: 'Published', value: isPublished, set: setIsPublished, color: 'bg-green-500' },
+                { label: 'Featured',  value: isFeatured,  set: setIsFeatured,  color: 'bg-[#C9A227]' },
+              ].map(({ label, value, set, color }) => (
+                <label key={label} className="flex items-center justify-between cursor-pointer">
+                  <span className="text-sm text-gray-700 flex items-center gap-2"><Globe size={14} /> {label}</span>
+                  <div onClick={() => set(!value)}
+                    className={`relative w-11 h-6 rounded-full transition-colors cursor-pointer ${value ? color : 'bg-gray-200'}`}>
+                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
+                      style={{ transform: value ? 'translateX(22px)' : 'translateX(0)' }} />
+                  </div>
+                </label>
+              ))}
             </div>
           </div>
 
-          {/* Category */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h3 className="text-sm font-bold text-[#1B3060] mb-3">Category</h3>
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3060]"
-            >
+            <select value={category} onChange={e => setCategory(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1B3060]">
               {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
-          {/* Tags */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h3 className="text-sm font-bold text-[#1B3060] mb-3">Tags</h3>
-            <input
-              type="text"
-              value={tags}
-              onChange={e => setTags(e.target.value)}
+            <input type="text" value={tags} onChange={e => setTags(e.target.value)}
               placeholder="visa, uk, work permit"
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]"
-            />
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
             <p className="text-xs text-gray-400 mt-1">Comma separated</p>
           </div>
 
-          {/* Excerpt */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h3 className="text-sm font-bold text-[#1B3060] mb-1">Excerpt</h3>
             <p className="text-xs text-gray-400 mb-2">Short description shown in cards</p>
-            <textarea
-              value={excerpt}
-              onChange={e => setExcerpt(e.target.value.slice(0, 200))}
-              placeholder="Brief summary of the article..."
-              rows={3}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1B3060]"
-            />
+            <textarea value={excerpt} onChange={e => setExcerpt(e.target.value.slice(0, 200))}
+              placeholder="Brief summary..." rows={3}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
             <p className={`text-xs mt-1 text-right ${excerpt.length > 180 ? 'text-orange-500' : 'text-gray-400'}`}>
               {excerpt.length}/200
             </p>
           </div>
 
-          {/* Author */}
           <div className="bg-white rounded-2xl border border-gray-200 p-4">
             <h3 className="text-sm font-bold text-[#1B3060] mb-3">Author</h3>
-            <input
-              type="text"
-              value={authorName}
-              onChange={e => setAuthorName(e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]"
-            />
-          </div>
-
-          {/* Tips */}
-          <div className="bg-blue-50 rounded-2xl p-4">
-            <h3 className="text-sm font-bold text-blue-800 mb-2">Markdown Tips</h3>
-            <div className="text-xs text-blue-700 space-y-1">
-              <p><code className="bg-blue-100 px-1 rounded">## Heading</code> → Section title</p>
-              <p><code className="bg-blue-100 px-1 rounded">**bold**</code> → Bold text</p>
-              <p><code className="bg-blue-100 px-1 rounded">*italic*</code> → Italic text</p>
-              <p><code className="bg-blue-100 px-1 rounded">&gt; text</code> → Quote block</p>
-              <p><code className="bg-blue-100 px-1 rounded">- item</code> → Bullet point</p>
-            </div>
+            <input type="text" value={authorName} onChange={e => setAuthorName(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]" />
           </div>
         </div>
       </div>
@@ -422,7 +344,6 @@ function EditorContent() {
   )
 }
 
-// Wrap in Suspense for useSearchParams
 export default function AdminEditorPage() {
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="text-gray-400">Loading editor...</div></div>}>

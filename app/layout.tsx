@@ -60,7 +60,7 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  openGraph: {
+ openGraph: {
     type: 'website',
     locale: 'en_PK',
     url: 'https://visagate.pk',
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
       "Pakistan's first verified visa consultant platform. Compare 300+ verified immigration experts across Pakistan.",
     images: [
       {
-        url: '/og-image.png',
+        url: 'https://visagate.pk/og-image.png',   // ✅ absolute URL
         width: 1200,
         height: 630,
         alt: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
@@ -81,7 +81,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
     description: "Pakistan's first verified visa consultant platform.",
-    images: ['/og-image.png'],
+    images: ['https://visagate.pk/og-image.png'],   // ✅ absolute URL
     creator: '@visagatepk',
   },
   alternates: {
