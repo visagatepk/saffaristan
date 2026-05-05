@@ -60,7 +60,7 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
- openGraph: {
+  openGraph: {
     type: 'website',
     locale: 'en_PK',
     url: 'https://visagate.pk',
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
       "Pakistan's first verified visa consultant platform. Compare 300+ verified immigration experts across Pakistan.",
     images: [
       {
-        url: 'https://visagate.pk/og-image.png',   // ✅ absolute URL
+        url: 'https://visagate.pk/og-image.png',
         width: 1200,
         height: 630,
         alt: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
@@ -81,16 +81,9 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
     description: "Pakistan's first verified visa consultant platform.",
-    images: ['https://visagate.pk/og-image.png'],   // ✅ absolute URL
+    images: ['https://visagate.pk/og-image.png'],
     creator: '@visagatepk',
   },
-  alternates: {
-    canonical: 'https://visagate.pk',
-  },
-  // ── Add your real Google Search Console verification code below ──────────
-  // verification: {
-  //   google: 'YOUR_ACTUAL_CODE_HERE',
-  // },
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
@@ -107,7 +100,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* Urdu font — loaded here because next/font doesn't support Noto Nastaliq */}
         <link
           href="https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap"
           rel="stylesheet"
