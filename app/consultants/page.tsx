@@ -1,5 +1,8 @@
-import ConsultantsClient from './ConsultantsClient'
 import type { Metadata } from 'next'
+import { createClient } from '@/lib/supabase/server'
+import ConsultantsClient from './ConsultantsClient'
+
+export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Find Verified Visa Consultants in Pakistan',
@@ -22,6 +25,24 @@ export const metadata: Metadata = {
     creator: '@visagatepk',
   },
 }
-export default function ConsultantsPage() {
-  return <ConsultantsClient />
-}
+
+export default async function ConsultantsPage() {
+  const supabase = createClient()
+
+  const { data: services } = await supabase
+    .from('services')
+    .select(`
+      id, consultant_id, title, description, visa_type,
+      destination_country, price_min, price_max, processing_days,
+      image_url, is_active, created_at,
+      consultant:consultant_id (
+        display_name, full_name, city, is_verified,
+        avatar_url, years_experience,
+        is_beoe_verified, is_oep_verified, is_secp_verified, is_fbr_verified
+      )
+    `)
+    .eq('is_active', true)
+    .order('created_at', { ascending: false })
+    .limit(60)
+
+return <ConsultantsClient initialServices={(services as any) || []} />}

@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
+import { createClient } from '@/lib/supabase/server'
 import InsightsClient from './InsightsClient'
+
+export const revalidate = 3600 // rebuild every hour — articles don't change every second
 
 export const metadata: Metadata = {
   title: 'Visa Insights & Guides',
@@ -23,6 +26,21 @@ export const metadata: Metadata = {
   },
 }
 
-export default function InsightsPage() {
-  return <InsightsClient />
+export default async function InsightsPage() {
+  const supabase = createClient()
+
+  const { data: articles } = await supabase
+    .from('articles')
+    .select(`
+      id, title, slug, excerpt,
+      cover_image,
+      category, tags,
+      author_name, read_time, views,
+      is_featured, created_at
+    `)
+    .eq('is_published', true)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  return <InsightsClient initialArticles={(articles as any) || []} />
 }

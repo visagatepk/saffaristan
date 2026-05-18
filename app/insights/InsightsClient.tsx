@@ -1,19 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
-import { Search, Clock, Eye, Tag, ChevronRight, BookOpen, AlertCircle } from 'lucide-react'
+import { Search, Clock, Eye, Tag, ChevronRight, BookOpen } from 'lucide-react'
 
 interface Article {
   id: string
   title: string
   slug: string
   excerpt: string | null
-  cover_image: string | null        // ✅ correct column name
+  cover_image: string | null
   category: string | null
   tags: string[] | null
   author_name: string | null
@@ -21,6 +20,10 @@ interface Article {
   views: number | null
   is_featured: boolean | null
   created_at: string
+}
+
+interface Props {
+  initialArticles: Article[]
 }
 
 const CATEGORIES = [
@@ -37,87 +40,31 @@ const CATEGORY_COLORS: Record<string, string> = {
   'General':          'bg-gray-100 text-gray-700',
 }
 
-function SkeletonCard() {
-  return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm animate-pulse">
-      <div className="h-48 bg-gray-200" />
-      <div className="p-5 space-y-3">
-        <div className="h-4 bg-gray-200 rounded w-1/3" />
-        <div className="h-5 bg-gray-200 rounded w-full" />
-        <div className="h-5 bg-gray-200 rounded w-4/5" />
-        <div className="h-4 bg-gray-200 rounded w-2/3" />
-        <div className="flex gap-2 pt-2">
-          <div className="h-3 bg-gray-200 rounded w-16" />
-          <div className="h-3 bg-gray-200 rounded w-16" />
-        </div>
-      </div>
-    </div>
-  )
-}
+const formatDate = (d: string) =>
+  new Date(d).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
 
-export default function InsightsClient() {
-  const [articles, setArticles]             = useState<Article[]>([])
-  const [featured, setFeatured]             = useState<Article | null>(null)
-  const [loading, setLoading]               = useState(true)
-  const [error, setError]                   = useState('')
+export default function InsightsClient({ initialArticles }: Props) {
   const [activeCategory, setActiveCategory] = useState('All')
   const [searchQuery, setSearchQuery]       = useState('')
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true)
-        setError('')
+  const featured = useMemo(
+    () => initialArticles.find(a => a.is_featured) || null,
+    [initialArticles]
+  )
 
-        const supabase = createClient()
-
-        const { data, error: queryError } = await supabase
-          .from('articles')
-          .select(`
-            id, title, slug, excerpt,
-            cover_image,
-            category, tags,
-            author_name, read_time, views,
-            is_featured, created_at
-          `)
-          .eq('is_published', true)
-          .order('created_at', { ascending: false })
-          .limit(50)
-
-        if (queryError) {
-          console.error('Articles query error:', queryError)
-          setError(queryError.message)
-          return
-        }
-
-        const all = (data || []) as Article[]
-        setFeatured(all.find(a => a.is_featured) || null)
-        setArticles(all)
-      } catch (err) {
-        console.error('Unexpected error:', err)
-        setError('Failed to load articles. Please check your connection and environment variables.')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-  }, [])
-
-  const filtered = articles.filter(a => {
-    const matchCat    = activeCategory === 'All' || a.category === activeCategory
-    const matchSearch = searchQuery === '' ||
-      a.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchCat && matchSearch
-  })
+  const filtered = useMemo(() => {
+    return initialArticles.filter(a => {
+      const matchCat    = activeCategory === 'All' || a.category === activeCategory
+      const matchSearch = searchQuery === '' ||
+        a.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        a.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
+      return matchCat && matchSearch
+    })
+  }, [initialArticles, activeCategory, searchQuery])
 
   const displayArticles = featured
     ? filtered.filter(a => a.id !== featured.id)
     : filtered
-
-  const formatDate = (d: string) =>
-    new Date(d).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -172,20 +119,8 @@ export default function InsightsClient() {
 
       <div className="max-w-6xl mx-auto px-4 py-10">
 
-        {/* ── Error State ── */}
-        {!loading && error && (
-          <div className="bg-red-50 border border-red-100 rounded-2xl p-10 text-center mb-8">
-            <AlertCircle size={36} className="mx-auto text-red-400 mb-3" />
-            <p className="font-bold text-red-600 mb-1">Could not load articles</p>
-            <p className="text-red-400 text-sm font-mono">{error}</p>
-            <p className="text-gray-400 text-xs mt-3">
-              Check Vercel → Settings → Environment Variables for NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
-            </p>
-          </div>
-        )}
-
         {/* ── Featured Article Hero ── */}
-        {!loading && !error && featured && activeCategory === 'All' && !searchQuery && (
+        {featured && activeCategory === 'All' && !searchQuery && (
           <Link href={`/insights/${featured.slug}`} className="block mb-12 group">
             <div className="relative rounded-3xl overflow-hidden shadow-xl h-80 md:h-[420px] bg-[#1B3060]">
               {featured.cover_image && (
@@ -231,20 +166,16 @@ export default function InsightsClient() {
         )}
 
         {/* ── Results Count ── */}
-        {!loading && !error && (
-          <div className="mb-6">
-            <p className="text-gray-500 text-sm">
-              {filtered.length} article{filtered.length !== 1 ? 's' : ''} found
-              {activeCategory !== 'All' && ` in ${activeCategory}`}
-            </p>
-          </div>
-        )}
+        <div className="mb-6">
+          <p className="text-gray-500 text-sm">
+            {filtered.length} article{filtered.length !== 1 ? 's' : ''} found
+            {activeCategory !== 'All' && ` in ${activeCategory}`}
+          </p>
+        </div>
 
         {/* ── Article Grid ── */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
-          ) : !error && displayArticles.length === 0 ? (
+          {displayArticles.length === 0 ? (
             <div className="col-span-3 text-center py-20">
               <BookOpen size={40} className="mx-auto text-gray-300 mb-3" />
               <p className="text-gray-500 text-lg">No articles found</p>
@@ -257,7 +188,6 @@ export default function InsightsClient() {
                 href={`/insights/${article.slug}`}
                 className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 border border-gray-100 flex flex-col"
               >
-                {/* ── Card Image ── */}
                 <div className="relative h-48 bg-[#1B3060]/10 overflow-hidden">
                   {article.cover_image ? (
                     <Image
@@ -278,7 +208,6 @@ export default function InsightsClient() {
                   )}
                 </div>
 
-                {/* ── Card Body ── */}
                 <div className="p-5 flex flex-col flex-1">
                   <h3 className="font-bold text-[#1B3060] text-base leading-snug mb-2 group-hover:text-[#C9A227] transition-colors line-clamp-2 font-['Plus_Jakarta_Sans']">
                     {article.title}
@@ -288,7 +217,6 @@ export default function InsightsClient() {
                       {article.excerpt}
                     </p>
                   )}
-
                   {article.tags && article.tags.length > 0 && (
                     <div className="flex flex-wrap gap-1 mb-3">
                       {article.tags.slice(0, 3).map(tag => (
@@ -298,7 +226,6 @@ export default function InsightsClient() {
                       ))}
                     </div>
                   )}
-
                   <div className="flex items-center justify-between text-xs text-gray-400 pt-3 border-t border-gray-100 mt-auto">
                     <div className="flex items-center gap-3">
                       {article.read_time && (

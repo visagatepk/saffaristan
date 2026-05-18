@@ -66,41 +66,16 @@ interface Service {
   }
 }
 
+interface Props {
+  initialServices: Service[]
+}
+
 function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-function SkeletonCard() {
-  return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-      <div className="h-48 bg-gray-100 animate-pulse" />
-      <div className="p-4 space-y-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gray-100 animate-pulse shrink-0" />
-          <div className="space-y-1.5 flex-1">
-            <div className="h-3.5 w-32 bg-gray-100 rounded-full animate-pulse" />
-            <div className="h-3 w-48 bg-gray-100 rounded-full animate-pulse" />
-          </div>
-        </div>
-        <div className="h-4 w-full bg-gray-100 rounded-full animate-pulse" />
-        <div className="h-3.5 w-3/4 bg-gray-100 rounded-full animate-pulse" />
-        <div className="h-3 w-1/2 bg-gray-100 rounded-full animate-pulse" />
-        <div className="border-t border-gray-50 pt-3 flex justify-between items-center">
-          <div className="space-y-1">
-            <div className="h-2.5 w-16 bg-gray-100 rounded-full animate-pulse" />
-            <div className="h-5 w-24 bg-gray-100 rounded-full animate-pulse" />
-          </div>
-          <div className="h-8 w-28 bg-gray-100 rounded-xl animate-pulse" />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-export default function ConsultantsClient() {
-  const [services, setServices]         = useState<Service[]>([])
-  const [loading, setLoading]           = useState(true)
-  const [error, setError]               = useState('')
+export default function ConsultantsClient({ initialServices }: Props) {
+  const [services]                      = useState<Service[]>(initialServices)
   const [query, setQuery]               = useState('')
   const [visaType, setVisaType]         = useState('All')
   const [destination, setDestination]   = useState('')
@@ -109,39 +84,17 @@ export default function ConsultantsClient() {
   const [showFilters, setShowFilters]   = useState(false)
   const [verifyFilter, setVerifyFilter] = useState({ secp: false, beoe: false, fbr: false })
   const [maxBudget, setMaxBudget]       = useState(200000)
-const [session, setSession]           = useState<any>(null)
+  const [session, setSession]           = useState<any>(null)
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
- useEffect(() => {
-    const load = async () => {
-      try {
-        const supabase = createClient()
-
-        // Load session separately - don't block data fetch
-        const { data: { session } } = await supabase.auth.getSession()
-        setSession(session)
-
-        const { data, error } = await supabase
-          .from('services')
-          .select(`
-            id, consultant_id, title, description, visa_type,
-            destination_country, price_min, price_max, processing_days,
-            image_url, is_active, created_at,
-            consultant:consultant_id (
-              display_name, full_name, city, is_verified,
-              avatar_url, years_experience,
-              is_beoe_verified, is_oep_verified, is_secp_verified, is_fbr_verified
-            )
-          `)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false })
-          .limit(60)
-        if (error) setError(error.message)
-        else setServices((data || []) as unknown as Service[])
-      } catch { setError('Failed to load services') }
-      finally { setLoading(false) }
+  // Only fetch session client-side — data already loaded server-side
+  useEffect(() => {
+    const getSession = async () => {
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      setSession(session)
     }
-    load()
+    getSession()
   }, [])
 
   const filtered = useMemo(() => {
@@ -190,7 +143,7 @@ const [session, setSession]           = useState<any>(null)
           </h1>
           <p className="font-urdu text-[#C9A227]/80 text-base mb-1">ویزا سروسز تلاش کریں</p>
           <p className="text-white/50 text-sm">
-            {loading ? 'Loading...' : `${filtered.length} services from verified consultants`}
+            {filtered.length} services from verified consultants
           </p>
         </div>
         <div className="relative max-w-2xl mx-auto">
@@ -303,7 +256,7 @@ const [session, setSession]           = useState<any>(null)
             <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
               <div>
                 <p className="font-bold text-gray-800 text-base">
-                  {loading ? '...' : filtered.length} services found
+                  {filtered.length} services found
                 </p>
                 <p className="text-xs text-gray-400">Explore our trusted, government-verified consultants</p>
               </div>
@@ -320,16 +273,8 @@ const [session, setSession]           = useState<any>(null)
               </div>
             </div>
 
-            {/* Error */}
-            {!loading && error && (
-              <div className="bg-red-50 border border-red-100 rounded-2xl p-8 text-center">
-                <p className="font-bold text-red-600 mb-1">Could not load services</p>
-                <p className="text-red-400 text-sm">{error}</p>
-              </div>
-            )}
-
             {/* Empty */}
-            {!loading && !error && filtered.length === 0 && (
+            {filtered.length === 0 && (
               <div className="bg-white rounded-2xl border border-gray-100 p-14 text-center shadow-sm">
                 <Search size={36} className="text-gray-200 mx-auto mb-3" />
                 <p className="font-bold text-[#1B3060] mb-1">No services found</p>
@@ -343,12 +288,7 @@ const [session, setSession]           = useState<any>(null)
 
             {/* ── Cards Grid ── */}
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-
-              {/* Skeletons */}
-              {loading && Array.from({ length: 9 }).map((_, i) => <SkeletonCard key={i} />)}
-
-              {/* Service Cards */}
-              {!loading && !error && filtered.map((service, i) => {
+              {filtered.map((service, i) => {
                 const isSaved   = saved.includes(service.id)
                 const name      = service.consultant?.display_name || service.consultant?.full_name || 'Consultant'
                 const avatarSrc = service.consultant?.avatar_url
@@ -376,14 +316,12 @@ const [session, setSession]           = useState<any>(null)
                         </div>
                       )}
 
-                      {/* Visa type badge */}
                       <span
                         className="absolute top-3 left-3 text-[11px] font-bold text-white px-2.5 py-1 rounded-full shadow-sm"
                         style={{ backgroundColor: badgeBg }}>
                         {service.visa_type}
                       </span>
 
-                      {/* Heart */}
                       <button onClick={() => toggleSave(service.id)}
                         className="absolute top-3 right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform">
                         <Heart size={14} className={isSaved ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
@@ -393,10 +331,7 @@ const [session, setSession]           = useState<any>(null)
                     {/* ── Body ── */}
                     <div className="p-4 flex flex-col flex-1">
 
-                      {/* Consultant row */}
                       <div className="flex items-start gap-3 mb-3">
-
-                        {/* Avatar */}
                         <div className="w-10 h-10 rounded-full overflow-hidden bg-[#1B3060] flex items-center justify-center shrink-0 border-2 border-gray-100">
                           {avatarSrc ? (
                             <img src={avatarSrc} alt={name} className="w-full h-full object-cover" />
@@ -405,47 +340,30 @@ const [session, setSession]           = useState<any>(null)
                           )}
                         </div>
 
-                        {/* Name + badges */}
                         <div className="min-w-0 flex-1">
-
-                          {/* Name row */}
                           <div className="flex items-center gap-1.5 mb-1.5">
                             <span className="text-sm font-semibold text-gray-800 truncate">{name}</span>
                             <BadgeCheck size={15} className="text-blue-500 shrink-0" />
                           </div>
 
-                          {/* ── Verification Badges ── */}
                           <div className="flex items-center gap-1 flex-wrap">
                             {service.consultant?.is_verified ? (
                               <div className="inline-flex items-center gap-1 border-2 border-green-500 rounded-full px-0.5 py-0.5">
-                                {/* Verified */}
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-green-500 px-2 py-0.5 rounded-full">
                                   <CheckCircle size={9} strokeWidth={3} />
                                   Verified
                                 </span>
-                                {/* BEOE */}
                                 {service.consultant?.is_beoe_verified && (
-                                  <span className="text-[10px] font-bold text-white bg-[#29B6C5] px-2 py-0.5 rounded-full">
-                                    BEOE
-                                  </span>
+                                  <span className="text-[10px] font-bold text-white bg-[#29B6C5] px-2 py-0.5 rounded-full">BEOE</span>
                                 )}
-                                {/* SECP */}
                                 {service.consultant?.is_secp_verified && (
-                                  <span className="text-[10px] font-bold text-white bg-[#C9A227] px-2 py-0.5 rounded-full">
-                                    SECP
-                                  </span>
+                                  <span className="text-[10px] font-bold text-white bg-[#C9A227] px-2 py-0.5 rounded-full">SECP</span>
                                 )}
-                                {/* OEP */}
                                 {service.consultant?.is_oep_verified && (
-                                  <span className="text-[10px] font-bold text-white bg-[#1B3060] px-2 py-0.5 rounded-full">
-                                    OEP
-                                  </span>
+                                  <span className="text-[10px] font-bold text-white bg-[#1B3060] px-2 py-0.5 rounded-full">OEP</span>
                                 )}
-                                {/* FBR */}
                                 {service.consultant?.is_fbr_verified && (
-                                  <span className="text-[10px] font-bold text-white bg-orange-500 px-2 py-0.5 rounded-full">
-                                    FBR
-                                  </span>
+                                  <span className="text-[10px] font-bold text-white bg-orange-500 px-2 py-0.5 rounded-full">FBR</span>
                                 )}
                               </div>
                             ) : (
@@ -455,20 +373,13 @@ const [session, setSession]           = useState<any>(null)
                               </span>
                             )}
                           </div>
-                          {/* ── End Badges ── */}
-
                         </div>
-                        {/* End Name + badges */}
-
                       </div>
-                      {/* End Consultant row */}
 
-                      {/* Title */}
                       <p className="text-sm text-gray-700 leading-snug mb-3 line-clamp-2 flex-1">
                         {service.title}
                       </p>
 
-                      {/* Stars + City */}
                       <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
                         <span className="flex items-center gap-1">
                           <Star size={12} className="text-[#C9A227] fill-[#C9A227]" />
@@ -484,7 +395,6 @@ const [session, setSession]           = useState<any>(null)
                         )}
                       </div>
 
-                      {/* Price + CTA */}
                       <div className="border-t border-gray-100 pt-3 mt-auto flex items-center justify-between">
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Starting at</p>
@@ -492,36 +402,27 @@ const [session, setSession]           = useState<any>(null)
                             PKR {service.price_min?.toLocaleString()}
                           </p>
                         </div>
-
-                        <button
-  onClick={() => {
-    if (!session) {
-      window.location.href = '/login'
-    } else {
-      window.location.href = `/consultants/${service.consultant_id}`
-    }
-  }}
-  className="flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#1B3060] px-4 py-2 rounded-xl transition-all duration-200 hover:bg-[#243d7a]">
-  Message
-</button>
-                        <Link href={`/consultants/${service.consultant_id}`}
-                          className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1B3060] hover:text-white hover:bg-[#1B3060] border border-[#1B3060]/25 hover:border-[#1B3060] px-4 py-2 rounded-xl transition-all duration-200">
-                          View Profile <ArrowRight size={13} />
-                        </Link>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              if (!session) window.location.href = '/login'
+                              else window.location.href = `/consultants/${service.consultant_id}`
+                            }}
+                            className="flex items-center gap-1.5 text-[13px] font-semibold text-white bg-[#1B3060] px-4 py-2 rounded-xl transition-all duration-200 hover:bg-[#243d7a]">
+                            Message
+                          </button>
+                          <Link href={`/consultants/${service.consultant_id}`}
+                            className="flex items-center gap-1.5 text-[13px] font-semibold text-[#1B3060] hover:text-white hover:bg-[#1B3060] border border-[#1B3060]/25 hover:border-[#1B3060] px-4 py-2 rounded-xl transition-all duration-200">
+                            View <ArrowRight size={13} />
+                          </Link>
+                        </div>
                       </div>
-
                     </div>
-                    {/* End Body */}
-
                   </div>
                 )
               })}
             </div>
-            {/* End Cards Grid */}
-
           </div>
-          {/* End Main */}
-
         </div>
       </div>
 
