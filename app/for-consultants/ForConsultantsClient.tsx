@@ -1,35 +1,14 @@
 'use client'
-import type { Metadata } from 'next'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
 import {
   CheckCircle, Star, TrendingUp, Shield, Users, MessageSquare,
   Calendar, Award, ChevronDown, ArrowRight, Briefcase, Globe,
   BarChart2, Zap, Clock, BadgeCheck
 } from 'lucide-react'
-export const metadata: Metadata = {
-  title: 'List Your Visa Consultancy — Join VisaGate',
-  description: 'Join Pakistan\'s first verified visa consultant platform. Get listed, reach verified seekers and grow your consultancy. OEP/SECP verified profiles only.',
-  alternates: { canonical: 'https://visagate.pk/for-consultants' },
-  openGraph: {
-    title: 'List Your Visa Consultancy on VisaGate.pk',
-    description: 'Join Pakistan\'s first verified visa consultant platform and reach thousands of seekers. Free to apply — OEP/SECP verified profiles only.',
-    url: 'https://visagate.pk/for-consultants',
-    siteName: 'VisaGate.pk',
-    locale: 'en_PK',
-    type: 'website',
-    images: [{ url: 'https://visagate.pk/og-image.png', width: 1200, height: 630, alt: 'Join VisaGate.pk as a Consultant' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'List Your Visa Consultancy on VisaGate.pk',
-    description: 'Join Pakistan\'s first verified visa consultant platform. Free to apply.',
-    images: ['https://visagate.pk/og-image.png'],
-    creator: '@visagatepk',
-  },
-}
+
 // ── Animated counter ──────────────────────────────────────────────────────
 function Counter({ end, suffix = '', duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0)
@@ -83,23 +62,20 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   )
 }
 
-export default function ForConsultantsPage() {
+export default function ForConsultantsClient() {
   return (
     <main className="bg-white">
 
-      {/* ── NAVBAR ───────────────────────────────────────────────────── */}
       <Navbar />
 
       {/* ── HERO ──────────────────────────────────────────────────────── */}
       <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-[#0f1f45]">
-        {/* Background pattern */}
         <div className="absolute inset-0 opacity-10"
           style={{
             backgroundImage: `radial-gradient(circle at 1px 1px, #C9A227 1px, transparent 0)`,
             backgroundSize: '48px 48px'
           }}
         />
-        {/* Gold accent blobs */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-10"
           style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(30%, -30%)' }}
         />
@@ -108,7 +84,6 @@ export default function ForConsultantsPage() {
         />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left */}
           <div>
             <div className="inline-flex items-center gap-2 bg-[#C9A227]/20 border border-[#C9A227]/30 text-[#C9A227] text-sm font-semibold px-4 py-2 rounded-full mb-8">
               <Zap size={14} />
@@ -145,9 +120,7 @@ export default function ForConsultantsPage() {
           {/* Right — Profile card mockup */}
           <div className="hidden lg:flex justify-center">
             <div className="relative">
-              {/* Main card */}
               <div className="bg-white rounded-3xl shadow-2xl p-6 w-80">
-                {/* Cover */}
                 <div className="h-24 rounded-2xl mb-12 relative" style={{ background: 'linear-gradient(135deg, #1B3060, #2d4a8a)' }}>
                   <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-[#C9A227] flex items-center justify-center shadow-lg">
                     <Briefcase size={28} className="text-white" />
@@ -190,7 +163,6 @@ export default function ForConsultantsPage() {
                 </div>
               </div>
 
-              {/* Floating badges */}
               <div className="absolute -left-14 top-16 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                   <Users size={15} className="text-green-600" />
@@ -213,7 +185,6 @@ export default function ForConsultantsPage() {
           </div>
         </div>
 
-        {/* Wave */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M0 60L1440 60L1440 0C1440 0 1080 60 720 60C360 60 0 0 0 0L0 60Z" fill="white" />
@@ -259,49 +230,15 @@ export default function ForConsultantsPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              {
-                icon: <BadgeCheck size={24} />,
-                title: 'Official Verification Badge',
-                desc: 'Get verified with your OEP license and SECP registration. Clients trust verified consultants 3x more.',
-                color: 'blue'
-              },
-              {
-                icon: <Globe size={24} />,
-                title: 'Pakistan-Wide Visibility',
-                desc: 'Your profile is visible to thousands of visa seekers searching from Karachi to Peshawar and everywhere in between.',
-                color: 'gold'
-              },
-              {
-                icon: <MessageSquare size={24} />,
-                title: 'Real-Time Messaging',
-                desc: 'Communicate directly with clients through our built-in messaging system. No third-party apps needed.',
-                color: 'blue'
-              },
-              {
-                icon: <Calendar size={24} />,
-                title: 'Appointment Management',
-                desc: 'Accept or decline appointment requests from your dashboard. Full control over your schedule.',
-                color: 'gold'
-              },
-              {
-                icon: <BarChart2 size={24} />,
-                title: 'Profile Analytics',
-                desc: 'See how many people viewed your profile, which services are most popular, and track your growth.',
-                color: 'blue'
-              },
-              {
-                icon: <Shield size={24} />,
-                title: 'Zero Commission',
-                desc: 'We never take a cut from your earnings. Payments go directly between you and your client — always.',
-                color: 'gold'
-              },
+              { icon: <BadgeCheck size={24} />, title: 'Official Verification Badge', desc: 'Get verified with your OEP license and SECP registration. Clients trust verified consultants 3x more.', color: 'blue' },
+              { icon: <Globe size={24} />, title: 'Pakistan-Wide Visibility', desc: 'Your profile is visible to thousands of visa seekers searching from Karachi to Peshawar and everywhere in between.', color: 'gold' },
+              { icon: <MessageSquare size={24} />, title: 'Real-Time Messaging', desc: 'Communicate directly with clients through our built-in messaging system. No third-party apps needed.', color: 'blue' },
+              { icon: <Calendar size={24} />, title: 'Appointment Management', desc: 'Accept or decline appointment requests from your dashboard. Full control over your schedule.', color: 'gold' },
+              { icon: <BarChart2 size={24} />, title: 'Profile Analytics', desc: 'See how many people viewed your profile, which services are most popular, and track your growth.', color: 'blue' },
+              { icon: <Shield size={24} />, title: 'Zero Commission', desc: 'We never take a cut from your earnings. Payments go directly between you and your client — always.', color: 'gold' },
             ].map((feature, i) => (
               <div key={i} className="bg-white rounded-3xl p-7 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-5 ${
-                  feature.color === 'gold'
-                    ? 'bg-[#C9A227]/15 text-[#C9A227]'
-                    : 'bg-[#1B3060]/10 text-[#1B3060]'
-                }`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-5 ${feature.color === 'gold' ? 'bg-[#C9A227]/15 text-[#C9A227]' : 'bg-[#1B3060]/10 text-[#1B3060]'}`}>
                   {feature.icon}
                 </div>
                 <h3 className="font-bold text-[#1B3060] text-lg mb-2">{feature.title}</h3>
@@ -329,27 +266,9 @@ export default function ForConsultantsPage() {
             <div className="hidden md:block absolute top-16 left-[16.66%] right-[16.66%] h-0.5 bg-gradient-to-r from-[#1B3060] via-[#C9A227] to-[#1B3060] opacity-20" />
             <div className="grid md:grid-cols-3 gap-10">
               {[
-                {
-                  step: '01',
-                  icon: <Briefcase size={28} />,
-                  title: 'Create Your Profile',
-                  desc: 'Sign up and complete your consultant profile with your specializations, experience, and services.',
-                  time: '5 minutes'
-                },
-                {
-                  step: '02',
-                  icon: <BadgeCheck size={28} />,
-                  title: 'Get Verified',
-                  desc: 'Submit your OEP license number and SECP registration. Our team verifies and adds your official badge.',
-                  time: '24-48 hours'
-                },
-                {
-                  step: '03',
-                  icon: <Users size={28} />,
-                  title: 'Start Getting Clients',
-                  desc: 'Your profile goes live and clients start finding you. Respond to inquiries and grow your business.',
-                  time: 'Immediately'
-                },
+                { step: '01', icon: <Briefcase size={28} />, title: 'Create Your Profile', desc: 'Sign up and complete your consultant profile with your specializations, experience, and services.', time: '5 minutes' },
+                { step: '02', icon: <BadgeCheck size={28} />, title: 'Get Verified', desc: 'Submit your OEP license number and SECP registration. Our team verifies and adds your official badge.', time: '24-48 hours' },
+                { step: '03', icon: <Users size={28} />, title: 'Start Getting Clients', desc: 'Your profile goes live and clients start finding you. Respond to inquiries and grow your business.', time: 'Immediately' },
               ].map((step, i) => (
                 <div key={i} className="text-center">
                   <div className="relative inline-flex mb-6">
@@ -401,12 +320,9 @@ export default function ForConsultantsPage() {
                   </div>
                 ))}
               </div>
-              <Link
-                href="/register/consultant"
-                className="inline-flex items-center gap-2 bg-[#1B3060] text-white font-semibold px-7 py-3.5 rounded-2xl hover:bg-[#243d7a] transition-colors mt-8"
-              >
-                Create Your Profile
-                <ArrowRight size={18} />
+              <Link href="/register/consultant"
+                className="inline-flex items-center gap-2 bg-[#1B3060] text-white font-semibold px-7 py-3.5 rounded-2xl hover:bg-[#243d7a] transition-colors mt-8">
+                Create Your Profile <ArrowRight size={18} />
               </Link>
             </div>
 
@@ -424,12 +340,8 @@ export default function ForConsultantsPage() {
                     <div>
                       <div className="font-semibold text-[#1B3060] text-sm mb-1">{service.title}</div>
                       <div className="flex items-center gap-2">
-                        <span className="bg-[#C9A227]/15 text-[#C9A227] text-xs font-medium px-2 py-0.5 rounded-full">
-                          {service.tag}
-                        </span>
-                        <span className="text-gray-400 text-xs flex items-center gap-1">
-                          <Clock size={11} /> {service.days}
-                        </span>
+                        <span className="bg-[#C9A227]/15 text-[#C9A227] text-xs font-medium px-2 py-0.5 rounded-full">{service.tag}</span>
+                        <span className="text-gray-400 text-xs flex items-center gap-1"><Clock size={11} /> {service.days}</span>
                       </div>
                     </div>
                   </div>
@@ -457,21 +369,9 @@ export default function ForConsultantsPage() {
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              {
-                name: 'Tariq Mahmood', city: 'Lahore', specialty: 'UK & Canada Visas',
-                review: 'VisaGate completely transformed my consultancy. I went from 5 clients a month to over 30 within 3 months of joining. The verification badge gives clients instant trust.',
-                rating: 5, clients: 142
-              },
-              {
-                name: 'Nadia Ansari', city: 'Karachi', specialty: 'Schengen & Europe',
-                review: 'The platform is incredibly easy to use. I set up my profile in 30 minutes and received my first inquiry the same evening. No commission taken — I keep everything I earn.',
-                rating: 5, clients: 89
-              },
-              {
-                name: 'Bilal Khan', city: 'Islamabad', specialty: 'Australia & New Zealand',
-                review: 'As a newly registered consultant, getting clients was my biggest challenge. VisaGate solved that immediately. The messaging system makes communication professional and easy.',
-                rating: 5, clients: 56
-              },
+              { name: 'Tariq Mahmood', city: 'Lahore', specialty: 'UK & Canada Visas', review: 'VisaGate completely transformed my consultancy. I went from 5 clients a month to over 30 within 3 months of joining. The verification badge gives clients instant trust.', rating: 5, clients: 142 },
+              { name: 'Nadia Ansari', city: 'Karachi', specialty: 'Schengen & Europe', review: 'The platform is incredibly easy to use. I set up my profile in 30 minutes and received my first inquiry the same evening. No commission taken — I keep everything I earn.', rating: 5, clients: 89 },
+              { name: 'Bilal Khan', city: 'Islamabad', specialty: 'Australia & New Zealand', review: 'As a newly registered consultant, getting clients was my biggest challenge. VisaGate solved that immediately. The messaging system makes communication professional and easy.', rating: 5, clients: 56 },
             ].map((t, i) => (
               <div key={i} className="bg-white/10 backdrop-blur rounded-3xl p-7 border border-white/10">
                 <div className="flex items-center gap-1 mb-4">
@@ -529,10 +429,8 @@ export default function ForConsultantsPage() {
                 </div>
               ))}
             </div>
-            <Link
-              href="/register/consultant"
-              className="inline-flex items-center gap-2 bg-[#C9A227] text-[#1B3060] font-bold px-10 py-4 rounded-2xl hover:bg-[#b8911f] transition-colors text-lg shadow-lg shadow-[#C9A227]/30"
-            >
+            <Link href="/register/consultant"
+              className="inline-flex items-center gap-2 bg-[#C9A227] text-[#1B3060] font-bold px-10 py-4 rounded-2xl hover:bg-[#b8911f] transition-colors text-lg shadow-lg shadow-[#C9A227]/30">
               Get Started Free <ArrowRight size={20} />
             </Link>
           </div>
@@ -550,30 +448,12 @@ export default function ForConsultantsPage() {
           </div>
           <div className="space-y-3">
             {[
-              {
-                q: 'Is VisaGate really free for consultants?',
-                a: 'Yes, 100% free. There are no signup fees, no monthly subscriptions, and no commission on your earnings. Payments are handled directly between you and your client — we are not involved.'
-              },
-              {
-                q: 'How does the verification process work?',
-                a: 'During registration, you provide your OEP license number, OEP license title, and SECP registration date. Our team manually verifies this information and adds the official verification badge to your profile within 24-48 hours.'
-              },
-              {
-                q: 'Can I list multiple visa services?',
-                a: 'Absolutely. You can create as many service listings as you offer — UK visas, Canada PR, Schengen, Australia, and more. Each service can have its own pricing, description, and turnaround time.'
-              },
-              {
-                q: 'How do clients contact me?',
-                a: 'Clients can message you directly through the VisaGate messaging system, call you via your listed number, WhatsApp you, or book a formal appointment through the platform.'
-              },
-              {
-                q: 'What happens after I register?',
-                a: 'After completing your profile, your listing goes live immediately. The verification badge is added within 24-48 hours after we verify your credentials.'
-              },
-              {
-                q: 'Can I update my profile and services anytime?',
-                a: 'Yes, your consultant dashboard gives you full control to update your profile, add or remove services, set your availability, and manage appointments — all in real time.'
-              },
+              { q: 'Is VisaGate really free for consultants?', a: 'Yes, 100% free. There are no signup fees, no monthly subscriptions, and no commission on your earnings. Payments are handled directly between you and your client — we are not involved.' },
+              { q: 'How does the verification process work?', a: 'During registration, you provide your OEP license number, OEP license title, and SECP registration date. Our team manually verifies this information and adds the official verification badge to your profile within 24-48 hours.' },
+              { q: 'Can I list multiple visa services?', a: 'Absolutely. You can create as many service listings as you offer — UK visas, Canada PR, Schengen, Australia, and more. Each service can have its own pricing, description, and turnaround time.' },
+              { q: 'How do clients contact me?', a: 'Clients can message you directly through the VisaGate messaging system, call you via your listed number, WhatsApp you, or book a formal appointment through the platform.' },
+              { q: 'What happens after I register?', a: 'After completing your profile, your listing goes live immediately. The verification badge is added within 24-48 hours after we verify your credentials.' },
+              { q: 'Can I update my profile and services anytime?', a: 'Yes, your consultant dashboard gives you full control to update your profile, add or remove services, set your availability, and manage appointments — all in real time.' },
             ].map((faq, i) => (
               <FAQItem key={i} q={faq.q} a={faq.a} />
             ))}
@@ -586,10 +466,7 @@ export default function ForConsultantsPage() {
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="bg-gradient-to-br from-[#1B3060] to-[#2d4a8a] rounded-3xl px-8 py-16 relative overflow-hidden shadow-2xl shadow-[#1B3060]/20">
             <div className="absolute inset-0 opacity-5"
-              style={{
-                backgroundImage: `radial-gradient(circle at 1px 1px, #C9A227 1px, transparent 0)`,
-                backgroundSize: '32px 32px'
-              }}
+              style={{ backgroundImage: `radial-gradient(circle at 1px 1px, #C9A227 1px, transparent 0)`, backgroundSize: '32px 32px' }}
             />
             <div className="relative">
               <Award size={48} className="text-[#C9A227] mx-auto mb-6" />
@@ -597,10 +474,8 @@ export default function ForConsultantsPage() {
               <p className="text-blue-200 text-lg mb-8 max-w-xl mx-auto">
                 Join Pakistan's most trusted visa consultant platform today. Free forever. No credit card required.
               </p>
-              <Link
-                href="/register/consultant"
-                className="inline-flex items-center gap-2 bg-[#C9A227] text-[#1B3060] font-bold px-10 py-4 rounded-2xl hover:bg-[#b8911f] transition-all duration-200 text-lg shadow-lg shadow-[#C9A227]/30"
-              >
+              <Link href="/register/consultant"
+                className="inline-flex items-center gap-2 bg-[#C9A227] text-[#1B3060] font-bold px-10 py-4 rounded-2xl hover:bg-[#b8911f] transition-all duration-200 text-lg shadow-lg shadow-[#C9A227]/30">
                 Create Your Free Profile <ArrowRight size={20} />
               </Link>
               <p className="text-blue-300 text-sm mt-4">
@@ -611,7 +486,7 @@ export default function ForConsultantsPage() {
           </div>
         </div>
       </section>
-
+<Footer />
     </main>
   )
 }

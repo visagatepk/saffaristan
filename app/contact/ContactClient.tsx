@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -7,34 +6,13 @@ import emailjs from '@emailjs/browser'
 import { createClient } from '@/lib/supabase/client'
 import {
   User, Mail, Phone, MessageSquare,
-  Send, CheckCircle, AlertCircle, Construction
+  Send, CheckCircle, AlertCircle
 } from 'lucide-react'
 
 const WHATSAPP_NUMBER = '923149354655'
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi VisaGate.pk, I need some help.')}`
 
-export const metadata: Metadata = {
-  title: 'Contact Us',
-  description: 'Get in touch with the VisaGate.pk team. Report an issue, ask a question or send us a message via our contact form or WhatsApp.',
-  alternates: { canonical: 'https://visagate.pk/contact' },
-  openGraph: {
-    title: 'Contact VisaGate.pk',
-    description: 'Get in touch with the VisaGate.pk team via contact form or WhatsApp.',
-    url: 'https://visagate.pk/contact',
-    siteName: 'VisaGate.pk',
-    locale: 'en_PK',
-    type: 'website',
-    images: [{ url: 'https://visagate.pk/og-image.png', width: 1200, height: 630, alt: 'Contact VisaGate.pk' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Contact VisaGate.pk',
-    description: 'Get in touch with the VisaGate.pk team via contact form or WhatsApp.',
-    images: ['https://visagate.pk/og-image.png'],
-    creator: '@visagatepk',
-  },
-}
-export default function ContactPage() {
+export default function ContactClient() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [mobile, setMobile] = useState('')
@@ -74,7 +52,6 @@ export default function ContactPage() {
       )
       setSent(true)
     } catch {
-      // Save to Supabase as fallback
       try {
         const supabase = createClient()
         await supabase.from('contact_messages').insert({
@@ -131,7 +108,7 @@ export default function ContactPage() {
           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
         <div className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-10 pointer-events-none"
           style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
-        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 py-14 text-center">
+        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 py-16 text-center">
           <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-3">
             Contact Us
           </h1>
@@ -144,23 +121,14 @@ export default function ContactPage() {
 
       <div className="max-w-2xl mx-auto px-6 lg:px-8 py-10">
 
-        {/* 🚧 Under Construction Notice */}
-        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 mb-8 flex items-start gap-4">
-          <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
-            <Construction size={20} className="text-amber-600" />
-          </div>
-          </div>
-
         {/* Form Card */}
         <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
-
           <div className="px-8 py-5 border-b border-gray-100 bg-gray-50">
             <h2 className="font-heading font-bold text-navy text-lg">Send Us a Message</h2>
             <p className="font-urdu text-gold text-sm mt-1">پیغام بھیجیں</p>
           </div>
 
           <div className="p-8">
-
             {error && (
               <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-sm font-body px-4 py-3 rounded-xl mb-6">
                 <AlertCircle size={15} className="shrink-0" />
@@ -243,7 +211,6 @@ export default function ContactPage() {
                   </>
                 )}
               </button>
-
             </form>
 
             {/* Divider */}

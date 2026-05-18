@@ -8,7 +8,7 @@ const features = [
 ]
 
 const stats = [
-  { num: '5000+', label: 'Active Consultants' },
+  { num: '300+', label: 'Active Consultants' },
   { num: '30+', label: 'Cities Covered' },
   { num: '50+', label: 'Visa Categories' },
   { num: '0', label: 'Hidden Charges' },

@@ -1,32 +1,10 @@
 'use client'
-import type { Metadata } from 'next'
 import { useState } from 'react'
 import { ChevronDown, HelpCircle, MessageCircle } from 'lucide-react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 
-export const metadata: Metadata = {
-  title: 'Frequently Asked Questions',
-  description: 'Answers to common questions about VisaGate.pk — how to find verified consultants, book appointments, stay safe from fraud, and join as a consultant.',
-  alternates: { canonical: 'https://visagate.pk/faqs' },
-  openGraph: {
-    title: 'FAQs — VisaGate.pk',
-    description: 'Answers to common questions about finding verified visa consultants, booking appointments and staying safe from fraud in Pakistan.',
-    url: 'https://visagate.pk/faqs',
-    siteName: 'VisaGate.pk',
-    locale: 'en_PK',
-    type: 'website',
-    images: [{ url: 'https://visagate.pk/og-image.png', width: 1200, height: 630, alt: 'VisaGate.pk FAQs' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'FAQs — VisaGate.pk',
-    description: 'Answers to common questions about finding verified visa consultants in Pakistan.',
-    images: ['https://visagate.pk/og-image.png'],
-    creator: '@visagatepk',
-  },
-}
 interface FaqItem {
   q: string
   a: string
@@ -201,7 +179,7 @@ function AccordionItem({
   )
 }
 
-export default function FAQsPage() {
+export default function FaqsClient() {
   const [openItem, setOpenItem] = useState<string | null>('0-0')
 
   const toggle = (key: string) => {
@@ -279,8 +257,8 @@ export default function FAQsPage() {
             and we will get back to you within 24 hours.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <a
-              href="https://wa.me/923149354655"
+            
+              <a href="https://wa.me/923149354655"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-[#1fb855] transition"
