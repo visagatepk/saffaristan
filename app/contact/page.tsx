@@ -1,5 +1,5 @@
 'use client'
-
+import type { Metadata } from 'next'
 import { useState } from 'react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
@@ -13,6 +13,27 @@ import {
 const WHATSAPP_NUMBER = '923149354655'
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi VisaGate.pk, I need some help.')}`
 
+export const metadata: Metadata = {
+  title: 'Contact Us',
+  description: 'Get in touch with the VisaGate.pk team. Report an issue, ask a question or send us a message via our contact form or WhatsApp.',
+  alternates: { canonical: 'https://visagate.pk/contact' },
+  openGraph: {
+    title: 'Contact VisaGate.pk',
+    description: 'Get in touch with the VisaGate.pk team via contact form or WhatsApp.',
+    url: 'https://visagate.pk/contact',
+    siteName: 'VisaGate.pk',
+    locale: 'en_PK',
+    type: 'website',
+    images: [{ url: 'https://visagate.pk/og-image.png', width: 1200, height: 630, alt: 'Contact VisaGate.pk' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact VisaGate.pk',
+    description: 'Get in touch with the VisaGate.pk team via contact form or WhatsApp.',
+    images: ['https://visagate.pk/og-image.png'],
+    creator: '@visagatepk',
+  },
+}
 export default function ContactPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -128,18 +149,7 @@ export default function ContactPage() {
           <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
             <Construction size={20} className="text-amber-600" />
           </div>
-          <div>
-            <p className="font-heading font-bold text-amber-800 text-sm mb-1">
-              🚧 Platform Under Active Development
-            </p>
-            <p className="font-body text-amber-700 text-xs leading-relaxed">
-              VisaGate.pk is currently in its early launch phase. Some features may be limited or unavailable. Our team is working hard to improve the platform daily. Thank you for your patience and support — your feedback helps us build better!
-            </p>
-            <p className="font-urdu text-amber-700 text-sm mt-2 leading-loose" dir="rtl">
-              VisaGate.pk ابھی ابتدائی مرحلے میں ہے۔ آپ کی حمایت اور صبر کا شکریہ۔
-            </p>
           </div>
-        </div>
 
         {/* Form Card */}
         <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">

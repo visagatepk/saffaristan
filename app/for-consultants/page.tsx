@@ -1,5 +1,5 @@
 'use client'
-
+import type { Metadata } from 'next'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -9,7 +9,27 @@ import {
   Calendar, Award, ChevronDown, ArrowRight, Briefcase, Globe,
   BarChart2, Zap, Clock, BadgeCheck
 } from 'lucide-react'
-
+export const metadata: Metadata = {
+  title: 'List Your Visa Consultancy — Join VisaGate',
+  description: 'Join Pakistan\'s first verified visa consultant platform. Get listed, reach verified seekers and grow your consultancy. OEP/SECP verified profiles only.',
+  alternates: { canonical: 'https://visagate.pk/for-consultants' },
+  openGraph: {
+    title: 'List Your Visa Consultancy on VisaGate.pk',
+    description: 'Join Pakistan\'s first verified visa consultant platform and reach thousands of seekers. Free to apply — OEP/SECP verified profiles only.',
+    url: 'https://visagate.pk/for-consultants',
+    siteName: 'VisaGate.pk',
+    locale: 'en_PK',
+    type: 'website',
+    images: [{ url: 'https://visagate.pk/og-image.png', width: 1200, height: 630, alt: 'Join VisaGate.pk as a Consultant' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'List Your Visa Consultancy on VisaGate.pk',
+    description: 'Join Pakistan\'s first verified visa consultant platform. Free to apply.',
+    images: ['https://visagate.pk/og-image.png'],
+    creator: '@visagatepk',
+  },
+}
 // ── Animated counter ──────────────────────────────────────────────────────
 function Counter({ end, suffix = '', duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0)
@@ -207,7 +227,7 @@ export default function ForConsultantsPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
               { value: 200000, suffix: '+', label: 'Active Seekers' },
-              { value: 2000, suffix: '+', label: 'Verified Consultants' },
+              { value: 300, suffix: '+', label: 'Verified Consultants' },
               { value: 20, suffix: '+', label: 'Visa Categories' },
               { value: 98, suffix: '%', label: 'Satisfaction Rate' },
             ].map((stat, i) => (

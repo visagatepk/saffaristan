@@ -1,3 +1,5 @@
+
+import type { Metadata } from 'next'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
@@ -7,9 +9,26 @@ import {
   TrendingUp, Zap, Lock
 } from 'lucide-react'
 
-export const metadata = {
-  title: 'About Us — VisaGate.pk',
-  description: 'Learn about VisaGate.pk — Pakistan\'s first verified visa consultant platform.',
+export const metadata: Metadata = {
+  title: 'About VisaGate.pk — Pakistan\'s First Verified Visa Platform',
+  description: 'Learn how VisaGate.pk verifies visa consultants against OEP, SECP and FBR records. Our mission, values and verification process explained.',
+  alternates: { canonical: 'https://visagate.pk/about' },
+  openGraph: {
+    title: 'About VisaGate.pk — Pakistan\'s First Verified Visa Platform',
+    description: 'Learn how VisaGate.pk verifies visa consultants against OEP, SECP and FBR records.',
+    url: 'https://visagate.pk/about',
+    siteName: 'VisaGate.pk',
+    locale: 'en_PK',
+    type: 'website',
+    images: [{ url: 'https://visagate.pk/og-image.png', width: 1200, height: 630, alt: 'About VisaGate.pk' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'About VisaGate.pk — Pakistan\'s First Verified Visa Platform',
+    description: 'Learn how VisaGate.pk verifies visa consultants against OEP, SECP and FBR records.',
+    images: ['https://visagate.pk/og-image.png'],
+    creator: '@visagatepk',
+  },
 }
 
 export default function AboutPage() {
@@ -75,7 +94,7 @@ export default function AboutPage() {
                 </p>
                 <div className="grid grid-cols-2 gap-4">
                   {[
-                    { num: '500+', label: 'Active Consultants', icon: Users },
+                    { num: '300+', label: 'Active Consultants', icon: Users },
                     { num: '7+', label: 'Seekers Registered', icon: Heart },
                     { num: '30+', label: 'Countries Covered', icon: Globe },
                     { num: '4.8★', label: 'Average Rating', icon: Star },

@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Visa Destinations — UK, Canada, UAE, Schengen & More | VisaGate.pk',
+  title: 'Visa Destinations — UK, Canada, UAE, Schengen & More',
   description: 'Find visa consultants for every destination. UK, Canada, USA, Australia, Schengen Europe, Gulf countries and more. 30+ countries covered.',
   openGraph: {
     title: 'Visa Destinations — Find Consultants Worldwide',

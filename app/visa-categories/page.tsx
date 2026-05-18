@@ -1,5 +1,5 @@
 export const metadata = {
-  title: 'Visa Types & Categories 2026 — Student, Work, PR, Visit | VisaGate.pk',
+  title: 'Visa Types & Categories for Pakistani Passport Holders 2026',
   description: 'Browse all visa types for Pakistani passport holders in 2026. Student visa, work permit, PR, family reunion, Umrah, business visa and more.',
   openGraph: {
     title: 'Visa Types & Categories 2026 for Pakistanis',

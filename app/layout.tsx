@@ -20,10 +20,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://visagate.pk'),
   title: {
-    default: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
     template: '%s | VisaGate.pk',
+    default: 'VisaGate.pk — Find Verified Visa Consultants in Pakistan',
   },
   description:
     "Pakistan's first platform to find verified visa consultants and immigration agents in Islamabad, Rawalpindi, Lahore, Karachi and across Pakistan. Compare experts, read reviews and apply with confidence.",
