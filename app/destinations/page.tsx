@@ -8,7 +8,7 @@ export const metadata = {
   },
   alternates: { canonical: 'https://visagate.pk/destinations' },
 }
-
+import { BreadcrumbStructuredData } from '@/components/StructuredData'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
@@ -134,7 +134,11 @@ export default function DestinationsPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-
+// inside return:
+<BreadcrumbStructuredData items={[
+  { name: 'Home', url: 'https://visagate.pk' },
+  { name: 'Destinations', url: 'https://visagate.pk/destinations' },
+]} />
       {/* Hero */}
       <div className="bg-navy relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]"

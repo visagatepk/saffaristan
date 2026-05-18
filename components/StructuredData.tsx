@@ -15,7 +15,8 @@ export function WebsiteStructuredData() {
     },
     sameAs: [
       'https://www.facebook.com/visagatepk',
-      'https://www.youtube.com/visagatepk',
+      'https://www.twitter.com/visagatepk',
+      'https://www.youtube.com/@visagatepk',
     ],
   }
 
@@ -42,9 +43,15 @@ export function OrganizationStructuredData() {
     },
     contactPoint: {
       '@type': 'ContactPoint',
+      telephone: '+92-314-9354655',
       contactType: 'customer service',
       availableLanguage: ['English', 'Urdu'],
     },
+    sameAs: [
+      'https://www.facebook.com/visagatepk',
+      'https://www.twitter.com/visagatepk',
+      'https://www.youtube.com/@visagatepk',
+    ],
     areaServed: 'PK',
     serviceType: 'Visa Consultancy Marketplace',
   }
@@ -98,15 +105,7 @@ export function FAQStructuredData() {
         name: 'What is VisaGate.pk?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'VisaGate.pk is Pakistan\'s first verified visa consultant platform. We connect visa seekers with government-verified immigration consultants and agents across Pakistan, making the visa application process transparent, safe, and easy.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Is VisaGate.pk an official government service?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'No. VisaGate.pk is a private platform operated by Defaste (Pvt) Ltd. We verify consultants against government registries (OEP, SECP, BEOE, FBR) but we are not affiliated with any government body. Always verify your consultant credentials independently.',
+          text: "VisaGate.pk is Pakistan's first verified visa consultant platform. We connect visa seekers with government-verified immigration consultants and agents across Pakistan, making the visa application process transparent, safe, and easy.",
         },
       },
       {
@@ -119,42 +118,10 @@ export function FAQStructuredData() {
       },
       {
         '@type': 'Question',
-        name: 'Which cities does VisaGate cover?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'VisaGate currently lists consultants from major cities including Karachi, Lahore, Islamabad, Rawalpindi, Peshawar, Quetta, Multan, Faisalabad and more. We are expanding coverage across Pakistan continuously.',
-        },
-      },
-      {
-        '@type': 'Question',
         name: 'How do I find a verified visa consultant?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Go to the Find Consultants page, use the filters to select your visa type, destination country, and preferred city. You can also filter by verification type (SECP, BEOE, FBR). Look for the green Verified badge on consultant profiles.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'What do the verification badges mean?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Each badge represents a different government verification. Verified means our internal review approved the consultant. SECP means registered with Securities and Exchange Commission of Pakistan. BEOE means Bureau of Emigration and Overseas Employment. OEP means Overseas Employment Promoter license. FBR means active on Federal Board of Revenue tax rolls.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Can I contact a consultant before booking?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Yes. Every consultant profile has a WhatsApp button and a messaging feature. You can send a message through the platform to discuss your case before committing to a booking or appointment.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'How do I know if a consultant is trustworthy?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Check their verification badges, read client reviews, and look at their years of experience. Only book consultants with the green Verified badge. If you suspect fraud, use our Report a Fraud page to alert us immediately.',
+          text: 'Go to the Find Consultants page, use the filters to select your visa type, destination country, and preferred city. Look for the green Verified badge on consultant profiles.',
         },
       },
       {
@@ -162,39 +129,7 @@ export function FAQStructuredData() {
         name: 'How does the appointment system work?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Click Book Appointment on any consultant profile. Fill in your contact details, visa type, preferred date and time slot, and a message. The consultant reviews your request and either accepts or declines. You get notified of every status change.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Are appointments paid through VisaGate?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'No. VisaGate does not process any payments. All fees are agreed and paid directly between you and the consultant by cash, bank transfer, or however you both agree. VisaGate is not responsible for financial transactions.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Can I cancel an appointment?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Yes. Go to your Seeker Dashboard, open Appointments, and cancel any pending appointment. Already-accepted appointments should be cancelled by contacting the consultant directly through messaging as a courtesy.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'How does VisaGate protect me from fraud?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'We manually verify each consultant government registration before approving their profile. We display clear verification badges and ratings. We strongly advise: never send money abroad based on a consultant request alone, never share passport copies unless necessary, and always get a signed agreement.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'What should I do if I suspect a consultant is fraudulent?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Report them immediately using our Report a Fraud page. Provide as much detail as possible. Our team reviews all reports and will suspend the account pending investigation. For urgent matters, contact the FIA Cybercrime Wing directly.',
+          text: 'Click Book Appointment on any consultant profile. Fill in your contact details, visa type, preferred date and time slot, and a message. The consultant reviews your request and either accepts or declines.',
         },
       },
       {
@@ -207,21 +142,118 @@ export function FAQStructuredData() {
       },
       {
         '@type': 'Question',
-        name: 'How do I list my services on VisaGate?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: 'Click Sign Up, select I am a Consultant, and complete the 4-step registration with your OEP license number and business details. After admin verification your profile goes live and you can add services from your dashboard.',
-        },
-      },
-      {
-        '@type': 'Question',
         name: 'How long does consultant verification take?',
         acceptedAnswer: {
           '@type': 'Answer',
-          text: 'Verification typically takes 1 to 3 business days after you complete your profile. You will receive an email notification once your account is approved or if additional information is needed.',
+          text: 'Verification typically takes 1 to 3 business days after you complete your profile. You will receive an email notification once your account is approved.',
         },
       },
     ],
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+
+// Issue #10 — HowTo Schema for About page verification process
+export function HowToVerificationStructuredData() {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: 'How VisaGate.pk Verifies Visa Consultants',
+    description: 'The 4-step process VisaGate.pk uses to verify visa consultants against government registries in Pakistan.',
+    step: [
+      {
+        '@type': 'HowToStep',
+        position: 1,
+        name: 'Registration Submission',
+        text: 'Consultant submits their OEP license number, SECP registration date and business details during signup.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 2,
+        name: 'Government Registry Check',
+        text: 'Our team cross-checks submitted details against OEP, SECP, BEOE and FBR government registries.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 3,
+        name: 'Manual Review',
+        text: 'A VisaGate team member manually reviews the submitted credentials and registry matches.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 4,
+        name: 'Verified Badge Awarded',
+        text: 'Approved consultants receive the green Verified badge on their profile within 1-3 business days.',
+      },
+    ],
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+
+// Issue #10 — HowTo Schema for For-Consultants get listed process
+export function HowToGetListedStructuredData() {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: 'How to Get Listed as a Visa Consultant on VisaGate.pk',
+    description: 'A 3-step process to create your verified consultant profile on VisaGate.pk.',
+    step: [
+      {
+        '@type': 'HowToStep',
+        position: 1,
+        name: 'Create Your Profile',
+        text: 'Sign up and complete your consultant profile with your specializations, experience, and services. Takes about 5 minutes.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 2,
+        name: 'Get Verified',
+        text: 'Submit your OEP license number and SECP registration. Our team verifies and adds your official badge within 24-48 hours.',
+      },
+      {
+        '@type': 'HowToStep',
+        position: 3,
+        name: 'Start Getting Clients',
+        text: 'Your profile goes live and clients start finding you. Respond to inquiries and grow your business immediately.',
+      },
+    ],
+  }
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  )
+}
+
+// Issue #14 — BreadcrumbList Schema
+export function BreadcrumbStructuredData({
+  items,
+}: {
+  items: { name: string; url: string }[]
+}) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
   }
 
   return (

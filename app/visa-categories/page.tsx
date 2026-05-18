@@ -8,7 +8,7 @@ export const metadata = {
   },
   alternates: { canonical: 'https://visagate.pk/visa-categories' },
 }
-
+import { BreadcrumbStructuredData } from '@/components/StructuredData'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
@@ -194,7 +194,11 @@ export default function VisaCategoriesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-
+// inside return:
+<BreadcrumbStructuredData items={[
+  { name: 'Home', url: 'https://visagate.pk' },
+  { name: 'Visa Categories', url: 'https://visagate.pk/visa-categories' },
+]} />
       {/* Hero */}
       <div className="bg-navy relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04]"

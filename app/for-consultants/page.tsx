@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import ForConsultantsClient from './ForConsultantsClient'
+import { HowToGetListedStructuredData, BreadcrumbStructuredData } from '@/components/StructuredData'
 
 export const metadata: Metadata = {
   title: 'List Your Visa Consultancy — Join VisaGate',
@@ -24,5 +25,14 @@ export const metadata: Metadata = {
 }
 
 export default function ForConsultantsPage() {
-  return <ForConsultantsClient />
+  return (
+    <>
+      <HowToGetListedStructuredData />
+      <BreadcrumbStructuredData items={[
+        { name: 'Home', url: 'https://visagate.pk' },
+        { name: 'For Consultants', url: 'https://visagate.pk/for-consultants' },
+      ]} />
+      <ForConsultantsClient />
+    </>
+  )
 }
