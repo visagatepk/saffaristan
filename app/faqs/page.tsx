@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import FaqsClient from './FaqsClient'
+import { FAQStructuredData } from '@/components/StructuredData'
 
 export const metadata: Metadata = {
   title: 'Frequently Asked Questions',
@@ -24,5 +25,10 @@ export const metadata: Metadata = {
 }
 
 export default function FaqsPage() {
-  return <FaqsClient />
+  return (
+    <>
+      <FAQStructuredData />
+      <FaqsClient />
+    </>
+  )
 }
