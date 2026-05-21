@@ -1,10 +1,11 @@
 'use client'
+// FILE: components/MessagingUI.tsx
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Send, Search, X, ArrowLeft,
-  MessageSquare, CheckCheck, Clock, Phone
+  MessageSquare, CheckCheck, Clock
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -37,6 +38,7 @@ interface Conversation {
 interface Props {
   currentUserId: string
   currentUserRole: 'seeker' | 'consultant'
+  initialConsultantId?: string   // ← NEW: auto-open conversation with this consultant
 }
 
 function timeAgo(dateStr: string) {
@@ -52,25 +54,26 @@ function getInitials(name: string) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
-export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
-  const [conversations, setConversations] = useState<Conversation[]>([])
-  const [selectedConv, setSelectedConv] = useState<Conversation | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [newMessage, setNewMessage] = useState('')
-  const [sending, setSending] = useState(false)
-  const [loadingConvs, setLoadingConvs] = useState(true)
-  const [loadingMsgs, setLoadingMsgs] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showMobileChat, setShowMobileChat] = useState(false)
+export default function MessagingUI({ currentUserId, currentUserRole, initialConsultantId }: Props) {
+  const [conversations, setConversations]     = useState<Conversation[]>([])
+  const [selectedConv, setSelectedConv]       = useState<Conversation | null>(null)
+  const [messages, setMessages]               = useState<Message[]>([])
+  const [newMessage, setNewMessage]           = useState('')
+  const [sending, setSending]                 = useState(false)
+  const [loadingConvs, setLoadingConvs]       = useState(true)
+  const [loadingMsgs, setLoadingMsgs]         = useState(false)
+  const [searchQuery, setSearchQuery]         = useState('')
+  const [showMobileChat, setShowMobileChat]   = useState(false)
+  const [initDone, setInitDone]               = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
-  const supabase = createClient()
+  const inputRef       = useRef<HTMLTextAreaElement>(null)
+  const supabase       = createClient()
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  // Load conversations
+  // ── Load conversations ──────────────────────────────────────────────────
   const loadConversations = useCallback(async () => {
     const { data } = await supabase
       .from('conversations')
@@ -80,13 +83,12 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
 
     if (!data) { setLoadingConvs(false); return }
 
-    // Get other user profiles
     const enriched = await Promise.all(data.map(async (conv) => {
       const otherId = currentUserRole === 'seeker' ? conv.consultant_id : conv.seeker_id
       const { data: profile } = await supabase
         .from('profiles')
-        .select('user_id, display_name, full_name, avatar_url, role, city')
-        .eq('user_id', otherId)
+        .select('id, display_name, full_name, avatar_url, role, city')
+        .eq('id', otherId)
         .single()
 
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -95,9 +97,7 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
         other_user: profile ? {
           id: otherId,
           name: profile.display_name || profile.full_name || 'User',
-          avatar: profile.avatar_url
-            ? `${supabaseUrl}/storage/v1/object/public/avatars/${profile.avatar_url}`
-            : null,
+          avatar: profile.avatar_url || null,
           role: profile.role,
           city: profile.city,
         } : undefined
@@ -106,13 +106,71 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
 
     setConversations(enriched)
     setLoadingConvs(false)
+    return enriched
   }, [currentUserId, currentUserRole])
 
   useEffect(() => {
     loadConversations()
   }, [loadConversations])
 
-  // Load messages for selected conversation
+  // ── Auto-open conversation with initialConsultantId ─────────────────────
+  useEffect(() => {
+    if (!initialConsultantId || loadingConvs || initDone) return
+
+    const autoOpen = async () => {
+      setInitDone(true)
+
+      // Check if conversation already exists
+      const existing = conversations.find(c => c.consultant_id === initialConsultantId)
+      if (existing) {
+        setSelectedConv(existing)
+        setShowMobileChat(true)
+        return
+      }
+
+      // Create new conversation
+      const { data: newConv, error } = await supabase
+        .from('conversations')
+        .insert({
+          seeker_id: currentUserId,
+          consultant_id: initialConsultantId,
+          last_message: null,
+          last_message_at: new Date().toISOString(),
+          seeker_unread: 0,
+          consultant_unread: 0,
+        })
+        .select()
+        .single()
+
+      if (error || !newConv) return
+
+      // Get consultant profile for display
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id, display_name, full_name, avatar_url, role, city')
+        .eq('id', initialConsultantId)
+        .single()
+
+      const enrichedConv: Conversation = {
+        ...newConv,
+        other_user: profile ? {
+          id: initialConsultantId,
+          name: profile.display_name || profile.full_name || 'Consultant',
+          avatar: profile.avatar_url || null,
+          role: profile.role,
+          city: profile.city,
+        } : undefined,
+      }
+
+      setConversations(prev => [enrichedConv, ...prev])
+      setSelectedConv(enrichedConv)
+      setShowMobileChat(true)
+    }
+
+    autoOpen()
+  }, [initialConsultantId, loadingConvs, conversations, initDone])
+
+  // ── Load messages ───────────────────────────────────────────────────────
   const loadMessages = useCallback(async (convId: string) => {
     setLoadingMsgs(true)
     const { data } = await supabase
@@ -124,89 +182,64 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
     setMessages(data || [])
     setLoadingMsgs(false)
 
-    // Mark messages as read
     await supabase
       .from('messages')
       .update({ is_read: true })
       .eq('conversation_id', convId)
       .neq('sender_id', currentUserId)
 
-    // Reset unread count
     const field = currentUserRole === 'seeker' ? 'seeker_unread' : 'consultant_unread'
     await supabase.from('conversations').update({ [field]: 0 }).eq('id', convId)
-
-    // Update local state
-    setConversations(prev => prev.map(c =>
-      c.id === convId ? { ...c, [field]: 0 } : c
-    ))
+    setConversations(prev => prev.map(c => c.id === convId ? { ...c, [field]: 0 } : c))
   }, [currentUserId, currentUserRole])
 
   useEffect(() => {
-    if (selectedConv) {
-      loadMessages(selectedConv.id)
-    }
+    if (selectedConv) loadMessages(selectedConv.id)
   }, [selectedConv?.id])
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
+  useEffect(() => { scrollToBottom() }, [messages])
 
-  // Real-time subscription
+  // ── Real-time messages ──────────────────────────────────────────────────
   useEffect(() => {
     if (!selectedConv) return
 
     const channel = supabase
       .channel(`messages:${selectedConv.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${selectedConv.id}`,
-        },
-        (payload) => {
-          const newMsg = payload.new as Message
-          setMessages(prev => {
-            if (prev.find(m => m.id === newMsg.id)) return prev
-            return [...prev, newMsg]
-          })
-          // Mark as read if from other user
-          if (newMsg.sender_id !== currentUserId) {
-            supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id)
-          }
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'messages',
+        filter: `conversation_id=eq.${selectedConv.id}`,
+      }, (payload) => {
+        const newMsg = payload.new as Message
+        setMessages(prev => {
+          if (prev.find(m => m.id === newMsg.id)) return prev
+          return [...prev, newMsg]
+        })
+        if (newMsg.sender_id !== currentUserId) {
+          supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id)
         }
-      )
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
   }, [selectedConv?.id, currentUserId])
 
-  // Real-time conversation list updates
+  // ── Real-time conversation list ─────────────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel(`conversations:${currentUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'conversations',
-        },
-        () => { loadConversations() }
-      )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' },
+        () => { loadConversations() })
       .subscribe()
-
     return () => { supabase.removeChannel(channel) }
   }, [currentUserId])
 
+  // ── Send message ────────────────────────────────────────────────────────
   const handleSend = async () => {
     if (!newMessage.trim() || !selectedConv || sending) return
     setSending(true)
     const content = newMessage.trim()
     setNewMessage('')
 
-    // Optimistic update
     const tempMsg: Message = {
       id: `temp-${Date.now()}`,
       conversation_id: selectedConv.id,
@@ -219,13 +252,8 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({
-        conversation_id: selectedConv.id,
-        sender_id: currentUserId,
-        content,
-      })
-      .select()
-      .single()
+      .insert({ conversation_id: selectedConv.id, sender_id: currentUserId, content })
+      .select().single()
 
     if (!error && data) {
       setMessages(prev => prev.map(m => m.id === tempMsg.id ? data : m))
@@ -243,10 +271,7 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
   const handleSelectConv = (conv: Conversation) => {
@@ -262,13 +287,13 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
     sum + (currentUserRole === 'seeker' ? c.seeker_unread : c.consultant_unread), 0
   )
 
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="flex h-[calc(100vh-130px)] bg-white rounded-2xl border border-gray-100 overflow-hidden">
 
       {/* ── Conversations Sidebar ── */}
       <div className={`w-full lg:w-80 shrink-0 flex flex-col border-r border-gray-100 ${showMobileChat ? 'hidden lg:flex' : 'flex'}`}>
 
-        {/* Header */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-heading font-bold text-navy text-base">
@@ -280,21 +305,17 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
               )}
             </h2>
           </div>
-          {/* Search */}
           <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">
             <Search size={14} className="text-gray-400 shrink-0" />
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search conversations..."
               className="font-body text-sm w-full outline-none bg-transparent text-gray-700 placeholder-gray-400" />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')}>
-                <X size={13} className="text-gray-400" />
-              </button>
+              <button onClick={() => setSearchQuery('')}><X size={13} className="text-gray-400" /></button>
             )}
           </div>
         </div>
 
-        {/* Conversation list */}
         <div className="flex-1 overflow-y-auto">
           {loadingConvs ? (
             <div className="space-y-3 p-4">
@@ -318,7 +339,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
                     className={`w-full flex items-start gap-3 p-4 text-left transition-all duration-150 ${
                       isSelected ? 'bg-navy-light border-l-2 border-navy' : 'hover:bg-gray-50'
                     }`}>
-                    {/* Avatar */}
                     <div className="w-11 h-11 rounded-xl overflow-hidden bg-navy flex items-center justify-center shrink-0">
                       {conv.other_user?.avatar ? (
                         <img src={conv.other_user.avatar} alt="" className="w-full h-full object-cover" />
@@ -328,7 +348,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
                         </span>
                       )}
                     </div>
-
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between mb-0.5">
                         <p className={`font-heading text-sm truncate ${unread > 0 ? 'font-bold text-navy' : 'font-semibold text-gray-700'}`}>
@@ -381,16 +400,13 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
 
       {/* ── Chat Area ── */}
       <div className={`flex-1 flex flex-col min-w-0 ${!showMobileChat ? 'hidden lg:flex' : 'flex'}`}>
-
         {selectedConv ? (
           <>
-            {/* Chat header */}
             <div className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 bg-white shrink-0">
               <button onClick={() => setShowMobileChat(false)}
                 className="lg:hidden p-1.5 text-navy hover:bg-gray-100 rounded-lg">
                 <ArrowLeft size={18} />
               </button>
-
               <div className="w-10 h-10 rounded-xl overflow-hidden bg-navy flex items-center justify-center shrink-0">
                 {selectedConv.other_user?.avatar ? (
                   <img src={selectedConv.other_user.avatar} alt="" className="w-full h-full object-cover" />
@@ -400,7 +416,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
                   </span>
                 )}
               </div>
-
               <div className="flex-1 min-w-0">
                 <p className="font-heading font-bold text-navy text-sm truncate">
                   {selectedConv.other_user?.name}
@@ -413,7 +428,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
                   </span>
                 </div>
               </div>
-
               {selectedConv.other_user?.role === 'consultant' && (
                 <Link href={`/consultants/${selectedConv.consultant_id}`}
                   className="font-heading font-bold text-xs text-navy border border-navy/20 bg-navy-light hover:bg-navy hover:text-white px-3 py-1.5 rounded-lg transition-all shrink-0">
@@ -422,7 +436,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
               )}
             </div>
 
-            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
               {loadingMsgs ? (
                 <div className="flex items-center justify-center py-8">
@@ -438,7 +451,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
 
                     return (
                       <div key={msg.id} className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                        {/* Avatar for other user */}
                         {!isOwn && (
                           <div className={`w-7 h-7 rounded-lg overflow-hidden bg-navy flex items-center justify-center shrink-0 ${showAvatar ? 'opacity-100' : 'opacity-0'}`}>
                             {selectedConv.other_user?.avatar ? (
@@ -450,22 +462,16 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
                             )}
                           </div>
                         )}
-
                         <div className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'} max-w-[70%]`}>
                           <div className={`px-4 py-2.5 rounded-2xl text-sm font-body leading-relaxed ${
-                            isOwn
-                              ? 'text-white rounded-br-sm'
-                              : 'bg-gray-100 text-gray-800 rounded-bl-sm'
+                            isOwn ? 'text-white rounded-br-sm' : 'bg-gray-100 text-gray-800 rounded-bl-sm'
                           } ${msg.id.startsWith('temp-') ? 'opacity-70' : ''}`}
                             style={isOwn ? { background: 'linear-gradient(135deg, #1B3060 0%, #2a4a8a 100%)' } : {}}>
                             {msg.content}
                           </div>
-
                           {showTime && (
                             <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-                              <span className="font-body text-xs text-gray-400">
-                                {timeAgo(msg.created_at)}
-                              </span>
+                              <span className="font-body text-xs text-gray-400">{timeAgo(msg.created_at)}</span>
                               {isOwn && (
                                 msg.is_read
                                   ? <CheckCheck size={12} className="text-blue-400" />
@@ -484,9 +490,7 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
                   <div className="w-14 h-14 bg-navy-light rounded-2xl flex items-center justify-center mb-4">
                     <MessageSquare size={24} className="text-navy/40" />
                   </div>
-                  <p className="font-heading font-bold text-navy text-sm mb-1">
-                    Start the conversation
-                  </p>
+                  <p className="font-heading font-bold text-navy text-sm mb-1">Start the conversation</p>
                   <p className="font-body text-gray-400 text-xs max-w-xs leading-relaxed">
                     {currentUserRole === 'seeker'
                       ? 'Ask about visa requirements, fees or process'
@@ -496,7 +500,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
               )}
             </div>
 
-            {/* Message input */}
             <div className="p-4 border-t border-gray-100 bg-white shrink-0">
               <div className="flex items-end gap-3">
                 <div className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 focus-within:border-navy focus-within:ring-2 focus-within:ring-navy/10 transition-all">
@@ -529,7 +532,6 @@ export default function MessagingUI({ currentUserId, currentUserRole }: Props) {
             </div>
           </>
         ) : (
-          /* No conversation selected */
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="w-20 h-20 bg-navy-light rounded-3xl flex items-center justify-center mb-5">
               <MessageSquare size={32} className="text-navy/40" />

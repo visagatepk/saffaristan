@@ -3,20 +3,20 @@ import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
 import ConsultantProfileClient from './ConsultantProfileClient'
 
-export const revalidate = 60 // ISR: refresh every minute
+export const revalidate = 60
 
 interface PageProps {
   params: { id: string }
 }
 
-// SEO metadata
+// ── SEO metadata ────────────────────────────────────────────────────────────
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = params
   const supabase = await createClient()
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, display_name, business_name, city, bio, avatar_url')
+    .select('id, full_name, display_name, business_name, city, avatar_url, bio')
     .eq('id', id)
     .maybeSingle()
 
@@ -48,15 +48,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
+// ── Page ────────────────────────────────────────────────────────────────────
 export default async function ConsultantProfilePage({ params }: PageProps) {
   const { id } = params
   const supabase = await createClient()
 
-  // 1. Fetch the consultant profile
+  // 1. Fetch consultant profile — includes website_url
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
-    .select(
-      `
+    .select(`
       id,
       full_name,
       display_name,
@@ -67,6 +67,7 @@ export default async function ConsultantProfilePage({ params }: PageProps) {
       years_experience,
       bio,
       phone,
+      website_url,
       verification_status,
       is_verified,
       is_oep_verified,
@@ -77,8 +78,7 @@ export default async function ConsultantProfilePage({ params }: PageProps) {
       specializations,
       office_address,
       created_at
-      `
-    )
+    `)
     .eq('id', id)
     .maybeSingle()
 
@@ -90,16 +90,13 @@ export default async function ConsultantProfilePage({ params }: PageProps) {
   const [servicesResult, reviewsResult] = await Promise.all([
     supabase
       .from('services')
-      .select(
-        'id, title, description, visa_type, destination_country, price_min, price_max, processing_days, image_url, created_at'
-      )
+      .select('id, title, description, visa_type, destination_country, price_min, price_max, processing_days, image_url, created_at')
       .eq('consultant_id', id)
       .eq('is_active', true)
       .order('created_at', { ascending: false }),
     supabase
       .from('reviews')
-      .select(
-        `
+      .select(`
         id,
         rating,
         comment,
@@ -109,21 +106,20 @@ export default async function ConsultantProfilePage({ params }: PageProps) {
           full_name,
           avatar_url
         )
-        `
-      )
+      `)
       .eq('consultant_id', id)
       .order('created_at', { ascending: false })
       .limit(50),
   ])
 
   const services = servicesResult.data ?? []
-  const reviews = reviewsResult.data ?? []
+  const reviews  = reviewsResult.data  ?? []
 
   return (
     <ConsultantProfileClient
-      profile={profile}
+      profile={profile as any}
       services={services}
-      reviews={reviews}
+      reviews={reviews as any}
     />
   )
 }

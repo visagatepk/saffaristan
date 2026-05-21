@@ -1,11 +1,16 @@
 'use client'
+// FILE: app/dashboard/seeker/messages/page.tsx
 
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import MessagingUI from '@/components/MessagingUI'
+import { Suspense } from 'react'
 
-export default function SeekerMessages() {
+function SeekerMessagesInner() {
   const [userId, setUserId] = useState<string | null>(null)
+  const searchParams = useSearchParams()
+  const initialConsultantId = searchParams.get('to') || undefined
 
   useEffect(() => {
     const load = async () => {
@@ -30,7 +35,23 @@ export default function SeekerMessages() {
         <h1 className="font-heading font-bold text-navy text-xl mb-1">Messages</h1>
         <p className="font-body text-gray-500 text-sm">Chat with visa consultants</p>
       </div>
-      <MessagingUI currentUserId={userId} currentUserRole="seeker" />
+      <MessagingUI
+        currentUserId={userId}
+        currentUserRole="seeker"
+        initialConsultantId={initialConsultantId}
+      />
     </div>
+  )
+}
+
+export default function SeekerMessages() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center py-20">
+        <div className="w-8 h-8 border-4 border-navy/20 border-t-navy rounded-full animate-spin" />
+      </div>
+    }>
+      <SeekerMessagesInner />
+    </Suspense>
   )
 }
