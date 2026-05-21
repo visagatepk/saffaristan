@@ -39,7 +39,7 @@ const VIDEOS: VideoCard[] = [
     id: 'v1',
     title: 'Welcome to VisaGate.pk',
     description: "A full introduction to Pakistan's first verified visa consultant platform — what it is, how it works, and who it is for.",
-    youtubeId: 'REPLACE_WITH_YOUTUBE_ID',
+    youtubeId: '-MkZ9eoPnPg',
     duration: '3:20',
     category: 'platform',
   },

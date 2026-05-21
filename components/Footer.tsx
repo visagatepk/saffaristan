@@ -9,7 +9,7 @@ const FOOTER_LINKS = {
     { label: 'Insights & Guides', href: '/insights' },
   ],
   Support: [
-    { label: 'Help Center', href: '/contact' },
+    { label: 'How It Works', href: '/how-it-works' },
     { label: 'FAQs', href: '/faqs' },
     { label: 'Contact Us', href: '/contact' },
   ],
@@ -40,7 +40,7 @@ export default function Footer() {
               />
             </Link>
             <p className="font-body text-white/50 text-xs leading-relaxed mb-3">
-              Pakistan's first verified visa consultant platform — built on trust, transparency and results.
+              Pakistan&apos;s first verified visa consultant platform — built on trust, transparency and results.
             </p>
             <p className="font-urdu text-gold/60 text-sm mb-5">
               پاکستان کا پہلا ویزا کنسلٹنٹ پلیٹ فارم
