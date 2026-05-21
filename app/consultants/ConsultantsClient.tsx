@@ -294,9 +294,8 @@ export default function ConsultantsClient({ initialServices }: Props) {
                 const avatarSrc = service.consultant?.avatar_url
                   ? `${supabaseUrl}/storage/v1/object/public/avatars/${service.consultant.avatar_url}`
                   : null
-                const imageSrc  = service.image_url
-                  ? `${supabaseUrl}/storage/v1/object/public/services/${service.image_url}`
-                  : null
+                // ✅ Use directly
+const imageSrc = service.image_url || null
                 const badgeBg   = VISA_BADGE_COLORS[service.visa_type] || '#1B3060'
 
                 return (
