@@ -5,28 +5,30 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle, Loader2, Mail, AlertCircle, RefreshCw } from 'lucide-react'
+import { CheckCircle, Loader2, Mail, RefreshCw } from 'lucide-react'
 
 export default function VerifyEmailPage() {
   const router = useRouter()
-  const [status, setStatus] = useState<'checking' | 'verified' | 'pending' | 'error'>('checking')
+  const [status, setStatus] = useState<'checking' | 'verified' | 'pending'>('checking')
   const [email, setEmail] = useState('')
   const [resending, setResending] = useState(false)
   const [resent, setResent] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
+
     const check = async () => {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session?.user?.email_confirmed_at) {
         setEmail(session.user.email || '')
         setStatus('verified')
-        // Redirect based on role
+
+        // ✅ Fixed: use 'id' not 'user_id'
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
-          .eq('user_id', session.user.id)
+          .eq('id', session.user.id)
           .single()
 
         setTimeout(() => {
@@ -43,15 +45,31 @@ export default function VerifyEmailPage() {
         setStatus('pending')
       }
     }
+
     check()
 
     // Listen for auth changes (when user clicks link in another tab)
-    const supabaseClient = createClient()
-    const { data: { subscription } } = supabaseClient.auth.onAuthStateChange((event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
         setStatus('verified')
+
+        // ✅ Fixed: use 'id' not 'user_id'
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+
+        setTimeout(() => {
+          const role = profile?.role
+          if (role === 'admin') router.push('/dashboard/admin')
+          else if (role === 'editor') router.push('/dashboard/editor')
+          else if (role === 'consultant') router.push('/dashboard/consultant')
+          else router.push('/dashboard/seeker')
+        }, 2500)
       }
     })
+
     return () => subscription.unsubscribe()
   }, [])
 
@@ -65,6 +83,7 @@ export default function VerifyEmailPage() {
     setTimeout(() => setResent(false), 5000)
   }
 
+  // ── Checking ──────────────────────────────────────────────────────────────
   if (status === 'checking') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -73,6 +92,7 @@ export default function VerifyEmailPage() {
     )
   }
 
+  // ── Verified ──────────────────────────────────────────────────────────────
   if (status === 'verified') {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -84,7 +104,7 @@ export default function VerifyEmailPage() {
             Email Verified! 🎉
           </h2>
           <p className="text-gray-500 text-sm mb-2">Your email has been verified successfully.</p>
-          <p className="text-gray-400 text-xs">Redirecting you to your dashboard...</p>
+          <p className="text-gray-400 text-xs">Redirecting you to your dashboard…</p>
           <div className="flex justify-center mt-4">
             <Loader2 size={22} className="animate-spin text-[#C9A227]" />
           </div>
@@ -93,6 +113,7 @@ export default function VerifyEmailPage() {
     )
   }
 
+  // ── Pending ───────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
@@ -102,7 +123,9 @@ export default function VerifyEmailPage() {
           <Link href="/">
             <div className="inline-flex items-center gap-2">
               <div className="w-10 h-10 bg-[#1B3060] rounded-xl flex items-center justify-center text-white font-bold">VG</div>
-              <span className="text-xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans']">VisaGate<span className="text-[#C9A227]">.pk</span></span>
+              <span className="text-xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans']">
+                VisaGate<span className="text-[#C9A227]">.pk</span>
+              </span>
             </div>
           </Link>
         </div>
@@ -116,13 +139,11 @@ export default function VerifyEmailPage() {
             Verify Your Email
           </h2>
 
-          {email ? (
-            <p className="text-gray-500 text-sm mb-1">
-              We sent a verification link to:
-            </p>
-          ) : null}
           {email && (
-            <p className="font-semibold text-[#1B3060] mb-5">{email}</p>
+            <>
+              <p className="text-gray-500 text-sm mb-1">We sent a verification link to:</p>
+              <p className="font-semibold text-[#1B3060] mb-5">{email}</p>
+            </>
           )}
 
           <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 mb-6 text-left">
@@ -130,13 +151,13 @@ export default function VerifyEmailPage() {
             <ol className="text-amber-700 text-sm space-y-1.5 list-decimal list-inside">
               <li>Open your email inbox</li>
               <li>Find the email from VisaGate.pk</li>
-              <li>Click the <strong>"Confirm your email"</strong> button</li>
-              <li>You'll be redirected to your dashboard</li>
+              <li>Click the <strong>&quot;Confirm your email&quot;</strong> button</li>
+              <li>You&apos;ll be redirected to your dashboard</li>
             </ol>
           </div>
 
           <div className="bg-gray-50 rounded-2xl p-4 mb-6 text-left">
-            <p className="text-gray-600 text-sm font-semibold mb-1">Didn't receive it?</p>
+            <p className="text-gray-600 text-sm font-semibold mb-1">Didn&apos;t receive it?</p>
             <ul className="text-gray-500 text-xs space-y-1">
               <li>• Check your spam or junk folder</li>
               <li>• Make sure you used the correct email</li>
@@ -155,14 +176,17 @@ export default function VerifyEmailPage() {
             disabled={resending || !email}
             className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-700 py-3 rounded-xl text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50 mb-4"
           >
-            {resending ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-            Resend Verification Email
+            {resending
+              ? <><Loader2 size={15} className="animate-spin" /> Sending…</>
+              : <><RefreshCw size={15} /> Resend Verification Email</>
+            }
           </button>
 
           <Link href="/login" className="text-sm text-gray-400 hover:text-[#1B3060] transition-colors">
             Back to Login
           </Link>
         </div>
+
       </div>
     </div>
   )
