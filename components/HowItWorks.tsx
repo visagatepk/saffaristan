@@ -1,4 +1,5 @@
-import { Search, MessageSquare, FileCheck, Plane } from 'lucide-react'
+import Link from 'next/link'
+import { Search, MessageSquare, FileCheck, Plane, ArrowRight } from 'lucide-react'
 
 const steps = [
   { number: '01', icon: Search, title: 'Search & Compare', urdu: 'تلاش کریں', desc: 'Browse verified consultants by city, visa type or destination.' },
@@ -33,7 +34,6 @@ export default function HowItWorks() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-4">
             {steps.map((step, i) => (
               <div key={step.number} className="relative group">
-                {/* Step number pill */}
                 <div className="flex flex-col items-center">
                   <div className="relative z-10 w-16 h-16 bg-white border-2 border-gray-200 group-hover:border-gold group-hover:shadow-[0_0_0_4px_rgba(201,162,39,0.1)] rounded-2xl flex items-center justify-center mb-5 transition-all duration-300">
                     <step.icon size={24} className="text-navy group-hover:text-gold transition-colors duration-300" />
@@ -41,7 +41,6 @@ export default function HowItWorks() {
                       {i + 1}
                     </span>
                   </div>
-
                   <div className="text-center px-2">
                     <h3 className="font-heading font-bold text-navy text-base mb-1 group-hover:text-gold transition-colors duration-200">
                       {step.title}
@@ -54,6 +53,21 @@ export default function HowItWorks() {
             ))}
           </div>
         </div>
+
+        {/* CTA — links to /how-it-works page */}
+        <div className="text-center mt-12">
+          <Link
+            href="/how-it-works"
+            className="inline-flex items-center gap-2 bg-[#1B3060] text-white font-semibold px-8 py-4 rounded-2xl hover:bg-[#243d7a] transition-all duration-200 text-sm shadow-sm"
+          >
+            Watch Full Guides & Video Tutorials
+            <ArrowRight size={18} />
+          </Link>
+          <p className="text-gray-400 text-xs mt-3">
+            Step-by-step videos, scholarship resources & more
+          </p>
+        </div>
+
       </div>
     </section>
   )
