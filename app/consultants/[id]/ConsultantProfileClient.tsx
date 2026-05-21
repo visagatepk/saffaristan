@@ -1,525 +1,877 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import {
-  MapPin, Star, Phone, BadgeCheck, Briefcase,
-  Globe, Heart, Share2, ChevronRight,
-  Clock, DollarSign, CheckCircle, ArrowLeft,
-  Calendar, MessageSquare
+  Star,
+  MapPin,
+  Phone,
+  MessageCircle,
+  Calendar,
+  CheckCircle2,
+  Shield,
+  Award,
+  Briefcase,
+  Globe,
+  Clock,
+  ChevronRight,
+  Mail,
+  Languages,
+  Tag,
+  Building2,
+  Sparkles,
 } from 'lucide-react'
 import Navbar from '@/components/Navbar'
 import Footer from '@/components/Footer'
-import { createClient } from '@/lib/supabase/client'
 
-interface Props {
-  consultant: any
-  services: any[]
-  reviews: any[]
+// ───────────────────────── Types ─────────────────────────
+
+interface Profile {
+  id: string
+  full_name: string
+  display_name: string | null
+  business_name: string | null
+  city: string | null
+  avatar_url: string | null
+  cover_image_url: string | null
+  years_experience: number | null
+  bio: string | null
+  phone: string | null
+  verification_status: string | null
+  is_verified: boolean | null
+  is_oep_verified: boolean | null
+  is_secp_verified: boolean | null
+  is_beoe_verified: boolean | null
+  is_fbr_verified: boolean | null
+  languages: string[] | null
+  specializations: string[] | null
+  office_address: string | null
+  created_at: string | null
 }
 
-export default function ConsultantProfileClient({ consultant: c, services, reviews }: Props) {
-  const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'services' | 'reviews' | 'about'>('services')
-  const [saved, setSaved] = useState(false)
+interface Service {
+  id: string
+  title: string
+  description: string | null
+  visa_type: string | null
+  destination_country: string | null
+  price_min: number | null
+  price_max: number | null
+  processing_days: number | null
+  image_url: string | null
+  created_at: string | null
+}
 
-  const avgRating = reviews.length > 0
-    ? reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
-    : 0
-  const rating = Math.round(avgRating * 10) / 10
+interface Reviewer {
+  id: string
+  full_name: string
+  avatar_url: string | null
+}
 
-  const getInitials = (name: string | null) => {
-    if (!name) return 'VC'
-    return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  }
+interface Review {
+  id: string
+  rating: number
+  comment: string | null
+  created_at: string
+  // Supabase may return single or array; we normalise on render
+  reviewer: Reviewer | Reviewer[] | null
+}
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+interface Props {
+  profile: Profile
+  services: Service[]
+  reviews: Review[]
+}
 
-  const avatarUrl = c.avatar_url
-    ? c.avatar_url.startsWith('http')
-      ? c.avatar_url
-      : `${supabaseUrl}/storage/v1/object/public/avatars/${c.avatar_url}`
+type TabKey = 'services' | 'reviews' | 'about'
+
+// ───────────────────────── Helpers ─────────────────────────
+
+function formatPrice(value: number | null): string {
+  if (value == null) return '—'
+  return `PKR ${value.toLocaleString('en-PK')}`
+}
+
+function formatDate(iso: string | null): string {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+}
+
+function getReviewer(review: Review): Reviewer | null {
+  if (!review.reviewer) return null
+  return Array.isArray(review.reviewer) ? review.reviewer[0] ?? null : review.reviewer
+}
+
+function getInitial(name: string | null | undefined): string {
+  return (name?.trim().charAt(0) || '?').toUpperCase()
+}
+
+// ───────────────────────── Main Component ─────────────────────────
+
+export default function ConsultantProfileClient({ profile, services, reviews }: Props) {
+  const [activeTab, setActiveTab] = useState<TabKey>('services')
+
+  const displayName = profile.display_name?.trim() || profile.full_name
+  const memberSince = profile.created_at
+    ? new Date(profile.created_at).toLocaleDateString('en-GB', {
+        month: 'long',
+        year: 'numeric',
+      })
     : null
 
-  const waNumber = (c.whatsapp_number || c.phone || '').replace(/\D/g, '')
-  const waMessage = encodeURIComponent(`Hi ${c.display_name}, I found your profile on VisaGate.pk and would like to inquire about your visa services.`)
-  const whatsappUrl = waNumber ? `https://wa.me/${waNumber}?text=${waMessage}` : null
-
-  const handleStartConversation = async () => {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      router.push('/login')
-      return
+  const { avgRating, ratingBreakdown } = useMemo(() => {
+    if (reviews.length === 0) {
+      return { avgRating: 0, ratingBreakdown: [0, 0, 0, 0, 0] }
     }
-
-    const { data: existing } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('seeker_id', user.id)
-      .eq('consultant_id', c.user_id)
-      .single()
-
-    if (existing) {
-      router.push('/dashboard/seeker/messages')
-      return
-    }
-
-    await supabase.from('conversations').insert({
-      seeker_id: user.id,
-      consultant_id: c.user_id,
+    const total = reviews.reduce((sum, r) => sum + r.rating, 0)
+    const breakdown = [0, 0, 0, 0, 0]
+    reviews.forEach((r) => {
+      const idx = Math.min(Math.max(Math.round(r.rating), 1), 5) - 1
+      breakdown[idx] += 1
     })
+    return { avgRating: total / reviews.length, ratingBreakdown: breakdown.reverse() }
+  }, [reviews])
 
-    router.push('/dashboard/seeker/messages')
-  }
-
-  const TABS = [
-    { key: 'services', label: 'Services', count: services.length },
-    { key: 'reviews', label: 'Reviews', count: reviews.length },
-    { key: 'about', label: 'About', count: null },
-  ]
+  const hasAnyAccreditation =
+    profile.is_oep_verified ||
+    profile.is_secp_verified ||
+    profile.is_beoe_verified ||
+    profile.is_fbr_verified
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       <Navbar />
 
-      {/* Breadcrumb */}
-      <div className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8 py-3">
-          <div className="flex items-center gap-2 text-xs font-body text-gray-400">
-            <Link href="/" className="hover:text-navy transition-colors">Home</Link>
-            <ChevronRight size={12} />
-            <Link href="/consultants" className="hover:text-navy transition-colors">Find Consultants</Link>
-            <ChevronRight size={12} />
-            <span className="text-navy font-medium">{c.display_name}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-
-          {/* ── Left Column ── */}
-          <div className="flex-1 min-w-0">
-
-            {/* Profile Header */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mb-5">
-
-              {/* Cover banner */}
-              <div className="h-28 relative overflow-hidden"
-                style={{ background: 'linear-gradient(135deg, #1B3060 0%, #2a4a8a 100%)' }}>
-                <div className="absolute inset-0 opacity-10">
-                  <div className="absolute top-3 right-8 w-20 h-20 rounded-full border-2 border-white" />
-                  <div className="absolute bottom-2 left-12 w-12 h-12 rounded-full border border-white" />
+      <main className="min-h-screen bg-gray-50">
+        {/* ═══════════ COVER + HEADER ═══════════ */}
+        <section className="relative">
+          {/* Cover photo */}
+          <div className="relative h-44 sm:h-60 md:h-72 lg:h-80 w-full overflow-hidden">
+            {profile.cover_image_url ? (
+              <Image
+                src={profile.cover_image_url}
+                alt={`${displayName} cover`}
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-[#1B3060] via-[#243d7a] to-[#1B3060]">
+                <div
+                  className="absolute inset-0 opacity-15"
+                  style={{
+                    backgroundImage:
+                      'radial-gradient(circle at 20% 30%, rgba(201,162,39,0.4) 1.5px, transparent 1.5px), radial-gradient(circle at 75% 70%, rgba(255,255,255,0.3) 1.5px, transparent 1.5px)',
+                    backgroundSize: '50px 50px, 70px 70px',
+                  }}
+                />
+                <div className="absolute top-1/2 right-8 -translate-y-1/2 hidden md:block">
+                  <Sparkles className="w-24 h-24 text-[#C9A227]/30" />
                 </div>
               </div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent" />
+          </div>
 
-              <div className="px-6 pb-6">
-                {/* Avatar row */}
-                <div className="flex items-end justify-between -mt-10 mb-4">
-                  <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-md overflow-hidden bg-navy flex items-center justify-center shrink-0">
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt={c.display_name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="font-heading font-bold text-white text-2xl">
-                        {getInitials(c.display_name)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 mt-12">
-                    <button
-                      onClick={() => setSaved(!saved)}
-                      className={`p-2.5 rounded-xl border transition-all ${
-                        saved ? 'bg-red-50 border-red-200 text-red-500' : 'border-gray-200 text-gray-400 hover:border-gray-300'
-                      }`}
-                    >
-                      <Heart size={16} className={saved ? 'fill-red-500' : ''} />
-                    </button>
-                    <button className="p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:border-gray-300 transition-all">
-                      <Share2 size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Name */}
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h1 className="font-heading font-bold text-navy text-2xl">{c.display_name}</h1>
-                    {c.is_verified && (
-                      <div className="flex items-center gap-1 bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full">
-                        <BadgeCheck size={12} /> Verified
-                      </div>
-                    )}
-                  </div>
-                  {c.business_name && (
-                    <p className="font-body text-gray-500 text-sm mb-2">{c.business_name}</p>
+          {/* Header info bar */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="relative -mt-16 sm:-mt-20 pb-6">
+              <div className="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-6">
+                {/* Avatar */}
+                <div className="relative w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-white flex-shrink-0">
+                  {profile.avatar_url ? (
+                    <Image
+                      src={profile.avatar_url}
+                      alt={displayName}
+                      fill
+                      sizes="(max-width: 640px) 112px, (max-width: 1024px) 144px, 176px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-[#243d7a] flex items-center justify-center text-white text-4xl sm:text-5xl font-bold">
+                      {getInitial(profile.full_name)}
+                    </div>
                   )}
-                  <div className="flex flex-wrap items-center gap-4 text-sm font-body text-gray-500">
-                    {c.city && (
-                      <span className="flex items-center gap-1.5">
-                        <MapPin size={14} className="text-gold" />{c.city}
-                      </span>
-                    )}
-                    {c.years_experience > 0 && (
-                      <span className="flex items-center gap-1.5">
-                        <Briefcase size={14} className="text-navy/50" />
-                        {c.years_experience} years experience
-                      </span>
-                    )}
-                  </div>
+                  {profile.is_verified && (
+                    <div
+                      className="absolute bottom-2 right-2 bg-green-500 rounded-full p-1.5 ring-2 ring-white"
+                      aria-label="Verified consultant"
+                      title="Verified consultant"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-white" strokeWidth={3} />
+                    </div>
+                  )}
                 </div>
 
-                {/* Rating */}
-                {rating > 0 && (
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="flex items-center gap-0.5">
-                      {[1,2,3,4,5].map(i => (
-                        <Star key={i} size={16}
-                          className={i <= Math.round(rating) ? 'text-gold fill-gold' : 'text-gray-200 fill-gray-200'} />
-                      ))}
-                    </div>
-                    <span className="font-heading font-bold text-navy">{rating}</span>
-                    <span className="font-body text-gray-400 text-sm">({reviews.length} reviews)</span>
-                  </div>
-                )}
-
-                {/* Verification badges */}
-                {(c.is_beoe_verified || c.is_oep_verified || c.is_secp_verified || c.is_fbr_verified) && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/30 text-green-700 text-xs font-body font-semibold px-3 py-1.5 rounded-full">
-                      <CheckCircle size={11} />
-                      Registered with{' '}
-                      {[
-                        c.is_beoe_verified && 'BEOE',
-                        c.is_oep_verified && 'OEP',
-                        c.is_secp_verified && 'SECP',
-                        c.is_fbr_verified && 'FBR',
-                      ].filter(Boolean).join(' & ')}
-                    </div>
-                  </div>
-                )}
-
-                {c.bio && (
-                  <p className="font-body text-gray-600 text-sm leading-relaxed">{c.bio}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="flex border-b border-gray-100">
-                {TABS.map((tab) => (
-                  <button key={tab.key}
-                    onClick={() => setActiveTab(tab.key as 'services' | 'reviews' | 'about')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-heading font-semibold transition-colors ${
-                      activeTab === tab.key
-                        ? 'text-navy border-b-2 border-navy'
-                        : 'text-gray-400 hover:text-gray-600'
-                    }`}>
-                    {tab.label}
-                    {tab.count !== null && (
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-body ${
-                        activeTab === tab.key ? 'bg-navy-light text-navy' : 'bg-gray-100 text-gray-400'
-                      }`}>
-                        {tab.count}
-                      </span>
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="p-6">
-
-                {/* ── Services Tab ── */}
-                {activeTab === 'services' && (
-                  <div className="space-y-4">
-                    {services.length > 0 ? services.map((s) => (
-                      <div key={s.id} className="border border-gray-100 rounded-2xl p-5 hover:border-gold/30 hover:shadow-sm transition-all">
-                        {s.image_url && (
-                          <div className="h-36 rounded-xl overflow-hidden mb-4 bg-gray-100">
-                            <img
-                              src={`${supabaseUrl}/storage/v1/object/public/avatars/${s.image_url}`}
-                              alt={s.title}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        )}
-                        <h3 className="font-heading font-bold text-navy text-base mb-2">{s.title}</h3>
-                        <div className="flex flex-wrap gap-2 mb-3">
-                          {s.visa_type && (
-                            <span className="font-body text-xs bg-navy-light text-navy px-3 py-1 rounded-full">
-                              {s.visa_type}
-                            </span>
-                          )}
-                          {s.destination_country && (
-                            <span className="font-body text-xs bg-gray-100 text-gray-600 px-3 py-1 rounded-full flex items-center gap-1">
-                              <Globe size={11} />{s.destination_country}
-                            </span>
-                          )}
-                        </div>
-                        {s.description && (
-                          <p className="font-body text-gray-500 text-sm leading-relaxed mb-3">{s.description}</p>
-                        )}
-                        <div className="flex items-center gap-4 text-xs font-body text-gray-400">
-                          {s.price_min > 0 && (
-                            <span className="flex items-center gap-1">
-                              <DollarSign size={12} className="text-gold" />
-                              PKR {s.price_min.toLocaleString()}
-                              {s.price_max > 0 ? ` – ${s.price_max.toLocaleString()}` : ''}
-                            </span>
-                          )}
-                          {s.processing_days > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Clock size={12} />~{s.processing_days} days
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )) : (
-                      <div className="text-center py-12">
-                        <Globe size={32} className="text-gray-200 mx-auto mb-3" />
-                        <p className="font-body text-gray-400 text-sm">No services listed yet</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── Reviews Tab ── */}
-                {activeTab === 'reviews' && (
-                  <div className="space-y-4">
-                    {reviews.length > 0 && (
-                      <div className="bg-gray-50 rounded-2xl p-5 mb-5 flex items-center gap-6">
-                        <div className="text-center">
-                          <div className="font-heading font-extrabold text-navy text-5xl mb-1">{rating}</div>
-                          <div className="flex items-center justify-center gap-0.5 mb-1">
-                            {[1,2,3,4,5].map(i => (
-                              <Star key={i} size={14}
-                                className={i <= Math.round(rating) ? 'text-gold fill-gold' : 'text-gray-200 fill-gray-200'} />
-                            ))}
-                          </div>
-                          <p className="font-body text-gray-400 text-xs">{reviews.length} reviews</p>
-                        </div>
-                        <div className="flex-1 space-y-1.5">
-                          {[5,4,3,2,1].map(star => {
-                            const count = reviews.filter(r => r.rating === star).length
-                            const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0
-                            return (
-                              <div key={star} className="flex items-center gap-2">
-                                <span className="font-body text-xs text-gray-400 w-3">{star}</span>
-                                <Star size={10} className="text-gold fill-gold shrink-0" />
-                                <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                                  <div className="h-full bg-gold rounded-full" style={{ width: `${pct}%` }} />
-                                </div>
-                                <span className="font-body text-xs text-gray-400 w-4">{count}</span>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    {reviews.length > 0 ? reviews.map((r) => (
-                      <div key={r.id} className="border border-gray-100 rounded-2xl p-5">
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-navy-light rounded-lg flex items-center justify-center text-navy font-heading font-bold text-xs shrink-0">
-                              {getInitials(r.reviewer?.display_name || r.reviewer?.full_name)}
-                            </div>
-                            <div>
-                              <p className="font-heading font-semibold text-navy text-sm">
-                                {r.reviewer?.display_name || r.reviewer?.full_name || 'Visa Seeker'}
-                              </p>
-                              <p className="font-body text-gray-400 text-xs">
-                                {new Date(r.created_at).toLocaleDateString('en-PK', {
-                                  day: 'numeric', month: 'long', year: 'numeric'
-                                })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-0.5">
-                            {[1,2,3,4,5].map(i => (
-                              <Star key={i} size={13}
-                                className={i <= r.rating ? 'text-gold fill-gold' : 'text-gray-200 fill-gray-200'} />
-                            ))}
-                          </div>
-                        </div>
-                        {r.comment && (
-                          <p className="font-body text-gray-600 text-sm leading-relaxed">&ldquo;{r.comment}&rdquo;</p>
-                        )}
-                      </div>
-                    )) : (
-                      <div className="text-center py-12">
-                        <Star size={32} className="text-gray-200 mx-auto mb-3" />
-                        <p className="font-body text-gray-400 text-sm">No reviews yet</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ── About Tab ── */}
-                {activeTab === 'about' && (
-                  <div className="space-y-5">
-                    {c.bio && (
-                      <div>
-                        <h3 className="font-heading font-bold text-navy text-sm mb-3">About</h3>
-                        <p className="font-body text-gray-600 text-sm leading-relaxed">{c.bio}</p>
-                      </div>
-                    )}
-                    <div className="h-px bg-gray-100" />
-                    <div>
-                      <h3 className="font-heading font-bold text-navy text-sm mb-3">Details</h3>
-                      <div className="space-y-3">
-                        {[
-                          { label: 'Business', value: c.business_name },
-                          { label: 'City', value: c.city },
-                          { label: 'Address', value: c.office_address },
-                          { label: 'Experience', value: c.years_experience ? `${c.years_experience} years` : null },
-                          { label: 'OEP License', value: c.oep_license_number },
-                          { label: 'OEP Title', value: c.oep_license_title },
-                          {
-                            label: 'SECP Date',
-                            value: c.secp_registration_date
-                              ? new Date(c.secp_registration_date).toLocaleDateString('en-PK', {
-                                  day: 'numeric', month: 'long', year: 'numeric'
-                                })
-                              : null
-                          },
-                        ].filter(d => d.value).map(d => (
-                          <div key={d.label} className="flex items-start gap-4">
-                            <span className="font-body text-gray-400 text-xs w-24 shrink-0 pt-0.5">{d.label}</span>
-                            <span className="font-body text-navy text-sm">{d.value}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="h-px bg-gray-100" />
-                    <div>
-                      <h3 className="font-heading font-bold text-navy text-sm mb-3">Verifications</h3>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[
-                          { label: 'BEOE', verified: c.is_beoe_verified, desc: 'Bureau of Emigration' },
-                          { label: 'OEP', verified: c.is_oep_verified, desc: 'Overseas Employment' },
-                          { label: 'SECP', verified: c.is_secp_verified, desc: 'Securities Commission' },
-                          { label: 'FBR', verified: c.is_fbr_verified, desc: 'Revenue Board' },
-                        ].map(v => (
-                          <div key={v.label} className={`flex items-center gap-2 p-3 rounded-xl border text-xs ${
-                            v.verified ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-100'
-                          }`}>
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                              v.verified ? 'bg-green-500' : 'bg-gray-200'
-                            }`}>
-                              {v.verified
-                                ? <CheckCircle size={12} className="text-white" />
-                                : <span className="w-1.5 h-1.5 bg-gray-400 rounded-full block" />
-                              }
-                            </div>
-                            <div>
-                              <p className={`font-heading font-bold ${v.verified ? 'text-green-700' : 'text-gray-400'}`}>
-                                {v.label}
-                              </p>
-                              <p className="text-gray-400 font-body">{v.desc}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Right Column — Sticky CTA ── */}
-          <div className="lg:w-80 shrink-0">
-            <div className="sticky top-24 space-y-4">
-
-              {/* Contact card */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-6">
-                <h3 className="font-heading font-bold text-navy text-base mb-1">Get in Touch</h3>
-                <p className="font-body text-gray-400 text-xs mb-5">
-                  Contact {c.display_name?.split(' ')[0]} directly
-                </p>
-
-                {whatsappUrl && (
-                  <a href={whatsappUrl} target="_blank" rel="noopener noreferrer"
-                    className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-heading font-bold text-sm py-3.5 rounded-xl transition-colors mb-3">
-                    <Phone size={16} />
-                    WhatsApp Now
-                  </a>
-                )}
-
-                {c.phone && (
-                  <a href={`tel:${c.phone}`}
-                    className="w-full flex items-center justify-center gap-2 border border-navy text-navy hover:bg-navy hover:text-white font-heading font-bold text-sm py-3.5 rounded-xl transition-colors mb-3">
-                    <Phone size={16} />
-                    Call Now
-                  </a>
-                )}
-
-                <button
-                  onClick={handleStartConversation}
-                  className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-white py-3.5 rounded-xl transition-all hover:opacity-90 mb-3"
-                  style={{ background: 'linear-gradient(135deg, #1B3060 0%, #2a4a8a 100%)' }}>
-                  <MessageSquare size={16} /> Message
-                </button>
-
-            <Link
-  href={`/book/${c.user_id}`}
-  className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-white py-3.5 rounded-xl transition-colors"
-  style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
-  <Calendar size={16} />
-  Book Consultation
-</Link>
-
-                <p className="font-body text-gray-400 text-xs text-center mt-4">
-                  Usually responds within 1–2 hours
-                </p>
-              </div>
-
-              {/* Quick stats */}
-              <div className="bg-white rounded-2xl border border-gray-100 p-5">
-                <div className="grid grid-cols-3 gap-3 text-center">
+                {/* Name + meta + buttons */}
+                <div className="flex-1 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-4 lg:pb-2">
                   <div>
-                    <p className="font-heading font-extrabold text-navy text-xl">{c.years_experience || '—'}</p>
-                    <p className="font-body text-gray-400 text-xs mt-0.5">Yrs exp</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <h1 className="text-2xl sm:text-3xl lg:text-[2rem] font-bold text-gray-900 leading-tight">
+                        {displayName}
+                      </h1>
+                      {profile.is_verified && (
+                        <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-green-200">
+                          <Shield className="w-3 h-3" />
+                          Verified
+                        </span>
+                      )}
+                    </div>
+                    {profile.business_name && (
+                      <p className="text-base sm:text-lg text-gray-700 mt-1 flex items-center gap-1.5">
+                        <Building2 className="w-4 h-4 text-gray-400" />
+                        {profile.business_name}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 text-sm text-gray-600">
+                      {profile.city && (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="w-4 h-4 text-gray-400" />
+                          {profile.city}
+                        </span>
+                      )}
+                      {profile.years_experience != null && profile.years_experience > 0 && (
+                        <span className="inline-flex items-center gap-1">
+                          <Briefcase className="w-4 h-4 text-gray-400" />
+                          {profile.years_experience} {profile.years_experience === 1 ? 'year' : 'years'}{' '}
+                          experience
+                        </span>
+                      )}
+                      {reviews.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab('reviews')}
+                          className="inline-flex items-center gap-1 hover:text-[#1B3060] transition-colors"
+                        >
+                          <Star className="w-4 h-4 fill-[#C9A227] text-[#C9A227]" />
+                          <strong className="text-gray-900">{avgRating.toFixed(1)}</strong>
+                          <span className="text-gray-500">
+                            ({reviews.length} {reviews.length === 1 ? 'review' : 'reviews'})
+                          </span>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-heading font-extrabold text-navy text-xl">{reviews.length || '—'}</p>
-                    <p className="font-body text-gray-400 text-xs mt-0.5">Reviews</p>
-                  </div>
-                  <div>
-                    <p className="font-heading font-extrabold text-navy text-xl">{rating > 0 ? rating : '—'}</p>
-                    <p className="font-body text-gray-400 text-xs mt-0.5">Rating</p>
+
+                  {/* Desktop action buttons */}
+                  <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+                    {profile.phone && (
+                      <a
+                        href={`tel:${profile.phone}`}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-800 font-medium hover:bg-gray-50 hover:border-gray-400 transition-colors text-sm"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Call
+                      </a>
+                    )}
+                    <Link
+                      href={`/messages?to=${profile.id}`}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#1B3060] text-[#1B3060] bg-white font-medium hover:bg-[#1B3060] hover:text-white transition-colors text-sm"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Message
+                    </Link>
+                    <Link
+                      href={`/book/${profile.id}`}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#C9A227] text-white font-semibold hover:bg-[#b18d1e] transition-colors text-sm shadow-md hover:shadow-lg"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Book Consultation
+                    </Link>
                   </div>
                 </div>
               </div>
 
-              {/* Verified badge */}
-              {(c.is_beoe_verified || c.is_oep_verified || c.is_secp_verified) && (
-                <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <BadgeCheck size={16} className="text-green-600 shrink-0" />
-                    <h4 className="font-heading font-bold text-green-800 text-sm">Officially Verified</h4>
-                  </div>
-                  <p className="font-body text-green-700 text-xs leading-relaxed">
-                    This consultant has been verified against government records. Safe to contact.
-                  </p>
+              {/* Accreditation badges */}
+              {hasAnyAccreditation && (
+                <div className="flex flex-wrap items-center gap-2 mt-4">
+                  <span className="text-xs text-gray-500 uppercase tracking-wide font-medium mr-1">
+                    Accredited by
+                  </span>
+                  {profile.is_oep_verified && (
+                    <AccreditationBadge label="OEP Licensed" />
+                  )}
+                  {profile.is_secp_verified && (
+                    <AccreditationBadge label="SECP Registered" />
+                  )}
+                  {profile.is_beoe_verified && (
+                    <AccreditationBadge label="BEOE Approved" />
+                  )}
+                  {profile.is_fbr_verified && (
+                    <AccreditationBadge label="FBR Compliant" />
+                  )}
                 </div>
               )}
 
-              <Link href="/consultants"
-                className="flex items-center justify-center gap-2 font-body text-sm text-gray-400 hover:text-navy transition-colors py-2">
-                <ArrowLeft size={14} />
-                Back to all consultants
-              </Link>
+              {/* Mobile action buttons */}
+              <div className="grid grid-cols-3 gap-2 mt-5 lg:hidden">
+                {profile.phone ? (
+                  <a
+                    href={`tel:${profile.phone}`}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-800 font-medium text-sm"
+                  >
+                    <Phone className="w-4 h-4" />
+                    Call
+                  </a>
+                ) : (
+                  <div />
+                )}
+                <Link
+                  href={`/messages?to=${profile.id}`}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg border border-[#1B3060] text-[#1B3060] font-medium text-sm"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  Message
+                </Link>
+                <Link
+                  href={`/book/${profile.id}`}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-lg bg-[#C9A227] text-white font-semibold text-sm shadow-md"
+                >
+                  <Calendar className="w-4 h-4" />
+                  Book
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ═══════════ MAIN GRID ═══════════ */}
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Main column */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Tabs container */}
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="border-b border-gray-200 overflow-x-auto scrollbar-hide">
+                  <nav className="flex min-w-max" aria-label="Profile tabs">
+                    <TabButton
+                      active={activeTab === 'services'}
+                      onClick={() => setActiveTab('services')}
+                      count={services.length}
+                    >
+                      Services
+                    </TabButton>
+                    <TabButton
+                      active={activeTab === 'reviews'}
+                      onClick={() => setActiveTab('reviews')}
+                      count={reviews.length}
+                    >
+                      Reviews
+                    </TabButton>
+                    <TabButton
+                      active={activeTab === 'about'}
+                      onClick={() => setActiveTab('about')}
+                    >
+                      About
+                    </TabButton>
+                  </nav>
+                </div>
+
+                <div className="p-4 sm:p-6">
+                  {activeTab === 'services' && <ServicesGrid services={services} />}
+                  {activeTab === 'reviews' && (
+                    <ReviewsList
+                      reviews={reviews}
+                      avgRating={avgRating}
+                      breakdown={ratingBreakdown}
+                    />
+                  )}
+                  {activeTab === 'about' && <AboutSection profile={profile} memberSince={memberSince} />}
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar */}
+            <aside className="lg:col-span-1">
+              <div className="lg:sticky lg:top-24 space-y-4">
+                {/* Contact / quick action card */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                  <h3 className="font-semibold text-gray-900 text-lg">Get in touch</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Discuss your visa needs directly with {displayName.split(' ')[0]}.
+                  </p>
+
+                  {reviews.length > 0 && (
+                    <div className="flex items-center gap-3 mt-4 p-3 bg-gradient-to-br from-[#1B3060]/5 to-[#C9A227]/5 rounded-lg border border-gray-100">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-[#1B3060]">
+                          {avgRating.toFixed(1)}
+                        </div>
+                        <div className="flex items-center justify-center gap-0.5">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <Star
+                              key={n}
+                              className={`w-3 h-3 ${
+                                n <= Math.round(avgRating)
+                                  ? 'fill-[#C9A227] text-[#C9A227]'
+                                  : 'text-gray-300'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex-1 text-sm text-gray-700">
+                        <strong>{reviews.length}</strong> verified{' '}
+                        {reviews.length === 1 ? 'review' : 'reviews'} from real seekers
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 mt-5">
+                    <Link
+                      href={`/book/${profile.id}`}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg bg-[#C9A227] text-white font-semibold hover:bg-[#b18d1e] transition-colors shadow-md hover:shadow-lg"
+                    >
+                      <Calendar className="w-4 h-4" />
+                      Book Consultation
+                    </Link>
+                    <Link
+                      href={`/messages?to=${profile.id}`}
+                      className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg border-2 border-[#1B3060] text-[#1B3060] font-semibold hover:bg-[#1B3060] hover:text-white transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      Send Message
+                    </Link>
+                    {profile.phone && (
+                      <a
+                        href={`tel:${profile.phone}`}
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-lg border border-gray-300 text-gray-800 font-medium hover:bg-gray-50 transition-colors"
+                      >
+                        <Phone className="w-4 h-4" />
+                        Call Now
+                      </a>
+                    )}
+                  </div>
+
+                  {memberSince && (
+                    <p className="text-xs text-gray-500 mt-4 text-center">
+                      Member since {memberSince}
+                    </p>
+                  )}
+                </div>
+
+                {/* Trust card */}
+                <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+                  <h3 className="font-semibold text-gray-900 text-sm uppercase tracking-wide flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-[#1B3060]" />
+                    Why Visagate
+                  </h3>
+                  <ul className="mt-4 space-y-3">
+                    <TrustItem
+                      icon={CheckCircle2}
+                      title="Verified consultants only"
+                      sub="OEP, SECP & BEOE accredited"
+                    />
+                    <TrustItem
+                      icon={Shield}
+                      title="Secure platform"
+                      sub="Your data stays private"
+                    />
+                    <TrustItem
+                      icon={Award}
+                      title="Genuine reviews"
+                      sub="From real visa seekers"
+                    />
+                  </ul>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
+    </>
+  )
+}
+
+// ───────────────────────── Sub-components ─────────────────────────
+
+interface TabButtonProps {
+  active: boolean
+  onClick: () => void
+  count?: number
+  children: React.ReactNode
+}
+
+function TabButton({ active, onClick, count, children }: TabButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative px-5 sm:px-6 py-4 font-medium text-sm whitespace-nowrap transition-colors ${
+        active ? 'text-[#1B3060]' : 'text-gray-600 hover:text-gray-900'
+      }`}
+      aria-selected={active}
+      role="tab"
+    >
+      <span className="flex items-center gap-2">
+        {children}
+        {count != null && count > 0 && (
+          <span
+            className={`text-xs px-2 py-0.5 rounded-full ${
+              active ? 'bg-[#1B3060] text-white' : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {count}
+          </span>
+        )}
+      </span>
+      {active && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C9A227]" />}
+    </button>
+  )
+}
+
+function AccreditationBadge({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#1B3060]/5 border border-[#1B3060]/15 text-[#1B3060] text-xs font-semibold">
+      <CheckCircle2 className="w-3 h-3" />
+      {label}
+    </span>
+  )
+}
+
+function TrustItem({
+  icon: Icon,
+  title,
+  sub,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  sub: string
+}) {
+  return (
+    <li className="flex items-start gap-3">
+      <div className="w-8 h-8 rounded-full bg-[#C9A227]/10 flex items-center justify-center flex-shrink-0">
+        <Icon className="w-4 h-4 text-[#C9A227]" />
+      </div>
+      <div className="text-sm">
+        <div className="font-medium text-gray-900">{title}</div>
+        <div className="text-gray-500 text-xs">{sub}</div>
+      </div>
+    </li>
+  )
+}
+
+// ──────────── Services ────────────
+
+function ServicesGrid({ services }: { services: Service[] }) {
+  if (services.length === 0) {
+    return (
+      <EmptyState
+        icon={Briefcase}
+        title="No services yet"
+        description="This consultant hasn't published any services. Check back soon or send them a message."
+      />
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+      {services.map((s) => (
+        <ServiceCard key={s.id} service={s} />
+      ))}
+    </div>
+  )
+}
+
+function ServiceCard({ service }: { service: Service }) {
+  return (
+    <Link
+      href={`/services/${service.id}`}
+      className="group flex flex-col bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-[#C9A227]/50 transition-all duration-300"
+    >
+      <div className="aspect-[4/3] relative bg-gray-100 overflow-hidden">
+        {service.image_url ? (
+          <Image
+            src={service.image_url}
+            alt={service.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1B3060]/10 via-[#C9A227]/5 to-[#1B3060]/10 flex items-center justify-center">
+            <Globe className="w-14 h-14 text-[#1B3060]/30" />
+          </div>
+        )}
+        {service.visa_type && (
+          <span className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-semibold text-[#1B3060] shadow-sm">
+            {service.visa_type}
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-col flex-1 p-4">
+        <h3 className="font-semibold text-gray-900 line-clamp-2 group-hover:text-[#1B3060] transition-colors leading-snug">
+          {service.title}
+        </h3>
+        {service.destination_country && (
+          <p className="text-xs text-gray-500 mt-1.5 inline-flex items-center gap-1">
+            <MapPin className="w-3 h-3" />
+            {service.destination_country}
+          </p>
+        )}
+
+        <div className="flex items-end justify-between mt-auto pt-4 border-t border-gray-100">
+          <div className="text-xs text-gray-500 inline-flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {service.processing_days ? `${service.processing_days} days` : 'Varies'}
+          </div>
+          <div className="text-right">
+            <div className="text-[10px] text-gray-500 uppercase tracking-wide">Starting at</div>
+            <div className="font-bold text-[#1B3060] text-base">
+              {formatPrice(service.price_min)}
             </div>
           </div>
         </div>
+
+        <div className="mt-3 inline-flex items-center justify-center gap-1 text-sm font-medium text-[#1B3060] group-hover:text-[#C9A227] transition-colors">
+          View Details
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
+        </div>
+      </div>
+    </Link>
+  )
+}
+
+// ──────────── Reviews ────────────
+
+interface ReviewsListProps {
+  reviews: Review[]
+  avgRating: number
+  breakdown: number[] // [5★, 4★, 3★, 2★, 1★]
+}
+
+function ReviewsList({ reviews, avgRating, breakdown }: ReviewsListProps) {
+  if (reviews.length === 0) {
+    return (
+      <EmptyState
+        icon={Star}
+        title="No reviews yet"
+        description="Be the first to share your experience after working with this consultant."
+      />
+    )
+  }
+
+  const maxCount = Math.max(...breakdown, 1)
+
+  return (
+    <div className="space-y-6">
+      {/* Rating summary */}
+      <div className="grid sm:grid-cols-2 gap-6 p-4 sm:p-5 bg-gradient-to-br from-[#1B3060]/5 to-[#C9A227]/5 rounded-xl border border-gray-100">
+        <div className="flex flex-col items-center justify-center text-center">
+          <div className="text-5xl font-bold text-[#1B3060]">{avgRating.toFixed(1)}</div>
+          <div className="flex items-center gap-0.5 mt-2">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <Star
+                key={n}
+                className={`w-5 h-5 ${
+                  n <= Math.round(avgRating)
+                    ? 'fill-[#C9A227] text-[#C9A227]'
+                    : 'text-gray-300'
+                }`}
+              />
+            ))}
+          </div>
+          <div className="text-sm text-gray-600 mt-2">
+            Based on {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          {breakdown.map((count, i) => {
+            const stars = 5 - i
+            const pct = (count / maxCount) * 100
+            return (
+              <div key={stars} className="flex items-center gap-2 text-xs">
+                <span className="w-8 text-gray-600 font-medium">{stars}★</span>
+                <div className="flex-1 h-2 bg-white rounded-full overflow-hidden border border-gray-100">
+                  <div
+                    className="h-full bg-[#C9A227] rounded-full transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <span className="w-8 text-right text-gray-500">{count}</span>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
-      <Footer />
+      {/* Reviews */}
+      <div className="space-y-4">
+        {reviews.map((review) => {
+          const reviewer = getReviewer(review)
+          return (
+            <div
+              key={review.id}
+              className="p-4 sm:p-5 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors"
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden flex-shrink-0 ring-2 ring-white shadow-sm">
+                  {reviewer?.avatar_url ? (
+                    <Image
+                      src={reviewer.avatar_url}
+                      alt={reviewer.full_name}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-[#243d7a] flex items-center justify-center text-white font-semibold text-sm">
+                      {getInitial(reviewer?.full_name)}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="font-medium text-gray-900 text-sm">
+                      {reviewer?.full_name || 'Anonymous'}
+                    </div>
+                    <div className="text-xs text-gray-500">{formatDate(review.created_at)}</div>
+                  </div>
+                  <div className="flex items-center gap-0.5 mt-1">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star
+                        key={n}
+                        className={`w-3.5 h-3.5 ${
+                          n <= review.rating
+                            ? 'fill-[#C9A227] text-[#C9A227]'
+                            : 'text-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  {review.comment && (
+                    <p className="text-sm text-gray-700 mt-2 leading-relaxed whitespace-pre-line">
+                      {review.comment}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ──────────── About ────────────
+
+function AboutSection({
+  profile,
+  memberSince,
+}: {
+  profile: Profile
+  memberSince: string | null
+}) {
+  const hasContent =
+    profile.bio ||
+    (profile.specializations && profile.specializations.length > 0) ||
+    (profile.languages && profile.languages.length > 0) ||
+    profile.office_address
+
+  if (!hasContent) {
+    return (
+      <EmptyState
+        icon={Mail}
+        title="No additional information"
+        description="This consultant hasn't filled out their profile yet."
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {profile.bio && (
+        <div>
+          <h3 className="font-semibold text-gray-900 text-base mb-2">About</h3>
+          <p className="text-gray-700 leading-relaxed whitespace-pre-line">{profile.bio}</p>
+        </div>
+      )}
+
+      {profile.specializations && profile.specializations.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-gray-900 text-base mb-3 flex items-center gap-2">
+            <Tag className="w-4 h-4 text-[#C9A227]" />
+            Specializations
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {profile.specializations.map((spec) => (
+              <span
+                key={spec}
+                className="px-3 py-1.5 rounded-full bg-[#1B3060]/5 text-[#1B3060] text-sm font-medium border border-[#1B3060]/10"
+              >
+                {spec}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {profile.languages && profile.languages.length > 0 && (
+        <div>
+          <h3 className="font-semibold text-gray-900 text-base mb-3 flex items-center gap-2">
+            <Languages className="w-4 h-4 text-[#C9A227]" />
+            Languages
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {profile.languages.map((lang) => (
+              <span
+                key={lang}
+                className="px-3 py-1.5 rounded-full bg-gray-100 text-gray-700 text-sm font-medium"
+              >
+                {lang}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {profile.office_address && (
+        <div>
+          <h3 className="font-semibold text-gray-900 text-base mb-2 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-[#C9A227]" />
+            Office Address
+          </h3>
+          <p className="text-gray-700 leading-relaxed">{profile.office_address}</p>
+        </div>
+      )}
+
+      {memberSince && (
+        <div className="pt-4 border-t border-gray-100 text-sm text-gray-500">
+          Member of Visagate since {memberSince}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ──────────── Empty state ────────────
+
+function EmptyState({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  description: string
+}) {
+  return (
+    <div className="text-center py-12 px-4">
+      <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+        <Icon className="w-7 h-7 text-gray-400" />
+      </div>
+      <h3 className="font-semibold text-gray-900">{title}</h3>
+      <p className="text-sm text-gray-600 mt-1 max-w-sm mx-auto">{description}</p>
     </div>
   )
 }

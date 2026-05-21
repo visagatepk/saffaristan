@@ -57,7 +57,7 @@ export default function ServicesPage() {
       if (!user) return
 
       const { data: prof } = await supabase
-        .from('profiles').select('id').eq('id', user.id).single()
+    .from('profiles').select('id').eq('user_id', user.id).single()
 
       if (prof) {
         setProfileId(prof.id)
@@ -266,7 +266,7 @@ export default function ServicesPage() {
             <div>
               <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">
                 Service Image
-                <span className="text-gray-400 font-normal ml-1">(like a Fiverr gig thumbnail)</span>
+                <span className="text-gray-400 font-normal ml-1">(Thumbnail image size: Minimum: 712 x 430 px)</span>
               </label>
               <label className="cursor-pointer block">
                 {serviceImagePreview ? (
