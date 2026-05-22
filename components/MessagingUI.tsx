@@ -38,7 +38,7 @@ interface Conversation {
 interface Props {
   currentUserId: string
   currentUserRole: 'seeker' | 'consultant'
-  initialConsultantId?: string   // ← NEW: auto-open conversation with this consultant
+  initialConsultantId?: string
 }
 
 function timeAgo(dateStr: string) {
@@ -55,16 +55,16 @@ function getInitials(name: string) {
 }
 
 export default function MessagingUI({ currentUserId, currentUserRole, initialConsultantId }: Props) {
-  const [conversations, setConversations]     = useState<Conversation[]>([])
-  const [selectedConv, setSelectedConv]       = useState<Conversation | null>(null)
-  const [messages, setMessages]               = useState<Message[]>([])
-  const [newMessage, setNewMessage]           = useState('')
-  const [sending, setSending]                 = useState(false)
-  const [loadingConvs, setLoadingConvs]       = useState(true)
-  const [loadingMsgs, setLoadingMsgs]         = useState(false)
-  const [searchQuery, setSearchQuery]         = useState('')
-  const [showMobileChat, setShowMobileChat]   = useState(false)
-  const [initDone, setInitDone]               = useState(false)
+  const [conversations, setConversations]   = useState<Conversation[]>([])
+  const [selectedConv, setSelectedConv]     = useState<Conversation | null>(null)
+  const [messages, setMessages]             = useState<Message[]>([])
+  const [newMessage, setNewMessage]         = useState('')
+  const [sending, setSending]               = useState(false)
+  const [loadingConvs, setLoadingConvs]     = useState(true)
+  const [loadingMsgs, setLoadingMsgs]       = useState(false)
+  const [searchQuery, setSearchQuery]       = useState('')
+  const [showMobileChat, setShowMobileChat] = useState(false)
+  const [initDone, setInitDone]             = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef       = useRef<HTMLTextAreaElement>(null)
   const supabase       = createClient()
@@ -73,124 +73,160 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  // ── Load conversations ──────────────────────────────────────────────────
-  const loadConversations = useCallback(async () => {
+  // ── Helper: fetch profile for a given userId ────────────────────────────
+  const fetchProfile = useCallback(async (userId: string) => {
     const { data } = await supabase
-      .from('conversations')
-      .select('*')
-      .or(`seeker_id.eq.${currentUserId},consultant_id.eq.${currentUserId}`)
-      .order('last_message_at', { ascending: false })
+      .from('profiles')
+      .select('id, display_name, full_name, avatar_url, role, city')
+      .eq('id', userId)
+      .single()
+    return data
+  }, [])
 
-    if (!data) { setLoadingConvs(false); return }
+  // ── Load conversations ──────────────────────────────────────────────────
+  // ✅ FIX 1: try/catch/finally ensures setLoadingConvs(false) ALWAYS runs,
+  //    preventing the sidebar from being stuck in skeleton forever.
+  const loadConversations = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`seeker_id.eq.${currentUserId},consultant_id.eq.${currentUserId}`)
+        .order('last_message_at', { ascending: false })
 
-    const enriched = await Promise.all(data.map(async (conv) => {
-      const otherId = currentUserRole === 'seeker' ? conv.consultant_id : conv.seeker_id
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, display_name, full_name, avatar_url, role, city')
-        .eq('id', otherId)
-        .single()
+      if (error) throw error
+      if (!data) return
 
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-      return {
-        ...conv,
-        other_user: profile ? {
-          id: otherId,
-          name: profile.display_name || profile.full_name || 'User',
-          avatar: profile.avatar_url || null,
-          role: profile.role,
-          city: profile.city,
-        } : undefined
-      }
-    }))
+      const enriched = await Promise.all(data.map(async (conv) => {
+        const otherId = currentUserRole === 'seeker' ? conv.consultant_id : conv.seeker_id
+        const profile = await fetchProfile(otherId)
+        return {
+          ...conv,
+          other_user: profile ? {
+            id: otherId,
+            name: profile.display_name || profile.full_name || 'User',
+            avatar: profile.avatar_url || null,
+            role: profile.role,
+            city: profile.city,
+          } : undefined,
+        }
+      }))
 
-    setConversations(enriched)
-    setLoadingConvs(false)
-    return enriched
-  }, [currentUserId, currentUserRole])
+      setConversations(enriched)
+    } catch (err) {
+      console.error('[MessagingUI] loadConversations failed:', err)
+    } finally {
+      setLoadingConvs(false) // ← ALWAYS runs — no more infinite skeleton
+    }
+  }, [currentUserId, currentUserRole, fetchProfile])
 
   useEffect(() => {
     loadConversations()
   }, [loadConversations])
 
   // ── Auto-open conversation with initialConsultantId ─────────────────────
+  // ✅ FIX 2: Runs immediately on mount — does NOT wait for loadingConvs.
+  //    Queries Supabase directly so it works even if loadConversations fails.
   useEffect(() => {
-    if (!initialConsultantId || loadingConvs || initDone) return
+    if (!initialConsultantId || initDone) return
+    setInitDone(true)
 
     const autoOpen = async () => {
-      setInitDone(true)
+      try {
+        // Check if conversation already exists (direct DB query, no list dependency)
+        const { data: existing } = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('seeker_id', currentUserId)
+          .eq('consultant_id', initialConsultantId)
+          .maybeSingle()
 
-      // Check if conversation already exists
-      const existing = conversations.find(c => c.consultant_id === initialConsultantId)
-      if (existing) {
-        setSelectedConv(existing)
+        if (existing) {
+          const profile = await fetchProfile(initialConsultantId)
+          const enriched: Conversation = {
+            ...existing,
+            other_user: profile ? {
+              id: initialConsultantId,
+              name: profile.display_name || profile.full_name || 'Consultant',
+              avatar: profile.avatar_url || null,
+              role: profile.role,
+              city: profile.city,
+            } : undefined,
+          }
+          setSelectedConv(enriched)
+          setShowMobileChat(true)
+          return
+        }
+
+        // Create new conversation
+        const { data: newConv, error } = await supabase
+          .from('conversations')
+          .insert({
+            seeker_id: currentUserId,
+            consultant_id: initialConsultantId,
+            last_message: null,
+            last_message_at: new Date().toISOString(),
+            seeker_unread: 0,
+            consultant_unread: 0,
+          })
+          .select()
+          .single()
+
+        if (error || !newConv) {
+          console.error('[MessagingUI] Failed to create conversation:', error)
+          return
+        }
+
+        const profile = await fetchProfile(initialConsultantId)
+        const enrichedConv: Conversation = {
+          ...newConv,
+          other_user: profile ? {
+            id: initialConsultantId,
+            name: profile.display_name || profile.full_name || 'Consultant',
+            avatar: profile.avatar_url || null,
+            role: profile.role,
+            city: profile.city,
+          } : undefined,
+        }
+
+        setConversations(prev => [enrichedConv, ...prev])
+        setSelectedConv(enrichedConv)
         setShowMobileChat(true)
-        return
+      } catch (err) {
+        console.error('[MessagingUI] autoOpen failed:', err)
       }
-
-      // Create new conversation
-      const { data: newConv, error } = await supabase
-        .from('conversations')
-        .insert({
-          seeker_id: currentUserId,
-          consultant_id: initialConsultantId,
-          last_message: null,
-          last_message_at: new Date().toISOString(),
-          seeker_unread: 0,
-          consultant_unread: 0,
-        })
-        .select()
-        .single()
-
-      if (error || !newConv) return
-
-      // Get consultant profile for display
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, display_name, full_name, avatar_url, role, city')
-        .eq('id', initialConsultantId)
-        .single()
-
-      const enrichedConv: Conversation = {
-        ...newConv,
-        other_user: profile ? {
-          id: initialConsultantId,
-          name: profile.display_name || profile.full_name || 'Consultant',
-          avatar: profile.avatar_url || null,
-          role: profile.role,
-          city: profile.city,
-        } : undefined,
-      }
-
-      setConversations(prev => [enrichedConv, ...prev])
-      setSelectedConv(enrichedConv)
-      setShowMobileChat(true)
     }
 
     autoOpen()
-  }, [initialConsultantId, loadingConvs, conversations, initDone])
+  }, [initialConsultantId]) // ← NOT gated on loadingConvs or conversations array
 
   // ── Load messages ───────────────────────────────────────────────────────
   const loadMessages = useCallback(async (convId: string) => {
     setLoadingMsgs(true)
-    const { data } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('conversation_id', convId)
-      .order('created_at', { ascending: true })
+    try {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true })
 
-    setMessages(data || [])
-    setLoadingMsgs(false)
+      setMessages(data || [])
 
-    await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('conversation_id', convId)
-      .neq('sender_id', currentUserId)
+      // Mark as read
+      await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('conversation_id', convId)
+        .neq('sender_id', currentUserId)
 
-    const field = currentUserRole === 'seeker' ? 'seeker_unread' : 'consultant_unread'
-    await supabase.from('conversations').update({ [field]: 0 }).eq('id', convId)
-    setConversations(prev => prev.map(c => c.id === convId ? { ...c, [field]: 0 } : c))
+      const field = currentUserRole === 'seeker' ? 'seeker_unread' : 'consultant_unread'
+      await supabase.from('conversations').update({ [field]: 0 }).eq('id', convId)
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, [field]: 0 } : c))
+    } catch (err) {
+      console.error('[MessagingUI] loadMessages failed:', err)
+    } finally {
+      setLoadingMsgs(false)
+    }
   }, [currentUserId, currentUserRole])
 
   useEffect(() => {
@@ -199,10 +235,9 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
 
   useEffect(() => { scrollToBottom() }, [messages])
 
-  // ── Real-time messages ──────────────────────────────────────────────────
+  // ── Real-time: new messages in open conversation ─────────────────────────
   useEffect(() => {
     if (!selectedConv) return
-
     const channel = supabase
       .channel(`messages:${selectedConv.id}`)
       .on('postgres_changes', {
@@ -219,11 +254,10 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
         }
       })
       .subscribe()
-
     return () => { supabase.removeChannel(channel) }
   }, [selectedConv?.id, currentUserId])
 
-  // ── Real-time conversation list ─────────────────────────────────────────
+  // ── Real-time: conversation list updates ────────────────────────────────
   useEffect(() => {
     const channel = supabase
       .channel(`conversations:${currentUserId}`)
@@ -266,6 +300,7 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
       setMessages(prev => prev.filter(m => m.id !== tempMsg.id))
       setNewMessage(content)
     }
+
     setSending(false)
     inputRef.current?.focus()
   }
@@ -448,7 +483,6 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
                     const showAvatar = !isOwn && (i === 0 || messages[i-1].sender_id !== msg.sender_id)
                     const showTime = i === messages.length - 1 ||
                       new Date(messages[i+1].created_at).getTime() - new Date(msg.created_at).getTime() > 300000
-
                     return (
                       <div key={msg.id} className={`flex items-end gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
                         {!isOwn && (

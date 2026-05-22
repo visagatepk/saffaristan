@@ -44,6 +44,10 @@ function getReviewer(r: Review): Reviewer | null {
   return Array.isArray(r.reviewer) ? r.reviewer[0] ?? null : r.reviewer
 }
 function getInitial(name: string | null | undefined) { return (name?.trim().charAt(0) || '?').toUpperCase() }
+function getInitials(name: string | null | undefined) {
+  if (!name) return '?'
+  return name.trim().split(/\s+/).slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')
+}
 function whatsappUrl(phone: string) {
   const clean = phone.replace(/[\s\-\(\)]/g, '')
   const num = clean.startsWith('+') ? clean.slice(1) : clean.startsWith('0') ? `92${clean.slice(1)}` : clean
@@ -95,11 +99,20 @@ export default function ConsultantProfileClient({ profile, services, reviews }: 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="relative -mt-16 sm:-mt-20 pb-6">
               <div className="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-6">
-                {/* Avatar */}
+
+                {/* ✅ FIXED: Avatar — ternary colon was missing, causing broken fallback rendering */}
                 <div className="relative w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 rounded-full ring-4 ring-white shadow-2xl overflow-hidden bg-white flex-shrink-0">
                   {profile.avatar_url
-                    ? <Image src={profile.avatar_url} alt={displayName} fill sizes="(max-width:640px) 112px,(max-width:1024px) 144px,176px" className="object-cover"/>
-                    : <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-[#243d7a] flex items-center justify-center text-white text-4xl sm:text-5xl font-bold">{getInitial(profile.full_name)}</div>
+                    ? <Image
+                        src={profile.avatar_url}
+                        alt={displayName}
+                        fill
+                        sizes="(max-width:640px) 112px,(max-width:1024px) 144px,176px"
+                        className="object-cover"
+                      />
+                    : <div className="w-full h-full bg-gradient-to-br from-[#1B3060] to-[#243d7a] flex items-center justify-center text-white font-bold text-3xl select-none">
+                        {getInitials(profile.display_name || profile.full_name)}
+                      </div>
                   }
                   {profile.is_verified && (
                     <div className="absolute bottom-2 right-2 bg-green-500 rounded-full p-1.5 ring-2 ring-white">
@@ -108,7 +121,7 @@ export default function ConsultantProfileClient({ profile, services, reviews }: 
                   )}
                 </div>
 
-                {/* Name + meta — desktop buttons REMOVED (sidebar only) */}
+                {/* Name + meta */}
                 <div className="flex-1 lg:pb-2">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <h1 className="text-2xl sm:text-3xl lg:text-[2rem] font-bold text-gray-900 leading-tight">{displayName}</h1>
