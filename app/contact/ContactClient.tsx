@@ -13,13 +13,13 @@ const WHATSAPP_NUMBER = '923149354655'
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent('Hi VisaGate.pk, I need some help.')}`
 
 export default function ContactClient() {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [mobile, setMobile] = useState('')
+  const [name, setName]       = useState('')
+  const [email, setEmail]     = useState('')
+  const [mobile, setMobile]   = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [error, setError] = useState('')
+  const [sent, setSent]       = useState(false)
+  const [error, setError]     = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,12 +41,12 @@ export default function ContactClient() {
         process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
         process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
         {
-          from_name: name,
+          from_name:  name,
           from_email: email,
-          whatsapp: mobile || 'Not provided',
-          subject: 'New Contact Form Message',
+          whatsapp:   mobile || 'Not provided',
+          subject:    'New Contact Form Message',
           message,
-          to_email: 'visagate.pk@gmail.com',
+          to_email:   'visagate.pk@gmail.com',
         },
         process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!
       )
@@ -57,7 +57,7 @@ export default function ContactClient() {
         await supabase.from('contact_messages').insert({
           name, email,
           whatsapp: mobile,
-          subject: 'Contact Form',
+          subject:  'Contact Form',
           message,
         })
         setSent(true)
@@ -70,6 +70,7 @@ export default function ContactClient() {
 
   const inputClass = "font-body w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-navy focus:ring-2 focus:ring-navy/10 transition-all bg-white"
 
+  // ── Success state ────────────────────────────────────────────────────────
   if (sent) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -82,7 +83,8 @@ export default function ContactClient() {
             <h2 className="font-heading font-bold text-navy text-2xl mb-2">Message Sent!</h2>
             <p className="font-urdu text-gold text-lg mb-4">پیغام بھیج دیا گیا</p>
             <p className="font-body text-gray-500 text-sm leading-relaxed mb-8">
-              Thank you <strong className="text-navy">{name}</strong>! We have received your message and will get back to you within <strong>24–48 hours</strong>.
+              Thank you <strong className="text-navy">{name}</strong>! We have received your message
+              and will get back to you within <strong>24–48 hours</strong>.
             </p>
             <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-heading font-bold text-sm py-3.5 rounded-xl transition-colors">
@@ -102,26 +104,46 @@ export default function ContactClient() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Hero */}
-      <div className="bg-navy relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        <div className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-10 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
-        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 py-16 text-center">
-          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-3">
-            Contact Us
+      {/* ══════════════════════════════════════════════════════════════════
+          HERO — site-wide grid pattern
+          FIX: pt-[calc(64px+2.5rem)] was missing — content was hidden
+          behind the fixed navbar. pb-12 for consistent bottom padding.
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="bg-navy relative overflow-hidden pt-[calc(64px+2.5rem)] pb-12 px-6">
+
+        {/* White grid lines */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+              'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        />
+
+        {/* Gold glow — top-right */}
+        <div
+          className="absolute top-0 right-0 w-80 h-80 rounded-full opacity-10 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
+            transform: 'translate(20%, -20%)',
+          }}
+        />
+
+        <div className="relative max-w-4xl mx-auto text-center">
+          <h1 className="font-heading font-extrabold text-white text-4xl lg:text-5xl mb-3 leading-tight">
+            Contact <span className="text-gold">Us</span>
           </h1>
-          <p className="font-urdu text-gold/80 text-xl mb-3">ہم سے رابطہ کریں</p>
-          <p className="font-body text-white/60 text-sm max-w-lg mx-auto">
+          <p className="font-urdu text-gold/80 text-xl mb-4">ہم سے رابطہ کریں</p>
+          <p className="font-body text-white/60 text-base max-w-lg mx-auto">
             Have a question or need help? Fill the form below or reach us directly on WhatsApp.
           </p>
         </div>
       </div>
 
+      {/* ── Form ── */}
       <div className="max-w-2xl mx-auto px-6 lg:px-8 py-10">
-
-        {/* Form Card */}
         <div className="bg-white rounded-3xl border border-gray-100 overflow-hidden">
           <div className="px-8 py-5 border-b border-gray-100 bg-gray-50">
             <h2 className="font-heading font-bold text-navy text-lg">Send Us a Message</h2>
@@ -190,7 +212,9 @@ export default function ContactClient() {
                     placeholder="How can we help you? Tell us about your visa needs or any questions you have..."
                     className={`${inputClass} pl-10 resize-none`} />
                 </div>
-                <p className={`font-body text-xs mt-1.5 ml-1 ${message.length > 0 && message.length < 10 ? 'text-red-400' : 'text-gray-400'}`}>
+                <p className={`font-body text-xs mt-1.5 ml-1 ${
+                  message.length > 0 && message.length < 10 ? 'text-red-400' : 'text-gray-400'
+                }`}>
                   {message.length} characters
                 </p>
               </div>
@@ -220,7 +244,7 @@ export default function ContactClient() {
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
-            {/* WhatsApp Button */}
+            {/* WhatsApp */}
             <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-3 bg-green-500 hover:bg-green-600 text-white font-heading font-bold text-sm py-4 rounded-xl transition-colors">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">

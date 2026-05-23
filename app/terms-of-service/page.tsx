@@ -12,13 +12,31 @@ export default function TermsOfService() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Hero */}
-      <div className="bg-navy relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 py-14 text-center">
-          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-3">
-            Terms of Service
+      {/* ══════════════════════════════════════════════════════════════════
+          HERO — FIX: py-14 → pt-[calc(64px+2.5rem)] pb-12
+          Also: gold glow added + title styled with gold accent
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="bg-navy relative overflow-hidden pt-[calc(64px+2.5rem)] pb-12">
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+              'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        />
+        {/* Gold glow — top-right */}
+        <div
+          className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
+            transform: 'translate(20%, -20%)',
+          }}
+        />
+        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 text-center">
+          <h1 className="font-heading font-extrabold text-white text-4xl lg:text-5xl mb-3 leading-tight">
+            Terms of <span className="text-gold">Service</span>
           </h1>
           <p className="font-urdu text-gold/80 text-xl mb-4">سروس کی شرائط</p>
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-body text-white/50">
@@ -40,10 +58,12 @@ export default function TermsOfService() {
 
         {/* Language tabs */}
         <div className="flex items-center gap-3 mb-8">
-          <a href="#en-terms" className="font-heading font-bold text-sm text-white bg-navy px-4 py-2 rounded-xl">
+          <a href="#en-terms"
+            className="font-heading font-bold text-sm text-white bg-navy px-4 py-2 rounded-xl">
             English
           </a>
-          <a href="#ur-terms" className="font-heading font-bold text-sm text-navy border border-navy px-4 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
+          <a href="#ur-terms"
+            className="font-heading font-bold text-sm text-navy border border-navy px-4 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
             اردو
           </a>
         </div>
@@ -60,7 +80,7 @@ export default function TermsOfService() {
             </div>
           </div>
 
-          {/* Critical warning box */}
+          {/* Critical warning */}
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-8">
             <p className="font-heading font-bold text-red-800 text-base mb-3">⚠️ Read This First</p>
             <div className="space-y-2 font-body text-red-700 text-sm">
@@ -73,7 +93,6 @@ export default function TermsOfService() {
           </div>
 
           <div className="space-y-8 font-body text-gray-600 text-sm leading-relaxed">
-
             {[
               {
                 num: '1',
@@ -83,8 +102,8 @@ export default function TermsOfService() {
                     <p>VisaGate.pk is a free digital marketplace that connects Visa Seekers with Verified Visa Consultants across Pakistan. We are a platform — not a visa agency.</p>
                     <div className="grid sm:grid-cols-2 gap-3">
                       {[
-                        { role: 'Visa Seekers', desc: 'People looking for professional visa help and guidance.' },
-                        { role: 'Visa Consultants', desc: 'Verified agents offering visa services — OEP/SECP licensed.' },
+                        { role: 'Visa Seekers',      desc: 'People looking for professional visa help and guidance.' },
+                        { role: 'Visa Consultants',  desc: 'Verified agents offering visa services — OEP/SECP licensed.' },
                       ].map(item => (
                         <div key={item.role} className="bg-navy-light rounded-xl p-4">
                           <p className="font-heading font-bold text-navy text-sm mb-1">{item.role}</p>
@@ -150,11 +169,11 @@ export default function TermsOfService() {
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {[
-                          { item: 'Visa rejection or refusal', eg: 'Your visa is denied by the embassy' },
-                          { item: 'Immigration issues or delays', eg: 'Background checks or interview failures' },
-                          { item: 'Consultant quality or expertise', eg: 'Consultant gives wrong advice' },
-                          { item: 'Lost or stolen payments', eg: 'Consultant takes money and disappears' },
-                          { item: 'Any visa outcome or result', eg: 'Application success or failure' },
+                          { item: 'Visa rejection or refusal',         eg: 'Your visa is denied by the embassy' },
+                          { item: 'Immigration issues or delays',       eg: 'Background checks or interview failures' },
+                          { item: 'Consultant quality or expertise',    eg: 'Consultant gives wrong advice' },
+                          { item: 'Lost or stolen payments',            eg: 'Consultant takes money and disappears' },
+                          { item: 'Any visa outcome or result',         eg: 'Application success or failure' },
                         ].map(row => (
                           <tr key={row.item} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-red-600 font-medium">❌ {row.item}</td>
@@ -173,31 +192,17 @@ export default function TermsOfService() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <p className="font-heading font-bold text-navy text-sm mb-2">✅ You Must:</p>
-                      {[
-                        'Be honest and respectful at all times',
-                        'Keep conversations on our platform',
-                        'Report suspicious or fraudulent users',
-                        'Update your profile when information changes',
-                        'Verify consultant credentials before paying',
-                      ].map(r => (
+                      {['Be honest and respectful at all times', 'Keep conversations on our platform', 'Report suspicious or fraudulent users', 'Update your profile when information changes', 'Verify consultant credentials before paying'].map(r => (
                         <div key={r} className="flex items-start gap-2 text-xs">
-                          <span className="text-green-500 shrink-0 mt-0.5">✓</span>
-                          {r}
+                          <span className="text-green-500 shrink-0 mt-0.5">✓</span>{r}
                         </div>
                       ))}
                     </div>
                     <div className="space-y-2">
                       <p className="font-heading font-bold text-navy text-sm mb-2">❌ You Must NOT:</p>
-                      {[
-                        'Post fake reviews or false success rates',
-                        'Scam or defraud other users',
-                        'Share fake credentials or documents',
-                        'Use abusive language in chat',
-                        'Post spam or unrelated advertisements',
-                      ].map(r => (
+                      {['Post fake reviews or false success rates', 'Scam or defraud other users', 'Share fake credentials or documents', 'Use abusive language in chat', 'Post spam or unrelated advertisements'].map(r => (
                         <div key={r} className="flex items-start gap-2 text-xs">
-                          <span className="text-red-500 shrink-0 mt-0.5">✗</span>
-                          {r}
+                          <span className="text-red-500 shrink-0 mt-0.5">✗</span>{r}
                         </div>
                       ))}
                     </div>
@@ -212,8 +217,8 @@ export default function TermsOfService() {
                     <p>We verify consultants by checking government records. A verification badge is displayed only after successful verification.</p>
                     <div className="grid sm:grid-cols-3 gap-3">
                       {[
-                        { badge: 'OEP', full: 'Bureau of Emigration License' },
-                        { badge: 'NTN', full: 'Federal Board of Revenue' },
+                        { badge: 'OEP',  full: 'Bureau of Emigration License' },
+                        { badge: 'NTN',  full: 'Federal Board of Revenue' },
                         { badge: 'SECP', full: 'Securities Commission (if applicable)' },
                       ].map(v => (
                         <div key={v.badge} className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
@@ -307,7 +312,6 @@ export default function TermsOfService() {
           </div>
 
           <div className="space-y-6 font-urdu text-gray-700 text-base leading-loose">
-
             <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6">
               <p className="font-bold text-red-800 text-lg mb-3">⚠️ پہلے یہ پڑھیں</p>
               <ul className="space-y-2 text-red-700">
@@ -319,14 +323,9 @@ export default function TermsOfService() {
             </div>
 
             {[
+              { num: '۱', title: 'VisaGate.pk کیا ہے؟', content: <p>VisaGate.pk ایک مفت ڈیجیٹل پلیٹ فارم ہے جو پاکستان بھر میں ویزا متلاشیوں کو تصدیق شدہ ویزا کنسلٹنٹس سے ملاتا ہے۔ ہم ایک پلیٹ فارم ہیں — ویزا ایجنسی نہیں۔</p> },
               {
-                num: '۱',
-                title: 'VisaGate.pk کیا ہے؟',
-                content: <p>VisaGate.pk ایک مفت ڈیجیٹل پلیٹ فارم ہے جو پاکستان بھر میں ویزا متلاشیوں کو تصدیق شدہ ویزا کنسلٹنٹس سے ملاتا ہے۔ ہم ایک پلیٹ فارم ہیں — ویزا ایجنسی نہیں۔</p>
-              },
-              {
-                num: '۲',
-                title: 'ادائیگیاں — سب سے اہم',
+                num: '۲', title: 'ادائیگیاں — سب سے اہم',
                 content: (
                   <div className="bg-red-50 border border-red-200 rounded-2xl p-5">
                     <p className="font-bold text-red-800 mb-3">ادائیگیاں براہ راست آپ اور کنسلٹنٹ کے درمیان ہوتی ہیں۔</p>
@@ -339,85 +338,32 @@ export default function TermsOfService() {
                   </div>
                 )
               },
+              { num: '۳', title: 'ہم کس چیز کے ذمہ دار نہیں ہیں', content: (<ul className="space-y-2 mr-4">{['ویزا رد یا مسترد ہونا', 'امیگریشن کے مسائل یا تاخیر', 'کنسلٹنٹ کا معیار یا مہارت', 'کنسلٹنٹ کا پیسے لے کر غائب ہو جانا', 'ویزا کا کوئی بھی نتیجہ'].map((item, i) => <li key={i}>❌ {item}</li>)}</ul>) },
               {
-                num: '۳',
-                title: 'ہم کس چیز کے ذمہ دار نہیں ہیں',
-                content: (
-                  <ul className="space-y-2 mr-4">
-                    {[
-                      'ویزا رد یا مسترد ہونا',
-                      'امیگریشن کے مسائل یا تاخیر',
-                      'کنسلٹنٹ کا معیار یا مہارت',
-                      'کنسلٹنٹ کا پیسے لے کر غائب ہو جانا',
-                      'ویزا کا کوئی بھی نتیجہ',
-                    ].map((item, i) => <li key={i}>❌ {item}</li>)}
-                  </ul>
-                )
-              },
-              {
-                num: '۴',
-                title: 'پلیٹ فارم کے قوانین',
+                num: '۴', title: 'پلیٹ فارم کے قوانین',
                 content: (
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <p className="font-bold text-navy mb-2">✅ آپ کو کرنا ہے:</p>
-                      <ul className="space-y-1">
-                        {['ایمانداری اور احترام سے پیش آئیں', 'بات چیت پلیٹ فارم پر رکھیں', 'مشکوک صارفین کی رپورٹ کریں', 'پیسے دینے سے پہلے تصدیق کریں'].map((r, i) => <li key={i}>• {r}</li>)}
-                      </ul>
+                      <ul className="space-y-1">{['ایمانداری اور احترام سے پیش آئیں', 'بات چیت پلیٹ فارم پر رکھیں', 'مشکوک صارفین کی رپورٹ کریں', 'پیسے دینے سے پہلے تصدیق کریں'].map((r, i) => <li key={i}>• {r}</li>)}</ul>
                     </div>
                     <div>
                       <p className="font-bold text-navy mb-2">❌ آپ کو نہیں کرنا:</p>
-                      <ul className="space-y-1">
-                        {['جھوٹے ریویوز لکھنا', 'دوسروں کو دھوکہ دینا', 'جعلی دستاویزات', 'گالی گلوج یا اسپام'].map((r, i) => <li key={i}>• {r}</li>)}
-                      </ul>
+                      <ul className="space-y-1">{['جھوٹے ریویوز لکھنا', 'دوسروں کو دھوکہ دینا', 'جعلی دستاویزات', 'گالی گلوج یا اسپام'].map((r, i) => <li key={i}>• {r}</li>)}</ul>
                     </div>
                   </div>
                 )
               },
+              { num: '۵', title: 'اکاؤنٹ معطل یا حذف کرنا', content: (<ul className="space-y-2 mr-4"><li>• جعلی اسناد دینے پر اکاؤنٹ فوری بند کیا جائے گا</li><li>• متعدد شکایات پر معطلی ہو سکتی ہے</li><li>• اپنا اکاؤنٹ حذف کرنے کے لیے: Settings → Delete Account</li><li>• پروفائل 14 دنوں میں ہٹا دی جائے گی</li><li>• چیٹ 30 دنوں میں حذف ہو جائے گی</li></ul>) },
+              { num: '۶', title: 'فیس — ابھی مفت', content: (<div className="bg-green-50 border border-green-200 rounded-2xl p-5"><p className="font-bold text-green-800 mb-2">🎉 VisaGate.pk ابھی مکمل طور پر مفت ہے۔</p><p className="text-green-700">اگر مستقبل میں کوئی فیس متعارف کرائی گئی تو آپ کو کم از کم 30 دن پہلے مطلع کیا جائے گا۔</p></div>) },
+              { num: '۷', title: 'زیادہ سے زیادہ ذمہ داری کی حد', content: <p>اگر عدالت ہمیں کسی بھی معاملے میں ذمہ دار پائے تو ہماری زیادہ سے زیادہ ذمہ داری <strong className="text-navy">PKR 5,000</strong> تک محدود ہے۔</p> },
               {
-                num: '۵',
-                title: 'اکاؤنٹ معطل یا حذف کرنا',
-                content: (
-                  <ul className="space-y-2 mr-4">
-                    <li>• جعلی اسناد دینے پر اکاؤنٹ فوری بند کیا جائے گا</li>
-                    <li>• متعدد شکایات پر معطلی ہو سکتی ہے</li>
-                    <li>• اپنا اکاؤنٹ حذف کرنے کے لیے: Settings → Delete Account</li>
-                    <li>• پروفائل 14 دنوں میں ہٹا دی جائے گی</li>
-                    <li>• چیٹ 30 دنوں میں حذف ہو جائے گی</li>
-                  </ul>
-                )
-              },
-              {
-                num: '۶',
-                title: 'فیس — ابھی مفت',
-                content: (
-                  <div className="bg-green-50 border border-green-200 rounded-2xl p-5">
-                    <p className="font-bold text-green-800 mb-2">🎉 VisaGate.pk ابھی مکمل طور پر مفت ہے۔</p>
-                    <p className="text-green-700">اگر مستقبل میں کوئی فیس متعارف کرائی گئی تو آپ کو کم از کم 30 دن پہلے مطلع کیا جائے گا۔</p>
-                  </div>
-                )
-              },
-              {
-                num: '۷',
-                title: 'زیادہ سے زیادہ ذمہ داری کی حد',
-                content: <p>اگر عدالت ہمیں کسی بھی معاملے میں ذمہ دار پائے تو ہماری زیادہ سے زیادہ ذمہ داری <strong className="text-navy">PKR 5,000</strong> تک محدود ہے۔</p>
-              },
-              {
-                num: '۸',
-                title: 'رابطہ کریں',
+                num: '۸', title: 'رابطہ کریں',
                 content: (
                   <div className="bg-navy rounded-2xl p-5 text-white">
                     <div className="grid sm:grid-cols-2 gap-3 text-sm">
-                      {[
-                        { label: 'کمپنی', value: 'Defaste (Pvt) Ltd' },
-                        { label: 'NTN', value: 'I4****71-1' },
-                        { label: 'ای میل', value: 'info@visagate.pk' },
-                        { label: 'ویب سائٹ', value: 'www.visagate.pk' },
-                      ].map(item => (
-                        <div key={item.label}>
-                          <p className="text-white/50 text-xs">{item.label}</p>
-                          <p className="font-semibold">{item.value}</p>
-                        </div>
+                      {[{ label: 'کمپنی', value: 'Defaste (Pvt) Ltd' }, { label: 'NTN', value: 'I4****71-1' }, { label: 'ای میل', value: 'info@visagate.pk' }, { label: 'ویب سائٹ', value: 'www.visagate.pk' }].map(item => (
+                        <div key={item.label}><p className="text-white/50 text-xs">{item.label}</p><p className="font-semibold">{item.value}</p></div>
                       ))}
                     </div>
                   </div>

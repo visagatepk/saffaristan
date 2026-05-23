@@ -42,23 +42,39 @@ export default function AboutPage() {
       <div className="min-h-screen bg-gray-50">
         <Navbar />
 
-        {/* Hero */}
-        <div className="bg-navy relative overflow-hidden">
-          <div className="absolute inset-0 opacity-[0.04]"
-            style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-          <div className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
-          <div className="relative max-w-4xl mx-auto px-6 lg:px-8 py-20 text-center">
+        {/* ══════════════════════════════════════════════════════════════════
+            HERO — grid pattern already correct, only navbar clearance fixed.
+            py-20 → pt-[calc(64px+2.5rem)] pb-12
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="bg-navy relative overflow-hidden pt-[calc(64px+2.5rem)] pb-12">
+          <div
+            className="absolute inset-0 opacity-[0.04] pointer-events-none"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+                'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+              backgroundSize: '32px 32px',
+            }}
+          />
+          <div
+            className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
+            style={{
+              background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
+              transform: 'translate(20%, -20%)',
+            }}
+          />
+          <div className="relative max-w-4xl mx-auto px-6 lg:px-8 text-center">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-gold/30 bg-gold/10 mb-6">
               <Heart size={13} className="text-gold" />
               <span className="font-body text-xs font-semibold text-gold tracking-wide">Our Story</span>
             </div>
             <h1 className="font-heading font-extrabold text-white text-4xl lg:text-5xl mb-4 leading-tight">
-              About VisaGate.pk
+              About <span className="text-gold">VisaGate.pk</span>
             </h1>
             <p className="font-urdu text-gold/80 text-xl mb-5">ہمارے بارے میں</p>
             <p className="font-body text-white/60 text-base max-w-2xl mx-auto leading-relaxed">
-              Pakistan's first platform connecting visa seekers with verified, licensed immigration consultants — built on trust, transparency and real results.
+              Pakistan's first platform connecting visa seekers with verified, licensed immigration
+              consultants — built on trust, transparency and real results.
             </p>
           </div>
         </div>
@@ -78,33 +94,47 @@ export default function AboutPage() {
                 <p className="font-urdu text-gold text-base mb-5">ہم نے یہ کیوں بنایا</p>
                 <div className="space-y-4 font-body text-gray-600 text-sm leading-relaxed">
                   <p>
-                    Every year, thousands of Pakistanis fall victim to fake visa consultants — losing their savings, their dreams, and sometimes years of their lives. We saw this problem firsthand and decided to do something about it.
+                    Every year, thousands of Pakistanis fall victim to fake visa consultants — losing
+                    their savings, their dreams, and sometimes years of their lives. We saw this problem
+                    firsthand and decided to do something about it.
                   </p>
                   <p>
-                    VisaGate.pk was founded with one mission: <strong className="text-navy">make the visa process safe, transparent and accessible</strong> for every Pakistani — whether they are in Islamabad, Karachi, or a small town in Punjab.
+                    VisaGate.pk was founded with one mission:{' '}
+                    <strong className="text-navy">
+                      make the visa process safe, transparent and accessible
+                    </strong>{' '}
+                    for every Pakistani — whether they are in Islamabad, Karachi, or a small town in Punjab.
                   </p>
                   <p>
-                    We built Pakistan's first classified marketplace where every consultant is verified against government records (OEP, SECP, FBR) before they can list their services. No more guessing. No more fraud.
+                    We built Pakistan's first classified marketplace where every consultant is verified
+                    against government records (OEP, SECP, FBR) before they can list their services.
+                    No more guessing. No more fraud.
                   </p>
                 </div>
               </div>
 
               {/* Stats */}
               <div className="bg-navy p-10 lg:p-12 flex flex-col justify-center relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(20%, -20%)' }} />
+                <div
+                  className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10 pointer-events-none"
+                  style={{
+                    background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
+                    transform: 'translate(20%, -20%)',
+                  }}
+                />
                 <div className="relative">
                   <p className="font-heading font-bold text-white text-lg mb-6">VisaGate by the Numbers</p>
                   <div className="grid grid-cols-2 gap-4">
                     {[
-                      { num: '300+', label: 'Active Consultants', icon: Users },
-                      { num: '500+', label: 'Seekers Registered', icon: Heart },
-                      { num: '30+', label: 'Countries Covered', icon: Globe },
-                      { num: '4.8★', label: 'Average Rating', icon: Star },
-                      { num: '100%', label: 'Verified Listings', icon: Shield },
-                      { num: 'Free', label: 'To Join & Browse', icon: CheckCircle },
+                      { num: '300+',  label: 'Active Consultants',  icon: Users },
+                      { num: '500+',  label: 'Seekers Registered',  icon: Heart },
+                      { num: '30+',   label: 'Countries Covered',   icon: Globe },
+                      { num: '4.8★', label: 'Average Rating',      icon: Star },
+                      { num: '100%', label: 'Verified Listings',   icon: Shield },
+                      { num: 'Free', label: 'To Join & Browse',    icon: CheckCircle },
                     ].map(stat => (
-                      <div key={stat.label} className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors">
+                      <div key={stat.label}
+                        className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors">
                         <div className="flex items-center gap-2 mb-1.5">
                           <stat.icon size={14} className="text-gold shrink-0" />
                           <span className="font-heading font-extrabold text-gold text-xl">{stat.num}</span>
@@ -127,7 +157,9 @@ export default function AboutPage() {
               <h3 className="font-heading font-bold text-navy text-xl mb-2">Our Mission</h3>
               <p className="font-urdu text-gold text-sm mb-4">ہمارا مشن</p>
               <p className="font-body text-gray-600 text-sm leading-relaxed">
-                To eliminate visa fraud in Pakistan by making consultant verification mandatory, transparent and publicly accessible — so every Pakistani can start their visa journey with confidence.
+                To eliminate visa fraud in Pakistan by making consultant verification mandatory,
+                transparent and publicly accessible — so every Pakistani can start their visa
+                journey with confidence.
               </p>
             </div>
             <div className="bg-white rounded-3xl border border-gray-100 p-8">
@@ -137,7 +169,9 @@ export default function AboutPage() {
               <h3 className="font-heading font-bold text-navy text-xl mb-2">Our Vision</h3>
               <p className="font-urdu text-gold text-sm mb-4">ہمارا وژن</p>
               <p className="font-body text-gray-600 text-sm leading-relaxed">
-                To become Pakistan's most trusted immigration technology platform — where every visa seeker finds the right consultant in minutes, and every honest consultant grows their business with ease.
+                To become Pakistan's most trusted immigration technology platform — where every visa
+                seeker finds the right consultant in minutes, and every honest consultant grows their
+                business with ease.
               </p>
             </div>
           </div>
@@ -153,10 +187,10 @@ export default function AboutPage() {
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {[
-                { icon: Shield, title: 'Trust First', urdu: 'اعتماد سب سے پہلے', desc: 'Every consultant is verified against government records before listing. No exceptions.', color: 'text-blue-600', bg: 'bg-blue-50' },
-                { icon: Zap, title: 'Transparency', urdu: 'شفافیت', desc: 'Clear pricing, honest reviews, and open verification status — no hidden surprises.', color: 'text-gold', bg: 'bg-gold-light' },
-                { icon: Heart, title: 'People First', urdu: 'لوگ پہلے', desc: 'Built for Pakistanis, by Pakistanis. We understand the struggles and solve them.', color: 'text-red-500', bg: 'bg-red-50' },
-                { icon: Lock, title: 'Security', urdu: 'سیکیورٹی', desc: "Your data is encrypted and protected. We follow Pakistan's PDPB 2023 standards.", color: 'text-purple-600', bg: 'bg-purple-50' },
+                { icon: Shield, title: 'Trust First',    urdu: 'اعتماد سب سے پہلے', desc: 'Every consultant is verified against government records before listing. No exceptions.', color: 'text-blue-600', bg: 'bg-blue-50' },
+                { icon: Zap,    title: 'Transparency',   urdu: 'شفافیت',              desc: 'Clear pricing, honest reviews, and open verification status — no hidden surprises.', color: 'text-gold',    bg: 'bg-gold-light' },
+                { icon: Heart,  title: 'People First',   urdu: 'لوگ پہلے',           desc: 'Built for Pakistanis, by Pakistanis. We understand the struggles and solve them.', color: 'text-red-500', bg: 'bg-red-50' },
+                { icon: Lock,   title: 'Security',       urdu: 'سیکیورٹی',           desc: "Your data is encrypted and protected. We follow Pakistan's PDPB 2023 standards.", color: 'text-purple-600', bg: 'bg-purple-50' },
               ].map(v => (
                 <div key={v.title}
                   className="bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-[0_8px_25px_rgba(0,0,0,0.06)] hover:-translate-y-0.5 transition-all duration-300 group text-center">
@@ -177,18 +211,21 @@ export default function AboutPage() {
               <span className="font-body text-xs font-semibold text-gold uppercase tracking-widest bg-gold-light px-3 py-1 rounded-full">
                 Our Process
               </span>
-              <h2 className="font-heading font-bold text-navy text-2xl lg:text-3xl mt-5 mb-2">How We Verify Consultants</h2>
+              <h2 className="font-heading font-bold text-navy text-2xl lg:text-3xl mt-5 mb-2">
+                How We Verify Consultants
+              </h2>
               <p className="font-urdu text-gold text-lg mb-3">ہم کنسلٹنٹس کی تصدیق کیسے کرتے ہیں</p>
               <p className="font-body text-gray-500 text-sm max-w-xl mx-auto">
-                Every consultant on VisaGate.pk goes through a strict verification process before they can list their services.
+                Every consultant on VisaGate.pk goes through a strict verification process before
+                they can list their services.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {[
                 { step: '01', title: 'Application', urdu: 'درخواست', desc: 'Consultant submits their OEP license number, NTN and business details.', icon: '📋' },
-                { step: '02', title: 'Verification', urdu: 'تصدیق', desc: 'Our team cross-checks credentials against OEP, FBR and SECP government records.', icon: '🔍' },
-                { step: '03', title: 'Approval', urdu: 'منظوری', desc: 'Verified consultants receive a green badge and can start listing their services.', icon: '✅' },
-                { step: '04', title: 'Monitoring', urdu: 'نگرانی', desc: 'We monitor reviews and complaints. Any fraud results in immediate suspension.', icon: '👁️' },
+                { step: '02', title: 'Verification', urdu: 'تصدیق',  desc: 'Our team cross-checks credentials against OEP, FBR and SECP government records.', icon: '🔍' },
+                { step: '03', title: 'Approval',     urdu: 'منظوری', desc: 'Verified consultants receive a green badge and can start listing their services.', icon: '✅' },
+                { step: '04', title: 'Monitoring',   urdu: 'نگرانی', desc: 'We monitor reviews and complaints. Any fraud results in immediate suspension.', icon: '👁️' },
               ].map((item, i) => (
                 <div key={item.step} className="relative">
                   <div className="bg-gray-50 rounded-2xl p-5 h-full">
@@ -212,7 +249,9 @@ export default function AboutPage() {
 
           {/* ── CTA ── */}
           <div className="text-center">
-            <h2 className="font-heading font-bold text-navy text-2xl mb-3">Ready to Start Your Visa Journey?</h2>
+            <h2 className="font-heading font-bold text-navy text-2xl mb-3">
+              Ready to Start Your Visa Journey?
+            </h2>
             <p className="font-urdu text-gold text-lg mb-6">اپنا ویزا سفر شروع کریں</p>
             <p className="font-body text-gray-500 text-sm mb-8 max-w-md mx-auto">
               Browse verified consultants, read reviews and connect with the right expert — all for free.

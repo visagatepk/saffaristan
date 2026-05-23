@@ -126,50 +126,36 @@ const FAQS: FaqSection[] = [
 ]
 
 function AccordionItem({
-  q,
-  a,
-  isOpen,
-  onToggle,
+  q, a, isOpen, onToggle,
 }: {
-  q: string
-  a: string
-  isOpen: boolean
-  onToggle: () => void
+  q: string; a: string; isOpen: boolean; onToggle: () => void
 }) {
   return (
-    <div
-      className={[
-        'border rounded-xl overflow-hidden transition-all duration-200',
-        isOpen ? 'border-[#1B3060]/20 shadow-sm' : 'border-gray-100',
-      ].join(' ')}
-    >
+    <div className={[
+      'border rounded-xl overflow-hidden transition-all duration-200',
+      isOpen ? 'border-[#1B3060]/20 shadow-sm' : 'border-gray-100',
+    ].join(' ')}>
       <button
         onClick={onToggle}
         className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left bg-white hover:bg-gray-50 transition-colors"
       >
-        <span
-          className={[
-            'text-sm font-semibold leading-snug transition-colors',
-            isOpen ? 'text-[#1B3060]' : 'text-gray-800',
-          ].join(' ')}
-        >
+        <span className={[
+          'text-sm font-semibold leading-snug transition-colors',
+          isOpen ? 'text-[#1B3060]' : 'text-gray-800',
+        ].join(' ')}>
           {q}
         </span>
-        <div
-          className={[
-            'w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-all duration-300',
-            isOpen ? 'bg-[#1B3060] rotate-180' : 'bg-gray-100',
-          ].join(' ')}
-        >
+        <div className={[
+          'w-6 h-6 rounded-full flex items-center justify-center shrink-0 mt-0.5 transition-all duration-300',
+          isOpen ? 'bg-[#1B3060] rotate-180' : 'bg-gray-100',
+        ].join(' ')}>
           <ChevronDown size={13} className={isOpen ? 'text-white' : 'text-gray-500'} />
         </div>
       </button>
-      <div
-        className={[
-          'overflow-hidden transition-all duration-300',
-          isOpen ? 'max-h-96' : 'max-h-0',
-        ].join(' ')}
-      >
+      <div className={[
+        'overflow-hidden transition-all duration-300',
+        isOpen ? 'max-h-96' : 'max-h-0',
+      ].join(' ')}>
         <div className="px-5 pb-5 bg-white">
           <div className="h-px bg-gray-100 mb-4" />
           <p className="text-sm text-gray-600 leading-relaxed">{a}</p>
@@ -181,47 +167,64 @@ function AccordionItem({
 
 export default function FaqsClient() {
   const [openItem, setOpenItem] = useState<string | null>('0-0')
-
-  const toggle = (key: string) => {
-    setOpenItem((prev) => (prev === key ? null : key))
-  }
+  const toggle = (key: string) => setOpenItem(prev => prev === key ? null : key)
 
   return (
     <div className="min-h-screen bg-[#F5F6FA]">
       <Navbar />
 
-      <div className="bg-[#1B3060] py-14 px-6 relative overflow-hidden">
+      {/* ══════════════════════════════════════════════════════════════════
+          HERO — site-wide pattern: navy + white grid lines + gold glow
+          pt-[calc(64px+2.5rem)] clears the fixed navbar
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="bg-navy relative overflow-hidden pt-[calc(64px+2.5rem)] pb-12 px-6">
+
+        {/* Layer 1 — white grid lines at 4% opacity */}
         <div
-          className="absolute inset-0 opacity-[0.04]"
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
           style={{
-            backgroundImage: 'radial-gradient(circle, #C9A227 1px, transparent 1px)',
-            backgroundSize: '28px 28px',
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+              'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
           }}
         />
+
+        {/* Layer 2 — gold glow top-right */}
         <div
-          className="absolute top-0 right-0 w-96 h-96 opacity-10 pointer-events-none"
+          className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
           style={{
             background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
             transform: 'translate(30%, -30%)',
           }}
         />
+
+        {/* Hero content */}
         <div className="relative max-w-3xl mx-auto text-center">
+          {/* Icon */}
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 mb-5">
-            <HelpCircle size={28} className="text-[#C9A227]" />
+            <HelpCircle size={28} className="text-gold" />
           </div>
-          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-2">
-            Frequently Asked Questions
+
+          {/* H1 */}
+          <h1 className="font-heading font-extrabold text-white text-4xl lg:text-5xl mb-3 leading-tight">
+            Frequently Asked <span className="text-gold">Questions</span>
           </h1>
-          <p className="font-urdu text-[#C9A227]/80 text-lg mb-3">
+
+          {/* Urdu subtitle */}
+          <p className="font-urdu text-gold/80 text-xl mb-4">
             اکثر پوچھے جانے والے سوالات
           </p>
-          <p className="text-white/60 text-sm max-w-xl mx-auto">
+
+          {/* Description */}
+          <p className="font-body text-white/60 text-base max-w-xl mx-auto">
             Everything you need to know about using VisaGate.pk — finding consultants,
             booking appointments, staying safe and more.
           </p>
         </div>
       </div>
 
+      {/* ── FAQ content ── */}
       <div className="max-w-3xl mx-auto px-4 py-12">
         {FAQS.map((section, si) => (
           <div key={si} className="mb-10">
@@ -245,35 +248,47 @@ export default function FaqsClient() {
           </div>
         ))}
 
-        <div className="bg-[#1B3060] rounded-2xl p-8 text-center mt-4">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 mb-4">
-            <MessageCircle size={22} className="text-[#C9A227]" />
-          </div>
-          <h3 className="font-heading font-bold text-white text-xl mb-2">
-            Still have questions?
-          </h3>
-          <p className="text-white/60 text-sm mb-6 max-w-sm mx-auto">
-            Our team is here to help. Reach out via WhatsApp or send us a message
-            and we will get back to you within 24 hours.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            
-              <a href="https://wa.me/923149354655"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-[#1fb855] transition"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-              </svg>
-              Chat on WhatsApp
-            </a>
-            <Link
-              href="/contact"
-              className="inline-flex items-center justify-center gap-2 bg-white/10 text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/20 transition border border-white/20"
-            >
-              Send a Message
-            </Link>
+        {/* Bottom CTA */}
+        <div className="bg-navy rounded-2xl p-8 text-center mt-4 relative overflow-hidden">
+          <div
+            className="absolute inset-0 opacity-[0.04] pointer-events-none"
+            style={{
+              backgroundImage:
+                'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+                'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+              backgroundSize: '32px 32px',
+            }}
+          />
+          <div className="relative">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-white/10 mb-4">
+              <MessageCircle size={22} className="text-gold" />
+            </div>
+            <h3 className="font-heading font-bold text-white text-xl mb-2">
+              Still have questions?
+            </h3>
+            <p className="font-body text-white/60 text-sm mb-6 max-w-sm mx-auto">
+              Our team is here to help. Reach out via WhatsApp or send us a message
+              and we will get back to you within 24 hours.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <a
+                href="https://wa.me/923149354655"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-[#1fb855] transition"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                </svg>
+                Chat on WhatsApp
+              </a>
+              <Link
+                href="/contact"
+                className="inline-flex items-center justify-center gap-2 bg-white/10 text-white text-sm font-bold px-6 py-3 rounded-xl hover:bg-white/20 transition border border-white/20"
+              >
+                Send a Message
+              </Link>
+            </div>
           </div>
         </div>
       </div>

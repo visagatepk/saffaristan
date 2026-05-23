@@ -12,13 +12,31 @@ export default function PrivacyPolicy() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
-      {/* Hero */}
-      <div className="bg-navy relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)', backgroundSize: '32px 32px' }} />
-        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 py-14 text-center">
-          <h1 className="font-heading font-extrabold text-white text-3xl lg:text-4xl mb-3">
-            Privacy Policy
+      {/* ══════════════════════════════════════════════════════════════════
+          HERO — grid pattern already correct.
+          FIX: py-14 → pt-[calc(64px+2.5rem)] pb-12
+      ══════════════════════════════════════════════════════════════════ */}
+      <div className="bg-navy relative overflow-hidden pt-[calc(64px+2.5rem)] pb-12">
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+              'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
+          }}
+        />
+        {/* Gold glow — top-right (was missing on this page, adding for consistency) */}
+        <div
+          className="absolute top-0 right-0 w-96 h-96 rounded-full opacity-10 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
+            transform: 'translate(20%, -20%)',
+          }}
+        />
+        <div className="relative max-w-4xl mx-auto px-6 lg:px-8 text-center">
+          <h1 className="font-heading font-extrabold text-white text-4xl lg:text-5xl mb-3 leading-tight">
+            Privacy <span className="text-gold">Policy</span>
           </h1>
           <p className="font-urdu text-gold/80 text-xl mb-4">رازداری کی پالیسی</p>
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs font-body text-white/50">
@@ -40,12 +58,14 @@ export default function PrivacyPolicy() {
 
       <div className="max-w-4xl mx-auto px-6 lg:px-8 py-12">
 
-        {/* Language tabs indicator */}
+        {/* Language tabs */}
         <div className="flex items-center gap-3 mb-8">
-          <a href="#english" className="font-heading font-bold text-sm text-white bg-navy px-4 py-2 rounded-xl">
+          <a href="#english"
+            className="font-heading font-bold text-sm text-white bg-navy px-4 py-2 rounded-xl">
             English
           </a>
-          <a href="#urdu" className="font-heading font-bold text-sm text-navy border border-navy px-4 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
+          <a href="#urdu"
+            className="font-heading font-bold text-sm text-navy border border-navy px-4 py-2 rounded-xl hover:bg-navy hover:text-white transition-colors">
             اردو
           </a>
         </div>
@@ -124,20 +144,18 @@ export default function PrivacyPolicy() {
                 num: '3',
                 title: 'Who We Share Your Data With',
                 content: (
-                  <div className="space-y-3">
-                    <div className="grid sm:grid-cols-2 gap-3">
-                      {[
-                        { who: 'Other Users', why: 'When you contact a consultant, basic profile info is shared with them.' },
-                        { who: 'Service Providers', why: 'We work with trusted third-party service providers to operate and maintain our platform. These providers are contractually obligated to protect your data and use it only for specified purposes.' },
-                        { who: 'Legal Authorities', why: 'Only if required by Pakistani law, court order, or PECA 2016.' },
-                        { who: 'Fraud Prevention', why: 'Relevant information may be shared with authorities if scams are detected.' },
-                      ].map(item => (
-                        <div key={item.who} className="bg-gray-50 rounded-xl p-4">
-                          <p className="font-semibold text-navy text-sm mb-1">{item.who}</p>
-                          <p className="text-xs text-gray-500">{item.why}</p>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {[
+                      { who: 'Other Users',       why: 'When you contact a consultant, basic profile info is shared with them.' },
+                      { who: 'Service Providers', why: 'Trusted third-party providers who operate and maintain our platform. Contractually obligated to protect your data.' },
+                      { who: 'Legal Authorities', why: 'Only if required by Pakistani law, court order, or PECA 2016.' },
+                      { who: 'Fraud Prevention',  why: 'Relevant information may be shared with authorities if scams are detected.' },
+                    ].map(item => (
+                      <div key={item.who} className="bg-gray-50 rounded-xl p-4">
+                        <p className="font-semibold text-navy text-sm mb-1">{item.who}</p>
+                        <p className="text-xs text-gray-500">{item.why}</p>
+                      </div>
+                    ))}
                   </div>
                 )
               },
@@ -147,10 +165,10 @@ export default function PrivacyPolicy() {
                 content: (
                   <div className="space-y-2">
                     {[
-                      { right: 'Right to Access', desc: 'Request a copy of all data we hold about you. We respond within 30 days.' },
-                      { right: 'Right to Correction', desc: 'Update incorrect information like your phone number or city.' },
-                      { right: 'Right to Erasure', desc: 'Delete your account. Records removed within 14 days. (Financial logs kept for legal compliance.)' },
-                      { right: 'Right to Withdraw Consent', desc: 'Turn off notifications or data permissions anytime via your settings.' },
+                      { right: 'Right to Access',            desc: 'Request a copy of all data we hold about you. We respond within 30 days.' },
+                      { right: 'Right to Correction',        desc: 'Update incorrect information like your phone number or city.' },
+                      { right: 'Right to Erasure',           desc: 'Delete your account. Records removed within 14 days. (Financial logs kept for legal compliance.)' },
+                      { right: 'Right to Withdraw Consent',  desc: 'Turn off notifications or data permissions anytime via your settings.' },
                     ].map(item => (
                       <div key={item.right} className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
                         <span className="font-heading font-bold text-gold text-xs shrink-0 mt-0.5">→</span>
@@ -162,7 +180,10 @@ export default function PrivacyPolicy() {
                     ))}
                     <div className="bg-navy-light rounded-xl p-4 mt-3">
                       <p className="font-semibold text-navy text-sm">To exercise your rights:</p>
-                      <p className="text-xs text-gray-600 mt-1">Email <span className="font-semibold">info@visagate.pk</span> with subject: <em>"Data Subject Request"</em></p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Email <span className="font-semibold">info@visagate.pk</span> with subject:{' '}
+                        <em>"Data Subject Request"</em>
+                      </p>
                     </div>
                   </div>
                 )
@@ -173,8 +194,8 @@ export default function PrivacyPolicy() {
                 content: (
                   <div className="grid sm:grid-cols-3 gap-3">
                     {[
-                      { title: 'Encryption', desc: 'AES-256 at rest · TLS 1.2+ in transit' },
-                      { title: 'Access Control', desc: 'Role-based access · MFA for all admin staff' },
+                      { title: 'Encryption',      desc: 'AES-256 at rest · TLS 1.2+ in transit' },
+                      { title: 'Access Control',  desc: 'Role-based access · MFA for all admin staff' },
                       { title: 'Breach Response', desc: 'Users notified within 72 hours of any breach' },
                     ].map(item => (
                       <div key={item.title} className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
@@ -187,7 +208,7 @@ export default function PrivacyPolicy() {
               },
               {
                 num: '6',
-                title: 'Children\'s Privacy',
+                title: "Children's Privacy",
                 content: <p>Our services are strictly for individuals aged <strong className="text-navy">18 and above</strong>. We do not knowingly collect data from minors. If discovered, such data is deleted immediately.</p>
               },
               {
@@ -203,9 +224,9 @@ export default function PrivacyPolicy() {
                     <div className="grid sm:grid-cols-2 gap-4 text-sm">
                       {[
                         { label: 'Parent Company', value: 'Defaste (Pvt) Ltd' },
-                        { label: 'NTN', value: 'I4****71-1' },
-                        { label: 'Email', value: 'info@visagate.pk' },
-                        { label: 'Website', value: 'www.visagate.pk' },
+                        { label: 'NTN',            value: 'I4****71-1' },
+                        { label: 'Email',          value: 'info@visagate.pk' },
+                        { label: 'Website',        value: 'www.visagate.pk' },
                       ].map(item => (
                         <div key={item.label}>
                           <p className="text-white/50 text-xs">{item.label}</p>
@@ -287,7 +308,9 @@ export default function PrivacyPolicy() {
                     <li>• <strong>اصلاح کا حق:</strong> غلط معلومات کو درست کروا سکتے ہیں</li>
                     <li>• <strong>حذف کا حق:</strong> اکاؤنٹ 14 دنوں میں ختم کیا جائے گا</li>
                     <li>• <strong>رضامندی واپس لینے کا حق:</strong> کسی بھی وقت نوٹیفیکیشن بند کر سکتے ہیں</li>
-                    <li className="bg-navy-light rounded-xl p-3 mt-2">اپنے حقوق کے لیے ای میل کریں: <strong className="text-navy">info@visagate.pk</strong></li>
+                    <li className="bg-navy-light rounded-xl p-3 mt-2">
+                      اپنے حقوق کے لیے ای میل کریں: <strong className="text-navy">info@visagate.pk</strong>
+                    </li>
                   </ul>
                 )
               },
@@ -297,8 +320,8 @@ export default function PrivacyPolicy() {
                 content: (
                   <div className="grid sm:grid-cols-3 gap-3">
                     {[
-                      { title: '🔒 انکرپشن', desc: 'ڈیٹا محفوظ طریقے سے انکرپٹ کیا جاتا ہے' },
-                      { title: '👤 رسائی کنٹرول', desc: 'صرف مجاز عملہ ڈیٹا تک رسائی حاصل کر سکتا ہے' },
+                      { title: '🔒 انکرپشن',       desc: 'ڈیٹا محفوظ طریقے سے انکرپٹ کیا جاتا ہے' },
+                      { title: '👤 رسائی کنٹرول',  desc: 'صرف مجاز عملہ ڈیٹا تک رسائی حاصل کر سکتا ہے' },
                       { title: '⚡ خلاف ورزی کا جواب', desc: '72 گھنٹوں میں صارفین کو مطلع کیا جائے گا' },
                     ].map(item => (
                       <div key={item.title} className="bg-green-50 border border-green-200 rounded-xl p-4 text-center">
@@ -321,9 +344,9 @@ export default function PrivacyPolicy() {
                   <div className="bg-navy rounded-2xl p-5 text-white">
                     <div className="grid sm:grid-cols-2 gap-3 text-sm">
                       {[
-                        { label: 'کمپنی', value: 'Defaste (Pvt) Ltd' },
-                        { label: 'NTN', value: 'I4****71-1' },
-                        { label: 'ای میل', value: 'info@visagate.pk' },
+                        { label: 'کمپنی',    value: 'Defaste (Pvt) Ltd' },
+                        { label: 'NTN',      value: 'I4****71-1' },
+                        { label: 'ای میل',  value: 'info@visagate.pk' },
                         { label: 'ویب سائٹ', value: 'www.visagate.pk' },
                       ].map(item => (
                         <div key={item.label}>
