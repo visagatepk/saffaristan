@@ -35,6 +35,19 @@ export default function Navbar() {
   const userMenuRef = useRef<HTMLDivElement>(null)
   const signupMenuRef = useRef<HTMLDivElement>(null)
 
+  // Supabase storage base URL — used to construct full avatar URLs
+  // avatar_url is stored as a relative path e.g. "avatars/photo.jpg"
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+
+  // avatar_url is stored as a UUID path e.g. "9ae720bc-.../avatar.jpeg"
+  // Must prepend the full Supabase storage URL + bucket name "avatars/"
+  // Matches the same pattern used in ConsultantsClient.tsx
+  const getAvatarUrl = (avatarPath: string | null | undefined): string | null => {
+    if (!avatarPath) return null
+    if (avatarPath.startsWith('http')) return avatarPath // already full URL
+    return `${supabaseUrl}/storage/v1/object/public/avatars/${avatarPath}`
+  }
+
   // ── Scroll listener ──────────────────────────────────────────────────────
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10)
@@ -64,8 +77,8 @@ export default function Navbar() {
       try {
         const { data } = await supabase
           .from('profiles')
-          .select('full_name, avatar_url, role')
-          .eq('id', userId)
+          .select('full_name, display_name, avatar_url, role')
+          .eq('user_id', userId)   // profiles.user_id = auth.users.id (not profiles.id)
           .single()
         setProfile(data)
       } catch {
@@ -186,20 +199,21 @@ export default function Navbar() {
                   onClick={() => setShowUserMenu(!showUserMenu)}
                   className="flex items-center gap-2 p-1.5 rounded-full hover:bg-gray-100 transition-colors"
                 >
-                  {profile?.avatar_url ? (
+                  {getAvatarUrl(profile?.avatar_url) ? (
                     <Image
-                      src={profile.avatar_url}
-                      alt={profile?.full_name || 'User'}
+                      src={getAvatarUrl(profile.avatar_url)!}
+                      alt={profile?.full_name || profile?.display_name || 'User'}
                       width={34}
                       height={34}
                       className="rounded-full object-cover border-2 border-[#1B3060]"
                     />
                   ) : (
-                    // Show initials from full_name or email — not a generic icon
+                    // Show initials from full_name, display_name, or email
                     <div className="w-[34px] h-[34px] rounded-full bg-[#1B3060] flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs font-bold">
                         {(
                           profile?.full_name?.[0] ||
+                          profile?.display_name?.[0] ||
                           user?.email?.[0] ||
                           'U'
                         ).toUpperCase()}
@@ -207,8 +221,9 @@ export default function Navbar() {
                     </div>
                   )}
                   <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">
-                    {/* Show first name, fall back to email username, then 'Account' */}
+                    {/* Priority: full_name → display_name → email username */}
                     {profile?.full_name?.split(' ')[0] ||
+                      profile?.display_name?.split(' ')[0] ||
                       user?.email?.split('@')[0] ||
                       'Account'}
                   </span>
@@ -220,7 +235,7 @@ export default function Navbar() {
                     <div className="px-4 py-2 border-b border-gray-100">
                       <p className="text-xs text-gray-500">Signed in as</p>
                       <p className="text-sm font-semibold text-[#1B3060] truncate">
-                        {profile?.full_name || user.email}
+                        {profile?.full_name || profile?.display_name || user.email}
                       </p>
                     </div>
                     <Link href={getDashboardLink()} onClick={() => setShowUserMenu(false)}
