@@ -181,7 +181,7 @@ export default function FaqsClient() {
 
         {/* Layer 1 — white grid lines at 4% opacity */}
         <div
-          className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          className="absolcleaute inset-0 opacity-[0.04] pointer-events-none"
           style={{
             backgroundImage:
               'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
