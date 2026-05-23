@@ -9,7 +9,10 @@ import {
   BarChart2, Zap, Clock, BadgeCheck
 } from 'lucide-react'
 
-// ── Animated counter ──────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Animated counter — FC-01 fixed: started.current flag ensures animation
+// only runs once per page load, not on every scroll past the section.
+// ─────────────────────────────────────────────────────────────────────────────
 function Counter({ end, suffix = '', duration = 2000 }: { end: number; suffix?: string; duration?: number }) {
   const [count, setCount] = useState(0)
   const ref = useRef<HTMLSpanElement>(null)
@@ -38,7 +41,9 @@ function Counter({ end, suffix = '', duration = 2000 }: { end: number; suffix?: 
   return <span ref={ref}>{count.toLocaleString()}{suffix}</span>
 }
 
-// ── FAQ Item ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// FAQ Item
+// ─────────────────────────────────────────────────────────────────────────────
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
   return (
@@ -62,65 +67,107 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   )
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Page
+// ─────────────────────────────────────────────────────────────────────────────
 export default function ForConsultantsClient() {
   return (
     <main className="bg-white">
-
       <Navbar />
 
-      {/* ── HERO ──────────────────────────────────────────────────────── */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden bg-[#0f1f45]">
-        <div className="absolute inset-0 opacity-10"
+      {/* ══════════════════════════════════════════════════════════════════════
+          HERO
+          Design: navy bg + white grid lines + gold corner glow — matches all
+          other pages on the site (/consultants, /insights, /visa-categories)
+          FC-01: counter animation fixed (started.current flag above)
+          FC-04: badge pill uses bg-white/10 border-white/25 — proper contrast
+          FC-05: Urdu subtitle added below h1
+          FC-03: profile card given fixed w-[340px] to prevent text overflow
+      ══════════════════════════════════════════════════════════════════════ */}
+      <section className="bg-[#1B3060] relative overflow-hidden pt-[calc(64px+2.5rem)] pb-0">
+
+        {/* Layer 1 — white grid lines at 4% opacity (site standard) */}
+        <div
+          className="absolute inset-0 opacity-[0.04] pointer-events-none"
           style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, #C9A227 1px, transparent 0)`,
-            backgroundSize: '48px 48px'
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+              'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+            backgroundSize: '32px 32px',
           }}
         />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-10"
-          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(30%, -30%)' }}
-        />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-5"
-          style={{ background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)', transform: 'translate(-30%, 30%)' }}
+
+        {/* Layer 2 — gold glow top-right */}
+        <div
+          className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full opacity-10 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
+            transform: 'translate(30%, -30%)',
+          }}
         />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 grid lg:grid-cols-2 gap-16 items-center">
+        {/* Layer 3 — subtle gold glow bottom-left */}
+        <div
+          className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-5 pointer-events-none"
+          style={{
+            background: 'radial-gradient(circle, #C9A227 0%, transparent 70%)',
+            transform: 'translate(-30%, 30%)',
+          }}
+        />
+
+        {/* Hero content */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 grid lg:grid-cols-2 gap-16 items-center">
+
+          {/* Left — copy */}
           <div>
-            <div className="inline-flex items-center gap-2 bg-[#C9A227]/20 border border-[#C9A227]/30 text-[#C9A227] text-sm font-semibold px-4 py-2 rounded-full mb-8">
-              <Zap size={14} />
+            {/* [FC-04] Badge pill — was dark outlined on dark bg, barely readable.
+                Now uses frosted glass style matching /visa-categories reference. */}
+            <div className="inline-flex items-center gap-2 bg-white/10 border border-white/25 text-white text-sm font-semibold px-4 py-2 rounded-full mb-8">
+              <Zap size={14} className="text-[#C9A227]" />
               Pakistan's #1 Visa Consultant Platform
             </div>
-            <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
+
+            <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight mb-4">
               Grow Your Visa <br />
               <span className="text-[#C9A227]">Consultancy</span> <br />
               Business Online
             </h1>
-            <p className="text-lg text-blue-100 leading-relaxed mb-10 max-w-lg">
-              Join thousands of verified visa consultants on VisaGate.pk — Pakistan's first trusted platform connecting you with genuine clients actively seeking visa guidance.
+
+            {/* [FC-05] Urdu subtitle — was missing on this page */}
+            <p className="font-urdu text-[#C9A227]/80 text-xl mb-5">
+              اپنا ویزا کاروبار آن لائن بڑھائیں
             </p>
+
+            <p className="text-lg text-blue-100 leading-relaxed mb-10 max-w-lg">
+              Join thousands of verified visa consultants on VisaGate.pk — Pakistan's first
+              trusted platform connecting you with genuine clients actively seeking visa guidance.
+            </p>
+
             <div className="flex flex-wrap gap-4">
               <Link
                 href="/register/consultant"
-                className="inline-flex items-center gap-2 bg-[#C9A227] text-[#0f1f45] font-bold px-8 py-4 rounded-2xl hover:bg-[#b8911f] transition-all duration-200 shadow-lg shadow-[#C9A227]/30 text-lg"
+                className="inline-flex items-center gap-2 bg-[#C9A227] text-[#1B3060] font-bold px-8 py-4 rounded-2xl hover:bg-[#b8911f] transition-all duration-200 shadow-lg shadow-[#C9A227]/30 text-lg"
               >
-                Join Free Today
-                <ArrowRight size={20} />
+                Join Free Today <ArrowRight size={20} />
               </Link>
               <Link
                 href="/consultants"
-                className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/20 transition-all duration-200 border border-white/20 text-lg"
+                className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-8 py-4 rounded-2xl hover:bg-white/20 transition-all duration-200 border border-white/30 text-lg"
               >
                 See Live Profiles
               </Link>
             </div>
+
             <p className="text-blue-200 text-sm mt-6">
               ✓ Free to join &nbsp;&nbsp; ✓ No commission taken &nbsp;&nbsp; ✓ Verified badge included
             </p>
           </div>
 
-          {/* Right — Profile card mockup */}
+          {/* Right — Profile card mockup
+              [FC-03] Fixed w-[340px] prevents "4.9 (47 revie" text overflow */}
           <div className="hidden lg:flex justify-center">
             <div className="relative">
-              <div className="bg-white rounded-3xl shadow-2xl p-6 w-80">
+              <div className="bg-white rounded-3xl shadow-2xl p-6 w-[340px]">
                 <div className="h-24 rounded-2xl mb-12 relative" style={{ background: 'linear-gradient(135deg, #1B3060, #2d4a8a)' }}>
                   <div className="absolute -bottom-8 left-6 w-16 h-16 rounded-2xl bg-[#C9A227] flex items-center justify-center shadow-lg">
                     <Briefcase size={28} className="text-white" />
@@ -130,6 +177,7 @@ export default function ForConsultantsClient() {
                     Verified
                   </div>
                 </div>
+
                 <div className="mb-4">
                   <h3 className="font-bold text-[#1B3060] text-lg">Ahmed Consultant</h3>
                   <p className="text-gray-500 text-sm">Immigration Specialist · Lahore</p>
@@ -137,16 +185,19 @@ export default function ForConsultantsClient() {
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} size={13} className="fill-[#C9A227] text-[#C9A227]" />
                     ))}
-                    <span className="text-xs text-gray-500 ml-1">4.9 (47 reviews)</span>
+                    {/* [FC-03] Fixed: was "4.9 (47 revie" — now wraps correctly */}
+                    <span className="text-xs text-gray-500 ml-1 whitespace-nowrap">4.9 (47 reviews)</span>
                   </div>
                 </div>
+
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   {['UK Visa', 'Canada', 'Schengen'].map(tag => (
-                    <span key={tag} className="bg-blue-50 text-[#1B3060] text-xs font-medium px-2 py-1 rounded-lg text-center">
+                    <span key={tag} className="bg-blue-50 text-[#1B3060] text-xs font-medium px-2 py-1 rounded-lg text-center truncate">
                       {tag}
                     </span>
                   ))}
                 </div>
+
                 <div className="border-t border-gray-100 pt-4 grid grid-cols-3 text-center gap-2">
                   <div>
                     <div className="font-bold text-[#1B3060] text-lg">142</div>
@@ -163,6 +214,7 @@ export default function ForConsultantsClient() {
                 </div>
               </div>
 
+              {/* Floating badges */}
               <div className="absolute -left-14 top-16 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                   <Users size={15} className="text-green-600" />
@@ -172,6 +224,7 @@ export default function ForConsultantsClient() {
                   <div className="text-sm font-bold text-[#1B3060]">Just now</div>
                 </div>
               </div>
+
               <div className="absolute -right-10 bottom-24 bg-white rounded-2xl shadow-xl px-4 py-3 flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-[#C9A227]/20 flex items-center justify-center">
                   <TrendingUp size={15} className="text-[#C9A227]" />
@@ -185,22 +238,23 @@ export default function ForConsultantsClient() {
           </div>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+        {/* Wave transition to white stats section */}
+        <div className="relative">
+          <svg viewBox="0 0 1440 60" fill="none" xmlns="http://www.w3.org/2000/svg" className="block">
             <path d="M0 60L1440 60L1440 0C1440 0 1080 60 720 60C360 60 0 0 0 0L0 60Z" fill="white" />
           </svg>
         </div>
       </section>
 
-      {/* ── STATS ──────────────────────────────────────────────────────── */}
+      {/* ── STATS ── */}
       <section className="py-16 bg-white">
         <div className="max-w-5xl mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
               { value: 200000, suffix: '+', label: 'Active Seekers' },
-              { value: 300, suffix: '+', label: 'Verified Consultants' },
-              { value: 20, suffix: '+', label: 'Visa Categories' },
-              { value: 98, suffix: '%', label: 'Satisfaction Rate' },
+              { value: 300,    suffix: '+', label: 'Verified Consultants' },
+              { value: 20,     suffix: '+', label: 'Visa Categories' },
+              { value: 98,     suffix: '%', label: 'Satisfaction Rate' },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <div className="text-4xl font-bold text-[#1B3060] mb-1">
@@ -213,7 +267,7 @@ export default function ForConsultantsClient() {
         </div>
       </section>
 
-      {/* ── WHY VISAGATE ──────────────────────────────────────────────── */}
+      {/* ── WHY VISAGATE ── */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -224,21 +278,26 @@ export default function ForConsultantsClient() {
               Everything You Need to <span className="text-[#C9A227]">Succeed</span>
             </h2>
             <p className="text-gray-500 max-w-xl mx-auto">
-              We built VisaGate specifically for Pakistani visa consultants — with tools, visibility, and trust-building features you won't find anywhere else.
+              We built VisaGate specifically for Pakistani visa consultants — with tools,
+              visibility, and trust-building features you won't find anywhere else.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
-              { icon: <BadgeCheck size={24} />, title: 'Official Verification Badge', desc: 'Get verified with your OEP license and SECP registration. Clients trust verified consultants 3x more.', color: 'blue' },
-              { icon: <Globe size={24} />, title: 'Pakistan-Wide Visibility', desc: 'Your profile is visible to thousands of visa seekers searching from Karachi to Peshawar and everywhere in between.', color: 'gold' },
-              { icon: <MessageSquare size={24} />, title: 'Real-Time Messaging', desc: 'Communicate directly with clients through our built-in messaging system. No third-party apps needed.', color: 'blue' },
-              { icon: <Calendar size={24} />, title: 'Appointment Management', desc: 'Accept or decline appointment requests from your dashboard. Full control over your schedule.', color: 'gold' },
-              { icon: <BarChart2 size={24} />, title: 'Profile Analytics', desc: 'See how many people viewed your profile, which services are most popular, and track your growth.', color: 'blue' },
-              { icon: <Shield size={24} />, title: 'Zero Commission', desc: 'We never take a cut from your earnings. Payments go directly between you and your client — always.', color: 'gold' },
+              { icon: <BadgeCheck size={24} />, title: 'Official Verification Badge',   desc: 'Get verified with your OEP license and SECP registration. Clients trust verified consultants 3x more.', color: 'blue' },
+              { icon: <Globe size={24} />,       title: 'Pakistan-Wide Visibility',      desc: 'Your profile is visible to thousands of visa seekers searching from Karachi to Peshawar and everywhere in between.', color: 'gold' },
+              { icon: <MessageSquare size={24} />, title: 'Real-Time Messaging',         desc: 'Communicate directly with clients through our built-in messaging system. No third-party apps needed.', color: 'blue' },
+              { icon: <Calendar size={24} />,    title: 'Appointment Management',        desc: 'Accept or decline appointment requests from your dashboard. Full control over your schedule.', color: 'gold' },
+              { icon: <BarChart2 size={24} />,   title: 'Profile Analytics',             desc: 'See how many people viewed your profile, which services are most popular, and track your growth.', color: 'blue' },
+              { icon: <Shield size={24} />,      title: 'Zero Commission',               desc: 'We never take a cut from your earnings. Payments go directly between you and your client — always.', color: 'gold' },
             ].map((feature, i) => (
               <div key={i} className="bg-white rounded-3xl p-7 shadow-sm hover:shadow-md transition-shadow border border-gray-100">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-5 ${feature.color === 'gold' ? 'bg-[#C9A227]/15 text-[#C9A227]' : 'bg-[#1B3060]/10 text-[#1B3060]'}`}>
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-5 ${
+                  feature.color === 'gold'
+                    ? 'bg-[#C9A227]/15 text-[#C9A227]'
+                    : 'bg-[#1B3060]/10 text-[#1B3060]'
+                }`}>
                   {feature.icon}
                 </div>
                 <h3 className="font-bold text-[#1B3060] text-lg mb-2">{feature.title}</h3>
@@ -249,7 +308,7 @@ export default function ForConsultantsClient() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ─────────────────────────────────────────────── */}
+      {/* ── HOW IT WORKS ── */}
       <section className="py-24 bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-16">
@@ -266,9 +325,9 @@ export default function ForConsultantsClient() {
             <div className="hidden md:block absolute top-16 left-[16.66%] right-[16.66%] h-0.5 bg-gradient-to-r from-[#1B3060] via-[#C9A227] to-[#1B3060] opacity-20" />
             <div className="grid md:grid-cols-3 gap-10">
               {[
-                { step: '01', icon: <Briefcase size={28} />, title: 'Create Your Profile', desc: 'Sign up and complete your consultant profile with your specializations, experience, and services.', time: '5 minutes' },
-                { step: '02', icon: <BadgeCheck size={28} />, title: 'Get Verified', desc: 'Submit your OEP license number and SECP registration. Our team verifies and adds your official badge.', time: '24-48 hours' },
-                { step: '03', icon: <Users size={28} />, title: 'Start Getting Clients', desc: 'Your profile goes live and clients start finding you. Respond to inquiries and grow your business.', time: 'Immediately' },
+                { step: '01', icon: <Briefcase size={28} />, title: 'Create Your Profile',    desc: 'Sign up and complete your consultant profile with your specializations, experience, and services.', time: '5 minutes' },
+                { step: '02', icon: <BadgeCheck size={28} />, title: 'Get Verified',           desc: 'Submit your OEP license number and SECP registration. Our team verifies and adds your official badge.', time: '24-48 hours' },
+                { step: '03', icon: <Users size={28} />,       title: 'Start Getting Clients', desc: 'Your profile goes live and clients start finding you. Respond to inquiries and grow your business.', time: 'Immediately' },
               ].map((step, i) => (
                 <div key={i} className="text-center">
                   <div className="relative inline-flex mb-6">
@@ -282,8 +341,7 @@ export default function ForConsultantsClient() {
                   <h3 className="font-bold text-[#1B3060] text-xl mb-3">{step.title}</h3>
                   <p className="text-gray-500 text-sm leading-relaxed mb-3">{step.desc}</p>
                   <div className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-xs font-semibold px-3 py-1.5 rounded-full">
-                    <Clock size={12} />
-                    {step.time}
+                    <Clock size={12} /> {step.time}
                   </div>
                 </div>
               ))}
@@ -292,7 +350,7 @@ export default function ForConsultantsClient() {
         </div>
       </section>
 
-      {/* ── SERVICES SHOWCASE ─────────────────────────────────────────── */}
+      {/* ── SERVICES SHOWCASE ── */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -304,7 +362,9 @@ export default function ForConsultantsClient() {
                 Showcase Your <span className="text-[#C9A227]">Services</span> Like a Pro
               </h2>
               <p className="text-gray-500 leading-relaxed mb-8">
-                Create beautiful service listings for each visa type you offer. Add pricing, turnaround time, and what's included — just like Fiverr, but built specifically for Pakistani visa consultants.
+                Create beautiful service listings for each visa type you offer. Add pricing,
+                turnaround time, and what's included — Built specifically
+                for Pakistani visa consultants and Immigration lawyers.
               </p>
               <div className="space-y-4">
                 {[
@@ -328,9 +388,9 @@ export default function ForConsultantsClient() {
 
             <div className="space-y-4">
               {[
-                { title: 'UK Student Visa Consultation', price: 'PKR 8,000', tag: 'Most Popular', days: '7-10 days' },
-                { title: 'Canada PR Assessment', price: 'PKR 15,000', tag: 'Premium', days: '14-21 days' },
-                { title: 'Schengen Tourist Visa', price: 'PKR 5,500', tag: 'Quick Process', days: '5-7 days' },
+                { title: 'UK Student Visa Consultation', price: 'PKR 80,000',  tag: 'Most Popular',  days: '7-10 days' },
+                { title: 'Canada PR Assessment',         price: 'PKR 50,000', tag: 'Premium',        days: '14-21 days' },
+                { title: 'Schengen Tourist Visa',        price: 'PKR 60,000',  tag: 'Quick Process',  days: '5-7 days' },
               ].map((service, i) => (
                 <div key={i} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-shadow">
                   <div className="flex items-center gap-4">
@@ -356,7 +416,7 @@ export default function ForConsultantsClient() {
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ─────────────────────────────────────────────── */}
+      {/* ── TESTIMONIALS ── */}
       <section className="py-24 bg-[#1B3060]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
@@ -369,9 +429,9 @@ export default function ForConsultantsClient() {
 
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { name: 'Tariq Mahmood', city: 'Lahore', specialty: 'UK & Canada Visas', review: 'VisaGate completely transformed my consultancy. I went from 5 clients a month to over 30 within 3 months of joining. The verification badge gives clients instant trust.', rating: 5, clients: 142 },
-              { name: 'Nadia Ansari', city: 'Karachi', specialty: 'Schengen & Europe', review: 'The platform is incredibly easy to use. I set up my profile in 30 minutes and received my first inquiry the same evening. No commission taken — I keep everything I earn.', rating: 5, clients: 89 },
-              { name: 'Bilal Khan', city: 'Islamabad', specialty: 'Australia & New Zealand', review: 'As a newly registered consultant, getting clients was my biggest challenge. VisaGate solved that immediately. The messaging system makes communication professional and easy.', rating: 5, clients: 56 },
+              { name: 'Sakhawat Sayed', city: 'Lahore',     specialty: 'UK & Canada Visas',       review: 'VisaGate completely transformed my consultancy. I went from 5 clients a month to over 30 within 3 months of joining. The verification badge gives clients instant trust.', rating: 5, clients: 142 },
+              { name: 'worldwide tourism',  city: 'Karachi',    specialty: 'Schengen & Europe',        review: 'The platform is incredibly easy to use. I set up my profile in 30 minutes and received my first inquiry the same evening. No commission taken — I keep everything I earn.', rating: 5, clients: 89 },
+              { name: 'Khan Global Partners',    city: 'Islamabad',  specialty: 'Australia & New Zealand',  review: 'As a newly registered consultant, getting clients was my biggest challenge. VisaGate solved that immediately. The messaging system makes communication professional and easy.', rating: 5, clients: 56 },
             ].map((t, i) => (
               <div key={i} className="bg-white/10 backdrop-blur rounded-3xl p-7 border border-white/10">
                 <div className="flex items-center gap-1 mb-4">
@@ -401,7 +461,7 @@ export default function ForConsultantsClient() {
         </div>
       </section>
 
-      {/* ── PRICING ──────────────────────────────────────────────────── */}
+      {/* ── PRICING ── */}
       <section className="py-24 bg-white">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <div className="inline-block bg-green-50 text-green-700 text-sm font-semibold px-4 py-2 rounded-full mb-6">
@@ -411,17 +471,18 @@ export default function ForConsultantsClient() {
             Always <span className="text-[#C9A227]">Free</span> to Join
           </h2>
           <p className="text-gray-500 mb-12">
-            No signup fees, no monthly charges, no commission. VisaGate is completely free for consultants — now and always.
+            No signup fees, no monthly charges, no commission. VisaGate is completely free
+            for consultants — now and always.
           </p>
           <div className="bg-gradient-to-br from-[#1B3060] to-[#243d7a] rounded-3xl p-10 text-white shadow-2xl shadow-[#1B3060]/30">
             <div className="text-6xl font-bold text-[#C9A227] mb-2">PKR 0</div>
             <div className="text-blue-200 mb-8">Forever free for consultants</div>
             <div className="grid sm:grid-cols-2 gap-4 text-left mb-8">
               {[
-                'Verified consultant profile', 'Unlimited service listings',
-                'Real-time client messaging', 'Appointment management',
-                'Profile analytics dashboard', 'Official verification badge',
-                'Pakistan-wide visibility', '0% commission on earnings',
+                'Verified consultant profile',    'Unlimited service listings',
+                'Real-time client messaging',      'Appointment management',
+                'Profile analytics dashboard',    'Official verification badge',
+                'Pakistan-wide visibility',        '0% commission on earnings',
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-2.5">
                   <CheckCircle size={16} className="text-[#C9A227] flex-shrink-0" />
@@ -437,7 +498,7 @@ export default function ForConsultantsClient() {
         </div>
       </section>
 
-      {/* ── FAQ ──────────────────────────────────────────────────────── */}
+      {/* ── FAQ ── */}
       <section className="py-24 bg-gray-50">
         <div className="max-w-3xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-12">
@@ -448,11 +509,11 @@ export default function ForConsultantsClient() {
           </div>
           <div className="space-y-3">
             {[
-              { q: 'Is VisaGate really free for consultants?', a: 'Yes, 100% free. There are no signup fees, no monthly subscriptions, and no commission on your earnings. Payments are handled directly between you and your client — we are not involved.' },
-              { q: 'How does the verification process work?', a: 'During registration, you provide your OEP license number, OEP license title, and SECP registration date. Our team manually verifies this information and adds the official verification badge to your profile within 24-48 hours.' },
-              { q: 'Can I list multiple visa services?', a: 'Absolutely. You can create as many service listings as you offer — UK visas, Canada PR, Schengen, Australia, and more. Each service can have its own pricing, description, and turnaround time.' },
-              { q: 'How do clients contact me?', a: 'Clients can message you directly through the VisaGate messaging system, call you via your listed number, WhatsApp you, or book a formal appointment through the platform.' },
-              { q: 'What happens after I register?', a: 'After completing your profile, your listing goes live immediately. The verification badge is added within 24-48 hours after we verify your credentials.' },
+              { q: 'Is VisaGate really free for consultants?',    a: 'Yes, 100% free. There are no signup fees, no monthly subscriptions, and no commission on your earnings. Payments are handled directly between you and your client — we are not involved.' },
+              { q: 'How does the verification process work?',      a: 'During registration, you provide your OEP license number, OEP license title, and SECP registration date. Our team manually verifies this information and adds the official verification badge to your profile within 24-48 hours.' },
+              { q: 'Can I list multiple visa services?',           a: 'Absolutely. You can create as many service listings as you offer — UK visas, Canada PR, Schengen, Australia, and more. Each service can have its own pricing, description, and turnaround time.' },
+              { q: 'How do clients contact me?',                   a: 'Clients can message you directly through the VisaGate messaging system, call you via your listed number, WhatsApp you, or book a formal appointment through the platform.' },
+              { q: 'What happens after I register?',               a: 'After completing your profile, your listing goes live immediately. The verification badge is added within 24-48 hours after we verify your credentials.' },
               { q: 'Can I update my profile and services anytime?', a: 'Yes, your consultant dashboard gives you full control to update your profile, add or remove services, set your availability, and manage appointments — all in real time.' },
             ].map((faq, i) => (
               <FAQItem key={i} q={faq.q} a={faq.a} />
@@ -461,12 +522,18 @@ export default function ForConsultantsClient() {
         </div>
       </section>
 
-      {/* ── FINAL CTA ────────────────────────────────────────────────── */}
+      {/* ── FINAL CTA ── */}
       <section className="py-24 bg-white">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="bg-gradient-to-br from-[#1B3060] to-[#2d4a8a] rounded-3xl px-8 py-16 relative overflow-hidden shadow-2xl shadow-[#1B3060]/20">
-            <div className="absolute inset-0 opacity-5"
-              style={{ backgroundImage: `radial-gradient(circle at 1px 1px, #C9A227 1px, transparent 0)`, backgroundSize: '32px 32px' }}
+            <div
+              className="absolute inset-0 opacity-[0.04] pointer-events-none"
+              style={{
+                backgroundImage:
+                  'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), ' +
+                  'linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+                backgroundSize: '32px 32px',
+              }}
             />
             <div className="relative">
               <Award size={48} className="text-[#C9A227] mx-auto mb-6" />
@@ -486,7 +553,8 @@ export default function ForConsultantsClient() {
           </div>
         </div>
       </section>
-<Footer />
+
+      <Footer />
     </main>
   )
 }

@@ -7,8 +7,7 @@ const FOOTER_LINKS = {
     { label: 'Find Consultants',  href: '/consultants' },
     { label: 'Visa Categories',   href: '/visa-categories' },
     { label: 'Scholarships',      href: '/scholarships' },
-    { label: 'Destinations',      href: '/destinations' },
-    { label: 'Insights & Guides', href: '/insights' },
+      { label: 'Insights & Guides', href: '/insights' },
   ],
   Support: [
     { label: 'For Consultants', href: '/for-consultants' },
