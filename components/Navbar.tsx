@@ -61,36 +61,68 @@ export default function Navbar() {
     const supabase = createClient()
 
     const loadProfile = async (userId: string) => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('full_name, avatar_url, role')
-        .eq('id', userId)
-        .single()
-      setProfile(data)
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('full_name, avatar_url, role')
+          .eq('id', userId)
+          .single()
+        setProfile(data)
+      } catch {
+        setProfile(null)
+      }
     }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUser(session.user)
-        loadProfile(session.user.id)
-      }
-      setLoading(false)
-    })
+    // Safety net — if Supabase never responds (network/env issue),
+    // stop the spinner after 3s and show guest buttons instead.
+    const safetyTimeout = setTimeout(() => setLoading(false), 3000)
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+    const init = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        if (error) throw error
         if (session?.user) {
           setUser(session.user)
           await loadProfile(session.user.id)
-        } else {
+        }
+      } catch (err) {
+        console.warn('Navbar: auth session error', err)
+        setUser(null)
+        setProfile(null)
+      } finally {
+        // KEY FIX: always runs — previously a throw would skip setLoading(false)
+        // leaving the spinner stuck forever.
+        clearTimeout(safetyTimeout)
+        setLoading(false)
+      }
+    }
+
+    init()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        try {
+          if (session?.user) {
+            setUser(session.user)
+            await loadProfile(session.user.id)
+          } else {
+            setUser(null)
+            setProfile(null)
+          }
+        } catch {
           setUser(null)
           setProfile(null)
+        } finally {
+          clearTimeout(safetyTimeout)
+          setLoading(false)
         }
-        setLoading(false)
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(safetyTimeout)
+    }
   }, [])
 
   // ── Logout ───────────────────────────────────────────────────────────────
