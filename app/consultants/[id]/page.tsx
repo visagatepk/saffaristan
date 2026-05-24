@@ -1,125 +1,91 @@
+// FILE: app/consultants/[id]/page.tsx
 import { notFound } from 'next/navigation'
-import type { Metadata } from 'next'
 import { createClient } from '@/lib/supabase/server'
+import Navbar from '@/components/Navbar'
+import Footer from '@/components/Footer'
 import ConsultantProfileClient from './ConsultantProfileClient'
+import type { Metadata } from 'next'
 
-export const revalidate = 60
-
-interface PageProps {
-  params: { id: string }
-}
-
-// ── SEO metadata ────────────────────────────────────────────────────────────
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = params
-  const supabase = await createClient()
-
-  const { data: profile } = await supabase
+export async function generateMetadata(
+  { params }: { params: { id: string } }
+): Promise<Metadata> {
+  const supabase = createClient()
+  const { data } = await supabase
     .from('profiles')
-    .select('id, full_name, display_name, business_name, city, avatar_url, bio')
-    .eq('id', id)
-    .maybeSingle()
+    .select('display_name, full_name, business_name, city, bio')
+    .eq('id', params.id)
+    .single()
 
-  if (!profile) {
-    return { title: 'Consultant not found | Visagate' }
-  }
-
-  const name = profile.display_name || profile.full_name
-  const titleParts = [name, profile.business_name, profile.city].filter(Boolean)
-  const title = `${titleParts.join(' • ')} | Verified Visa Consultant — Visagate`
-  const description =
-    profile.bio?.slice(0, 160) ||
-    `Connect with ${name}, a verified visa consultant on Visagate.pk. Book a consultation, view services, and read genuine client reviews.`
+  const name = data?.display_name || data?.full_name || 'Visa Consultant'
+  const biz  = data?.business_name ? ` · ${data.business_name}` : ''
+  const city = data?.city ? ` · ${data.city}` : ''
 
   return {
-    title,
-    description,
+    title: `${name}${biz}${city} — VisaGate.pk`,
+    description: data?.bio?.slice(0, 160) || `Book a visa consultation with ${name} on VisaGate.pk.`,
     openGraph: {
-      title,
-      description,
-      images: profile.avatar_url ? [{ url: profile.avatar_url }] : undefined,
+      title: `${name}${biz} — VisaGate.pk`,
+      description: data?.bio?.slice(0, 160) || `Verified visa consultant${city}`,
+      url: `https://visagate.pk/consultants/${params.id}`,
+      siteName: 'VisaGate.pk',
+      locale: 'en_PK',
       type: 'profile',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title,
-      description,
     },
   }
 }
 
-// ── Page ────────────────────────────────────────────────────────────────────
-export default async function ConsultantProfilePage({ params }: PageProps) {
-  const { id } = params
-  const supabase = await createClient()
+export default async function ConsultantProfilePage({
+  params,
+}: {
+  params: { id: string }
+}) {
+  const supabase    = createClient()
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 
-  // 1. Fetch consultant profile — includes website_url
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select(`
-      id,
-      full_name,
-      display_name,
-      business_name,
-      city,
-      avatar_url,
-      cover_image_url,
-      years_experience,
-      bio,
-      phone,
-      website_url,
-      verification_status,
-      is_verified,
-      is_oep_verified,
-      is_secp_verified,
-      is_beoe_verified,
-      is_fbr_verified,
-      languages,
-      specializations,
-      office_address,
-      created_at
-    `)
-    .eq('id', id)
-    .maybeSingle()
+  const [
+    { data: consultant },
+    { data: services },
+    { data: reviews },
+  ] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, user_id, display_name, full_name, business_name, bio, city, office_address, phone, whatsapp_number, years_experience, avatar_url, is_verified, verification_status, oep_license_number')
+      .eq('id', params.id)
+      .eq('role', 'consultant')
+      .single(),
 
-  if (profileError || !profile) {
-    notFound()
-  }
-
-  // 2. Fetch services and reviews in parallel
-  const [servicesResult, reviewsResult] = await Promise.all([
     supabase
       .from('services')
-      .select('id, title, description, visa_type, destination_country, price_min, price_max, processing_days, image_url, created_at')
-      .eq('consultant_id', id)
+      .select('*')
+      .eq('consultant_id', params.id)
       .eq('is_active', true)
       .order('created_at', { ascending: false }),
+
     supabase
       .from('reviews')
-      .select(`
-        id,
-        rating,
-        comment,
-        created_at,
-        reviewer:profiles!seeker_id (
-          id,
-          full_name,
-          avatar_url
-        )
-      `)
-      .eq('consultant_id', id)
-      .order('created_at', { ascending: false })
-      .limit(50),
+      .select('id, rating, comment, created_at, reviewer:reviewer_id(full_name, display_name)')
+      .eq('consultant_id', params.id)
+      .eq('is_approved', true)
+      .order('created_at', { ascending: false }),
   ])
 
-  const services = servicesResult.data ?? []
-  const reviews  = reviewsResult.data  ?? []
+  if (!consultant) notFound()
+
+  const avgRating = reviews && reviews.length > 0
+    ? Math.round((reviews.reduce((s, r) => s + (r.rating || 0), 0) / reviews.length) * 10) / 10
+    : 0
 
   return (
-    <ConsultantProfileClient
-      profile={profile as any}
-      services={services}
-      reviews={reviews as any}
-    />
+    <div className="min-h-screen bg-white">
+      <Navbar />
+      <ConsultantProfileClient
+        consultant={consultant as any}
+        services={(services || []) as any}
+        reviews={(reviews || []) as any}
+        avgRating={avgRating}
+        supabaseUrl={supabaseUrl}
+      />
+      <Footer />
+    </div>
   )
 }

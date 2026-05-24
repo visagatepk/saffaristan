@@ -16,12 +16,12 @@ import { createClient } from '@/lib/supabase/client'
 // which crashed <Icon size={18} /> since a string can't be used as a component)
 // ─────────────────────────────────────────────────────────────────────────────
 const NAV_ITEMS = [
-  { href: '/dashboard/seeker',              label: 'Overview',           icon: LayoutDashboard },
-  { href: '/dashboard/seeker/saved',        label: 'Saved Consultants',  icon: Heart },
-  { href: '/dashboard/seeker/appointments', label: 'Appointments',       icon: CalendarCheck },
-  { href: '/dashboard/seeker/messages',     label: 'Messages',           icon: MessageSquare },
-  { href: '/dashboard/seeker/profile',      label: 'My Profile',         icon: User },
-  { href: '/dashboard/seeker/settings',     label: 'Settings',           icon: Settings },
+  { href: '/dashboard/seeker',              label: 'Overview',          icon: LayoutDashboard },
+  { href: '/dashboard/seeker/saved',        label: 'Saved Consultants', icon: Heart },
+  { href: '/dashboard/seeker/appointments', label: 'Appointments',      icon: CalendarCheck },
+  { href: '/dashboard/seeker/messages',     label: 'Messages',          icon: MessageSquare },
+  { href: '/dashboard/seeker/profile',      label: 'My Profile',        icon: User },  // ← ADD
+  { href: '/dashboard/seeker/settings',     label: 'Settings',          icon: Settings },
 ]
 
 export default function SeekerDashboardLayout({
