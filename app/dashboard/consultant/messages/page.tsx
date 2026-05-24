@@ -1,4 +1,5 @@
 'use client'
+// FILE: app/dashboard/consultant/messages/page.tsx
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -27,8 +28,8 @@ export default function ConsultantMessages() {
   return (
     <div>
       <div className="mb-5">
-        <h1 className="font-heading font-bold text-navy text-xl mb-1">Messages</h1>
-        <p className="font-body text-gray-500 text-sm">Chat with visa seekers</p>
+        <h1 className="font-heading font-extrabold text-[#1B3060] text-xl mb-1">Messages</h1>
+        <p className="font-body text-gray-400 text-sm">Chat with visa seekers</p>
       </div>
       <MessagingUI currentUserId={userId} currentUserRole="consultant" />
     </div>

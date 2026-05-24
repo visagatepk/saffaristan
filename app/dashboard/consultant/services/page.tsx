@@ -1,9 +1,10 @@
 'use client'
+// FILE: app/dashboard/consultant/services/page.tsx
 
 import { useState, useEffect } from 'react'
 import {
   Plus, Edit2, Trash2, Globe, DollarSign,
-  Clock, AlertCircle, X, ImageIcon
+  Clock, AlertCircle, X, ImageIcon,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -19,17 +20,19 @@ const COUNTRIES = [
   'Italy', 'France', 'Japan', 'South Korea', 'New Zealand',
 ]
 
+const inputClass = "font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-[#1B3060] focus:ring-2 focus:ring-[#1B3060]/10 transition-all"
+
 export default function ServicesPage() {
-  const [services, setServices]                 = useState<any[]>([])
-  const [profileId, setProfileId]               = useState('')
-  const [loading, setLoading]                   = useState(true)
-  const [showForm, setShowForm]                 = useState(false)
-  const [editingId, setEditingId]               = useState<string | null>(null)
-  const [saving, setSaving]                     = useState(false)
-  const [uploadingImage, setUploadingImage]     = useState(false)
-  const [serviceImageUrl, setServiceImageUrl]   = useState('')   // full public URL
-  const [serviceImagePreview, setServiceImagePreview] = useState('')
-  const [error, setError]                       = useState('')
+  const [services, setServices]                         = useState<any[]>([])
+  const [profileId, setProfileId]                       = useState('')
+  const [loading, setLoading]                           = useState(true)
+  const [showForm, setShowForm]                         = useState(false)
+  const [editingId, setEditingId]                       = useState<string | null>(null)
+  const [saving, setSaving]                             = useState(false)
+  const [uploadingImage, setUploadingImage]             = useState(false)
+  const [serviceImageUrl, setServiceImageUrl]           = useState('')
+  const [serviceImagePreview, setServiceImagePreview]   = useState('')
+  const [error, setError]                               = useState('')
 
   const [form, setForm] = useState({
     title: '', visa_type: '', destination_country: '',
@@ -38,10 +41,7 @@ export default function ServicesPage() {
 
   // ── Reset form ─────────────────────────────────────────────────────────
   const resetForm = () => {
-    setForm({
-      title: '', visa_type: '', destination_country: '',
-      description: '', price_min: '', price_max: '', processing_days: '',
-    })
+    setForm({ title: '', visa_type: '', destination_country: '', description: '', price_min: '', price_max: '', processing_days: '' })
     setEditingId(null)
     setShowForm(false)
     setError('')
@@ -57,7 +57,7 @@ export default function ServicesPage() {
       if (!user) return
 
       const { data: prof } = await supabase
-    .from('profiles').select('id').eq('user_id', user.id).single()
+        .from('profiles').select('id').eq('user_id', user.id).single()
 
       if (prof) {
         setProfileId(prof.id)
@@ -71,15 +71,11 @@ export default function ServicesPage() {
     load()
   }, [])
 
-  // ── Image upload ───────────────────────────────────────────────────────
+  // ── Image upload — 'services' bucket ──────────────────────────────────
   const handleServiceImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
-    if (file.size > 5 * 1024 * 1024) {
-      setError('Image too large. Max 5MB.')
-      return
-    }
+    if (file.size > 5 * 1024 * 1024) { setError('Image too large. Max 5MB.'); return }
 
     setUploadingImage(true)
     setError('')
@@ -87,23 +83,14 @@ export default function ServicesPage() {
     const ext  = file.name.split('.').pop()
     const path = `${profileId}-${Date.now()}.${ext}`
 
-    // ✅ Bug 2 fixed: upload to 'services' bucket, not 'avatars'
     const { error: upErr } = await supabase.storage
       .from('services')
       .upload(path, file, { upsert: true, cacheControl: '3600' })
 
-    if (upErr) {
-      setError(upErr.message)
-      setUploadingImage(false)
-      return
-    }
+    if (upErr) { setError(upErr.message); setUploadingImage(false); return }
 
-    // ✅ Bug 3 fixed: store full public URL, not just path
-    const { data: { publicUrl } } = supabase.storage
-      .from('services')
-      .getPublicUrl(path)
-
-    setServiceImageUrl(publicUrl)   // full URL saved to DB
+    const { data: { publicUrl } } = supabase.storage.from('services').getPublicUrl(path)
+    setServiceImageUrl(publicUrl)
     setServiceImagePreview(publicUrl)
     setUploadingImage(false)
   }
@@ -113,31 +100,27 @@ export default function ServicesPage() {
     e.preventDefault()
     setSaving(true)
     setError('')
-
     const supabase = createClient()
 
-    // ✅ Bug 1 fixed: image_url included in payload
     const payload = {
-      consultant_id:      profileId,
-      title:              form.title,
-      visa_type:          form.visa_type,
+      consultant_id:       profileId,
+      title:               form.title,
+      visa_type:           form.visa_type,
       destination_country: form.destination_country,
-      description:        form.description,
-      price_min:          parseInt(form.price_min)      || 0,
-      price_max:          parseInt(form.price_max)      || 0,
-      processing_days:    parseInt(form.processing_days) || 0,
-      is_active:          true,
-      image_url:          serviceImageUrl || null,  // ✅ now included
+      description:         form.description,
+      price_min:           parseInt(form.price_min)       || 0,
+      price_max:           parseInt(form.price_max)       || 0,
+      processing_days:     parseInt(form.processing_days) || 0,
+      is_active:           true,
+      image_url:           serviceImageUrl || null,
     }
 
     if (editingId) {
-      const { error } = await supabase
-        .from('services').update(payload).eq('id', editingId)
+      const { error } = await supabase.from('services').update(payload).eq('id', editingId)
       if (error) { setError(error.message); setSaving(false); return }
       setServices(prev => prev.map(s => s.id === editingId ? { ...s, ...payload } : s))
     } else {
-      const { data, error } = await supabase
-        .from('services').insert(payload).select().single()
+      const { data, error } = await supabase.from('services').insert(payload).select().single()
       if (error) { setError(error.message); setSaving(false); return }
       if (data) setServices(prev => [data, ...prev])
     }
@@ -149,22 +132,16 @@ export default function ServicesPage() {
   // ── Edit ───────────────────────────────────────────────────────────────
   const handleEdit = (s: any) => {
     setForm({
-      title:              s.title,
-      visa_type:          s.visa_type          || '',
-      destination_country: s.destination_country || '',
-      description:        s.description        || '',
-      price_min:          s.price_min?.toString()       || '',
-      price_max:          s.price_max?.toString()       || '',
-      processing_days:    s.processing_days?.toString() || '',
+      title:               s.title,
+      visa_type:           s.visa_type            || '',
+      destination_country: s.destination_country  || '',
+      description:         s.description          || '',
+      price_min:           s.price_min?.toString()        || '',
+      price_max:           s.price_max?.toString()        || '',
+      processing_days:     s.processing_days?.toString()  || '',
     })
-    // Restore existing image preview if service already has one
-    if (s.image_url) {
-      setServiceImageUrl(s.image_url)
-      setServiceImagePreview(s.image_url)
-    } else {
-      setServiceImageUrl('')
-      setServiceImagePreview('')
-    }
+    if (s.image_url) { setServiceImageUrl(s.image_url); setServiceImagePreview(s.image_url) }
+    else { setServiceImageUrl(''); setServiceImagePreview('') }
     setEditingId(s.id)
     setShowForm(true)
   }
@@ -177,7 +154,6 @@ export default function ServicesPage() {
     setServices(prev => prev.filter(s => s.id !== id))
   }
 
-  // ── Loading ────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -186,37 +162,43 @@ export default function ServicesPage() {
     )
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────
   return (
     <div className="max-w-3xl">
+
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="font-heading font-bold text-navy text-xl mb-1">My Services</h1>
-          <p className="font-body text-gray-500 text-sm">{services.length} services listed</p>
+          <h1 className="font-heading font-extrabold text-[#1B3060] text-xl mb-1">My Services</h1>
+          <p className="font-body text-gray-400 text-sm">
+            {services.length} service{services.length !== 1 ? 's' : ''} listed
+          </p>
         </div>
         {!showForm && (
-          <button onClick={() => setShowForm(true)}
-            className="font-heading font-bold text-sm bg-gold hover:bg-gold-dark text-white px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2">
-            <Plus size={16} /> Add Service
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 font-heading font-bold text-sm text-white px-5 py-2.5 rounded-xl hover:opacity-90 transition-all"
+            style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}
+          >
+            <Plus size={15} /> Add Service
           </button>
         )}
       </div>
 
       {/* ── Add / Edit form ── */}
       {showForm && (
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6">
+        <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="font-heading font-bold text-navy text-base">
+            <h2 className="font-heading font-bold text-[#1B3060] text-base">
               {editingId ? 'Edit Service' : 'Add New Service'}
             </h2>
-            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600">
+            <button onClick={resetForm} className="text-gray-400 hover:text-gray-600 transition-colors">
               <X size={18} />
             </button>
           </div>
 
           {error && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 text-xs font-body px-4 py-3 rounded-xl mb-4">
-              <AlertCircle size={14} /> {error}
+              <AlertCircle size={13} /> {error}
             </div>
           )}
 
@@ -224,29 +206,45 @@ export default function ServicesPage() {
 
             {/* Title */}
             <div>
-              <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Service Title</label>
-              <input type="text" value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="UK Student Visa Consultation" required
-                className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
+              <label className="font-body text-xs font-medium text-gray-600 block mb-1.5">
+                Service Title <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={e => setForm({ ...form, title: e.target.value })}
+                placeholder="UK Student Visa Consultation"
+                required
+                className={inputClass}
+              />
             </div>
 
             {/* Visa Type + Country */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Visa Type</label>
-                <select value={form.visa_type}
-                  onChange={(e) => setForm({ ...form, visa_type: e.target.value })} required
-                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all bg-white">
+                <label className="font-body text-xs font-medium text-gray-600 block mb-1.5">
+                  Visa Type <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={form.visa_type}
+                  onChange={e => setForm({ ...form, visa_type: e.target.value })}
+                  required
+                  className={`${inputClass} bg-white appearance-none`}
+                >
                   <option value="">Select</option>
                   {VISA_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Destination Country</label>
-                <select value={form.destination_country}
-                  onChange={(e) => setForm({ ...form, destination_country: e.target.value })} required
-                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all bg-white">
+                <label className="font-body text-xs font-medium text-gray-600 block mb-1.5">
+                  Destination <span className="text-red-400">*</span>
+                </label>
+                <select
+                  value={form.destination_country}
+                  onChange={e => setForm({ ...form, destination_country: e.target.value })}
+                  required
+                  className={`${inputClass} bg-white appearance-none`}
+                >
                   <option value="">Select</option>
                   {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
@@ -255,85 +253,83 @@ export default function ServicesPage() {
 
             {/* Description */}
             <div>
-              <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Description</label>
-              <textarea value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Describe what this service includes..." rows={3}
-                className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all resize-none" />
+              <label className="font-body text-xs font-medium text-gray-600 block mb-1.5">Description</label>
+              <textarea
+                value={form.description}
+                onChange={e => setForm({ ...form, description: e.target.value })}
+                placeholder="Describe what this service includes..."
+                rows={3}
+                className={`${inputClass} resize-none`}
+              />
             </div>
 
             {/* Service Image */}
             <div>
-              <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">
+              <label className="font-body text-xs font-medium text-gray-600 block mb-1.5">
                 Service Image
-                <span className="text-gray-400 font-normal ml-1">(Thumbnail image size: Minimum: 712 x 430 px)</span>
+                <span className="text-gray-400 font-normal ml-1">(Min: 712 × 430 px · Max 5MB)</span>
               </label>
               <label className="cursor-pointer block">
                 {serviceImagePreview ? (
                   <div className="relative rounded-xl overflow-hidden h-36 bg-gray-100">
                     <img src={serviceImagePreview} alt="service" className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                      <span className="text-white text-xs font-body font-semibold">Change Image</span>
+                      <span className="text-white text-xs font-semibold">Change Image</span>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center h-36 border-2 border-dashed border-gray-200 rounded-xl hover:border-navy/40 bg-gray-50 transition-colors">
+                  <div className="flex items-center justify-center h-36 border-2 border-dashed border-gray-200 rounded-xl hover:border-[#1B3060]/40 bg-gray-50 transition-colors">
                     <div className="text-center">
-                      {uploadingImage ? (
-                        <div className="w-6 h-6 border-2 border-navy/20 border-t-navy rounded-full animate-spin mx-auto mb-2" />
-                      ) : (
-                        <ImageIcon size={24} className="text-gray-300 mx-auto mb-2" />
-                      )}
+                      {uploadingImage
+                        ? <div className="w-6 h-6 border-2 border-navy/20 border-t-navy rounded-full animate-spin mx-auto mb-2" />
+                        : <ImageIcon size={24} className="text-gray-300 mx-auto mb-2" />
+                      }
                       <p className="font-body text-xs text-gray-400">
-                        {uploadingImage ? 'Uploading...' : 'Click to upload service image'}
+                        {uploadingImage ? 'Uploading...' : 'Click to upload'}
                       </p>
-                      <p className="font-body text-xs text-gray-300 mt-0.5">JPG, PNG · Max 5MB</p>
+                      <p className="font-body text-xs text-gray-300 mt-0.5">JPG, PNG</p>
                     </div>
                   </div>
                 )}
-                <input
-                  type="file"
-                  accept=".jpg,.jpeg,.png"
-                  onChange={handleServiceImageUpload}
-                  className="hidden"
-                  disabled={uploadingImage}
-                />
+                <input type="file" accept=".jpg,.jpeg,.png" onChange={handleServiceImageUpload} className="hidden" disabled={uploadingImage} />
               </label>
             </div>
 
             {/* Pricing */}
             <div className="grid grid-cols-3 gap-4">
-              <div>
-                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Min Price (PKR)</label>
-                <input type="number" value={form.price_min}
-                  onChange={(e) => setForm({ ...form, price_min: e.target.value })}
-                  placeholder="5000" min="0"
-                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
-              </div>
-              <div>
-                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Max Price (PKR)</label>
-                <input type="number" value={form.price_max}
-                  onChange={(e) => setForm({ ...form, price_max: e.target.value })}
-                  placeholder="25000" min="0"
-                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
-              </div>
-              <div>
-                <label className="font-body text-xs font-medium text-gray-700 block mb-1.5">Processing Days</label>
-                <input type="number" value={form.processing_days}
-                  onChange={(e) => setForm({ ...form, processing_days: e.target.value })}
-                  placeholder="30" min="1"
-                  className="font-body w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-navy transition-all" />
-              </div>
+              {[
+                { label: 'Min Price (PKR)', field: 'price_min', placeholder: '5000' },
+                { label: 'Max Price (PKR)', field: 'price_max', placeholder: '25000' },
+                { label: 'Processing Days', field: 'processing_days', placeholder: '30' },
+              ].map(item => (
+                <div key={item.field}>
+                  <label className="font-body text-xs font-medium text-gray-600 block mb-1.5">{item.label}</label>
+                  <input
+                    type="number"
+                    value={form[item.field as keyof typeof form]}
+                    onChange={e => setForm({ ...form, [item.field]: e.target.value })}
+                    placeholder={item.placeholder}
+                    min="0"
+                    className={inputClass}
+                  />
+                </div>
+              ))}
             </div>
 
             {/* Buttons */}
             <div className="flex gap-3 pt-2">
-              <button type="button" onClick={resetForm}
-                className="font-heading font-bold flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors">
+              <button
+                type="button"
+                onClick={resetForm}
+                className="font-heading font-bold flex-1 border border-gray-200 text-gray-600 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors"
+              >
                 Cancel
               </button>
-              <button type="submit" disabled={saving || uploadingImage}
-                className="font-heading font-bold flex-1 bg-navy hover:bg-navy-dark text-white py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60">
+              <button
+                type="submit"
+                disabled={saving || uploadingImage}
+                className="font-heading font-bold flex-1 bg-[#1B3060] hover:bg-[#243d7a] text-white py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
+              >
                 {saving ? 'Saving...' : editingId ? 'Update Service' : 'Add Service'}
               </button>
             </div>
@@ -344,10 +340,12 @@ export default function ServicesPage() {
       {/* ── Services list ── */}
       {services.length > 0 ? (
         <div className="space-y-3">
-          {services.map((s) => (
-            <div key={s.id}
-              className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-gray-200 transition-all">
-              <div className="flex items-start justify-between gap-4">
+          {services.map(s => (
+            <div
+              key={s.id}
+              className="bg-white rounded-2xl border border-gray-100 p-5 hover:border-[#C9A227]/30 hover:shadow-[0_4px_20px_rgba(0,0,0,0.07)] transition-all shadow-[0_2px_12px_rgba(0,0,0,0.04)]"
+            >
+              <div className="flex items-start gap-4">
                 {/* Thumbnail */}
                 {s.image_url && (
                   <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100">
@@ -355,18 +353,22 @@ export default function ServicesPage() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-heading font-bold text-navy text-sm">{s.title}</h3>
-                    {s.is_active && <span className="w-2 h-2 bg-green-400 rounded-full shrink-0" />}
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <h3 className="font-heading font-bold text-[#1B3060] text-sm">{s.title}</h3>
+                    {s.is_active && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 bg-green-50 px-1.5 py-0.5 rounded-full">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" /> Active
+                      </span>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-2 mb-2">
+                  <div className="flex flex-wrap gap-1.5 mb-2">
                     {s.visa_type && (
-                      <span className="font-body text-xs bg-navy-light text-navy px-2 py-0.5 rounded-full">
+                      <span className="font-body text-[11px] bg-[#EBF0F8] text-[#1B3060] font-semibold px-2 py-0.5 rounded-full">
                         {s.visa_type}
                       </span>
                     )}
                     {s.destination_country && (
-                      <span className="font-body text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                      <span className="font-body text-[11px] bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                         {s.destination_country}
                       </span>
                     )}
@@ -374,7 +376,7 @@ export default function ServicesPage() {
                   {s.description && (
                     <p className="font-body text-gray-500 text-xs line-clamp-1 mb-2">{s.description}</p>
                   )}
-                  <div className="flex items-center gap-4 text-xs text-gray-400">
+                  <div className="flex items-center gap-4 text-xs font-body text-gray-400">
                     {(s.price_min > 0 || s.price_max > 0) && (
                       <span className="flex items-center gap-1">
                         <DollarSign size={11} />
@@ -389,13 +391,21 @@ export default function ServicesPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Actions */}
                 <div className="flex items-center gap-1 shrink-0">
-                  <button onClick={() => handleEdit(s)}
-                    className="p-2 text-gray-400 hover:text-navy rounded-lg hover:bg-gray-100 transition-colors">
+                  <button
+                    onClick={() => handleEdit(s)}
+                    className="p-2 text-gray-400 hover:text-[#1B3060] rounded-lg hover:bg-gray-100 transition-colors"
+                    title="Edit"
+                  >
                     <Edit2 size={14} />
                   </button>
-                  <button onClick={() => handleDelete(s.id)}
-                    className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
+                  <button
+                    onClick={() => handleDelete(s.id)}
+                    className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                    title="Delete"
+                  >
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -404,13 +414,20 @@ export default function ServicesPage() {
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-gray-100 p-10 text-center">
-          <Globe size={32} className="text-gray-200 mx-auto mb-3" />
-          <h3 className="font-heading font-bold text-navy text-base mb-1">No services yet</h3>
-          <p className="font-body text-gray-400 text-xs mb-4">Add your visa services to attract seekers</p>
-          <button onClick={() => setShowForm(true)}
-            className="font-heading font-bold text-sm bg-gold hover:bg-gold-dark text-white px-5 py-2.5 rounded-xl transition-colors inline-flex items-center gap-2">
-            <Plus size={16} /> Add First Service
+        <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+          <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Globe size={26} className="text-gray-300" />
+          </div>
+          <h3 className="font-heading font-bold text-[#1B3060] text-base mb-1">No services yet</h3>
+          <p className="font-body text-gray-400 text-xs mb-5">
+            Add your visa services to start attracting seekers
+          </p>
+          <button
+            onClick={() => setShowForm(true)}
+            className="inline-flex items-center gap-2 font-heading font-bold text-sm text-white px-5 py-2.5 rounded-xl hover:opacity-90 transition-all"
+            style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}
+          >
+            <Plus size={15} /> Add First Service
           </button>
         </div>
       )}
