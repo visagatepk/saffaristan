@@ -1,42 +1,48 @@
 'use client'
 // FILE: app/dashboard/admin/users/page.tsx
-// UPDATED: Added email column + unique validation hints
 
 import { useState, useEffect } from 'react'
 import {
   Search, X, Users, ShieldOff, Trash2,
-  AlertCircle, CheckCircle, UserX, UserCheck, Mail
+  AlertCircle, CheckCircle, UserX, UserCheck, Mail,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const ROLE_COLORS: Record<string, string> = {
   consultant: 'bg-amber-50 text-amber-700 border-amber-200',
-  seeker: 'bg-blue-50 text-blue-700 border-blue-200',
-  admin: 'bg-red-50 text-red-600 border-red-200',
-  editor: 'bg-purple-50 text-purple-700 border-purple-200',
+  seeker:     'bg-blue-50 text-blue-700 border-blue-200',
+  admin:      'bg-red-50 text-red-600 border-red-200',
+  editor:     'bg-purple-50 text-purple-700 border-purple-200',
+}
+
+function getInitials(u: any) {
+  const name = u.display_name || u.full_name || ''
+  if (!name) return 'U'
+  return name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
 export default function AdminUsers() {
-  const [users, setUsers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [query, setQuery] = useState('')
-  const [roleFilter, setRoleFilter] = useState('all')
+  const [users, setUsers]             = useState<any[]>([])
+  const [loading, setLoading]         = useState(true)
+  const [query, setQuery]             = useState('')
+  const [roleFilter, setRoleFilter]   = useState('all')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  const [suspendModal, setSuspendModal] = useState<any>(null)
-  const [deleteModal, setDeleteModal] = useState<any>(null)
-  const [suspendDays, setSuspendDays] = useState('7')
+  const [suspendModal, setSuspendModal]   = useState<any>(null)
+  const [deleteModal, setDeleteModal]     = useState<any>(null)
+  const [suspendDays, setSuspendDays]     = useState('7')
   const [suspendReason, setSuspendReason] = useState('')
-  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+  const [toast, setToast]             = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
 
   useEffect(() => { load() }, [])
 
   const load = async () => {
     const supabase = createClient()
-    // Join with auth.users to get email — use profiles only (email stored in auth)
-    // We fetch email from profiles if stored, otherwise show user_id hint
+    // NOTE: profiles table has no email column — email lives in auth.users.
+    // We can't join auth.users client-side. Email shows '—' unless explicitly
+    // stored in the profiles table by your app during sign-up.
     const { data } = await supabase
       .from('profiles')
-      .select('*, email')
+      .select('*')
       .order('created_at', { ascending: false })
     setUsers(data || [])
     setLoading(false)
@@ -54,11 +60,11 @@ export default function AdminUsers() {
     const until = new Date()
     until.setDate(until.getDate() + parseInt(suspendDays))
     const { error } = await supabase.from('profiles').update({
-      is_suspended: true,
-      suspended_reason: suspendReason,
-      suspended_until: until.toISOString(),
+      is_suspended:      true,
+      suspended_reason:  suspendReason || null,
+      suspended_until:   until.toISOString(),
     }).eq('user_id', suspendModal.user_id)
-    if (error) { showToast('Failed to suspend user', 'error') }
+    if (error) showToast('Failed to suspend user', 'error')
     else {
       setUsers(prev => prev.map(u =>
         u.user_id === suspendModal.user_id ? { ...u, is_suspended: true } : u
@@ -102,12 +108,12 @@ export default function AdminUsers() {
     setUsers(prev => prev.map(u =>
       u.user_id === user.user_id ? { ...u, role: newRole } : u
     ))
-    showToast(`${user.display_name || 'User'} role → ${newRole}`)
+    showToast(`${user.display_name || 'User'} → ${newRole}`)
     setActionLoading(null)
   }
 
   const filtered = users.filter(u => {
-    const matchRole = roleFilter === 'all' || u.role === roleFilter
+    const matchRole  = roleFilter === 'all' || u.role === roleFilter
     const matchQuery = !query ||
       u.full_name?.toLowerCase().includes(query.toLowerCase()) ||
       u.display_name?.toLowerCase().includes(query.toLowerCase()) ||
@@ -116,12 +122,6 @@ export default function AdminUsers() {
       u.phone?.includes(query)
     return matchRole && matchQuery
   })
-
-  const getInitials = (u: any) => {
-    const name = u.display_name || u.full_name || ''
-    if (!name) return 'U'
-    return name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase()
-  }
 
   if (loading) {
     return (
@@ -133,52 +133,54 @@ export default function AdminUsers() {
 
   return (
     <div>
+
       {/* Toast */}
       {toast && (
         <div className={`fixed top-5 right-5 z-50 flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-sm font-medium ${
           toast.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
         }`}>
-          {toast.type === 'success' ? <CheckCircle size={16} /> : <AlertCircle size={16} />}
+          {toast.type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
           {toast.msg}
         </div>
       )}
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="font-['Plus_Jakarta_Sans'] font-bold text-[#1B3060] text-xl mb-1">All Users</h1>
-        <p className="text-gray-500 text-sm">{users.length} registered users</p>
+        <h1 className="font-heading font-extrabold text-[#1B3060] text-xl mb-1">All Users</h1>
+        <p className="font-body text-gray-400 text-sm">{users.length} registered users</p>
       </div>
 
-      {/* Stats */}
+      {/* Stats strip */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {[
-          { label: 'Total', value: users.length, color: 'text-[#1B3060]' },
-          { label: 'Seekers', value: users.filter(u => u.role === 'seeker').length, color: 'text-blue-600' },
+          { label: 'Total',       value: users.length,                                   color: 'text-[#1B3060]' },
+          { label: 'Seekers',     value: users.filter(u => u.role === 'seeker').length,  color: 'text-blue-600'  },
           { label: 'Consultants', value: users.filter(u => u.role === 'consultant').length, color: 'text-amber-600' },
-          { label: 'Editors', value: users.filter(u => u.role === 'editor').length, color: 'text-purple-600' },
-          { label: 'Suspended', value: users.filter(u => u.is_suspended).length, color: 'text-red-600' },
+          { label: 'Editors',     value: users.filter(u => u.role === 'editor').length,  color: 'text-purple-600'},
+          { label: 'Suspended',   value: users.filter(u => u.is_suspended).length,       color: 'text-red-600'   },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-sm">
-            <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
-            <div className="text-xs text-gray-500">{s.label}</div>
+          <div key={s.label} className="bg-white rounded-xl p-4 border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+            <div className={`font-heading font-black text-2xl tracking-tight ${s.color}`}>{s.value}</div>
+            <div className="font-body text-xs text-gray-400 mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-5">
-        <div className="bg-white border border-gray-100 rounded-xl px-4 py-2.5 flex items-center gap-3 flex-1 max-w-sm shadow-sm">
-          <Search size={15} className="text-gray-400 shrink-0" />
+        <div className="bg-white border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] rounded-xl px-4 py-2.5 flex items-center gap-3 flex-1 max-w-sm">
+          <Search size={14} className="text-gray-400 shrink-0" />
           <input type="text" value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="Search name, email, phone..."
-            className="text-sm w-full outline-none text-gray-700 placeholder-gray-400 bg-transparent" />
-          {query && <button onClick={() => setQuery('')}><X size={14} className="text-gray-400" /></button>}
+            placeholder="Search name, city, phone…"
+            className="font-body text-sm w-full outline-none text-gray-700 placeholder-gray-400 bg-transparent" />
+          {query && <button onClick={() => setQuery('')}><X size={13} className="text-gray-400" /></button>}
         </div>
-        <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
+
+        <div className="flex items-center gap-1 bg-white border border-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.04)] rounded-xl p-1">
           {['all', 'seeker', 'consultant', 'editor', 'admin'].map(role => (
             <button key={role} onClick={() => setRoleFilter(role)}
-              className={`font-semibold text-xs px-3 py-1.5 rounded-lg transition-all capitalize ${
-                roleFilter === role ? 'bg-[#1B3060] text-white' : 'text-gray-500 hover:text-[#1B3060]'
+              className={`font-heading font-semibold text-xs px-3 py-1.5 rounded-lg transition-all capitalize ${
+                roleFilter === role ? 'bg-[#1B3060] text-white shadow-sm' : 'text-gray-500 hover:text-[#1B3060]'
               }`}>
               {role}
             </button>
@@ -187,52 +189,61 @@ export default function AdminUsers() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50">
-                {['User', 'Email', 'Role', 'Status', 'City', 'Phone', 'Actions'].map(h => (
-                  <th key={h} className="font-bold text-[#1B3060] text-xs px-4 py-3 text-left whitespace-nowrap">{h}</th>
+                {['User', 'Email / ID', 'Role', 'Status', 'City', 'Phone', 'Actions'].map(h => (
+                  <th key={h} className="font-heading font-bold text-[#1B3060] text-xs px-4 py-3 text-left whitespace-nowrap uppercase tracking-wide">
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {filtered.map(u => (
-                <tr key={u.user_id} className={`hover:bg-gray-50 transition-colors ${u.is_suspended ? 'opacity-60' : ''}`}>
+                <tr key={u.user_id}
+                  className={`hover:bg-gray-50 transition-colors ${u.is_suspended ? 'opacity-60' : ''}`}>
 
                   {/* User */}
                   <td className="px-4 py-3.5">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-xs shrink-0 ${u.is_suspended ? 'bg-gray-400' : 'bg-[#1B3060]'}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white font-heading font-bold text-xs shrink-0 ${
+                        u.is_suspended ? 'bg-gray-400' : 'bg-[#1B3060]'
+                      }`}>
                         {getInitials(u)}
                       </div>
                       <div>
-                        <p className="font-semibold text-[#1B3060] text-sm whitespace-nowrap">
+                        <p className="font-heading font-bold text-[#1B3060] text-sm whitespace-nowrap">
                           {u.display_name || u.full_name || 'Unknown'}
                         </p>
                         {u.business_name && (
-                          <p className="text-gray-400 text-xs">{u.business_name}</p>
+                          <p className="font-body text-gray-400 text-xs">{u.business_name}</p>
                         )}
                       </div>
                     </div>
                   </td>
 
-                  {/* Email */}
+                  {/* Email — profiles has no email column, shows user_id suffix as fallback */}
                   <td className="px-4 py-3.5">
-                    <span className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <span className="flex items-center gap-1.5 text-xs text-gray-500 font-body">
                       <Mail size={11} className="text-gray-400 shrink-0" />
-                      {u.email || '—'}
+                      {u.email || (
+                        <span className="text-gray-300 font-mono text-[10px]">
+                          {u.user_id?.slice(0, 8)}…
+                        </span>
+                      )}
                     </span>
                   </td>
 
-                  {/* Role */}
+                  {/* Role dropdown */}
                   <td className="px-4 py-3.5">
                     <select
                       value={u.role || 'seeker'}
                       onChange={e => handleRoleChange(u, e.target.value)}
                       disabled={actionLoading === u.user_id + '_role' || u.role === 'admin'}
-                      className={`text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${
+                      className={`font-body text-xs font-semibold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${
                         ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-500 border-gray-200'
                       } ${u.role === 'admin' ? 'cursor-not-allowed' : ''}`}
                     >
@@ -245,10 +256,10 @@ export default function AdminUsers() {
 
                   {/* Status */}
                   <td className="px-4 py-3.5">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                    <span className={`font-body text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap ${
                       u.is_suspended ? 'bg-red-100 text-red-600'
-                      : u.verification_status === 'pending_verification' ? 'bg-amber-100 text-amber-700'
-                      : 'bg-green-100 text-green-700'
+                        : u.verification_status === 'pending_verification' ? 'bg-amber-100 text-amber-700'
+                        : 'bg-green-100 text-green-700'
                     }`}>
                       {u.is_suspended ? '⛔ Suspended'
                         : u.verification_status === 'pending_verification' ? '⏳ Pending'
@@ -256,11 +267,8 @@ export default function AdminUsers() {
                     </span>
                   </td>
 
-                  {/* City */}
-                  <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">{u.city || '—'}</td>
-
-                  {/* Phone */}
-                  <td className="px-4 py-3.5 text-sm text-gray-500 whitespace-nowrap">{u.phone || '—'}</td>
+                  <td className="px-4 py-3.5 font-body text-sm text-gray-500 whitespace-nowrap">{u.city || '—'}</td>
+                  <td className="px-4 py-3.5 font-body text-sm text-gray-500 whitespace-nowrap">{u.phone || '—'}</td>
 
                   {/* Actions */}
                   <td className="px-4 py-3.5">
@@ -268,22 +276,22 @@ export default function AdminUsers() {
                       <div className="flex items-center gap-2">
                         {u.is_suspended ? (
                           <button onClick={() => handleUnsuspend(u)} disabled={actionLoading === u.user_id}
-                            className="flex items-center gap-1 text-xs bg-green-50 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors font-medium whitespace-nowrap">
-                            <UserCheck size={13} /> Unsuspend
+                            className="flex items-center gap-1 font-heading text-xs font-semibold bg-green-50 text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors whitespace-nowrap">
+                            <UserCheck size={12} /> Unsuspend
                           </button>
                         ) : (
                           <button onClick={() => setSuspendModal(u)} disabled={actionLoading === u.user_id}
-                            className="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors font-medium whitespace-nowrap">
-                            <ShieldOff size={13} /> Suspend
+                            className="flex items-center gap-1 font-heading text-xs font-semibold bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors whitespace-nowrap">
+                            <ShieldOff size={12} /> Suspend
                           </button>
                         )}
                         <button onClick={() => setDeleteModal(u)} disabled={actionLoading === u.user_id}
-                          className="flex items-center gap-1 text-xs bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors font-medium">
-                          <Trash2 size={13} /> Remove
+                          className="flex items-center gap-1 font-heading text-xs font-semibold bg-red-50 text-red-600 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">
+                          <Trash2 size={12} /> Remove
                         </button>
                       </div>
                     ) : (
-                      <span className="text-xs text-gray-400 italic">Protected</span>
+                      <span className="font-body text-xs text-gray-400 italic">Protected</span>
                     )}
                   </td>
                 </tr>
@@ -294,69 +302,89 @@ export default function AdminUsers() {
           {filtered.length === 0 && (
             <div className="text-center py-12">
               <Users size={32} className="mx-auto text-gray-300 mb-2" />
-              <p className="text-gray-400 text-sm">No users found</p>
+              <p className="font-body text-gray-400 text-sm">No users found</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* Suspend Modal */}
+      {/* ── Suspend Modal ── */}
       {suspendModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
-                <ShieldOff size={20} className="text-amber-600" />
+                <ShieldOff size={19} className="text-amber-600" />
               </div>
               <div>
-                <h3 className="font-bold text-[#1B3060]">Suspend User</h3>
-                <p className="text-gray-500 text-xs">{suspendModal.display_name || suspendModal.full_name} · {suspendModal.email}</p>
+                <h3 className="font-heading font-bold text-[#1B3060]">Suspend User</h3>
+                <p className="font-body text-gray-500 text-xs">
+                  {suspendModal.display_name || suspendModal.full_name}
+                </p>
               </div>
             </div>
             <div className="space-y-3 mb-5">
               <div>
-                <label className="text-xs font-semibold text-gray-700 mb-1 block">Suspend for how many days?</label>
+                <label className="font-body text-xs font-semibold text-gray-700 mb-1 block">Duration</label>
                 <select value={suspendDays} onChange={e => setSuspendDays(e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]">
+                  className="font-body w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]/20 focus:border-[#1B3060]">
                   {['1','3','7','14','30','90','365'].map(d => (
                     <option key={d} value={d}>{d === '365' ? '1 year' : `${d} day${d !== '1' ? 's' : ''}`}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-gray-700 mb-1 block">Reason (optional)</label>
+                <label className="font-body text-xs font-semibold text-gray-700 mb-1 block">
+                  Reason <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
                 <textarea value={suspendReason} onChange={e => setSuspendReason(e.target.value)}
                   placeholder="Why are you suspending this user?" rows={2}
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060] resize-none" />
+                  className="font-body w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1B3060]/20 focus:border-[#1B3060] resize-none" />
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setSuspendModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Cancel</button>
-              <button onClick={handleSuspend} disabled={!!actionLoading} className="flex-1 py-2.5 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600">Suspend</button>
+              <button onClick={() => setSuspendModal(null)}
+                className="flex-1 font-heading font-bold text-sm py-2.5 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleSuspend} disabled={!!actionLoading}
+                className="flex-1 font-heading font-bold text-sm py-2.5 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-colors disabled:opacity-60">
+                Suspend
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Delete Modal */}
+      {/* ── Delete Modal ── */}
       {deleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                <Trash2 size={20} className="text-red-600" />
+                <Trash2 size={19} className="text-red-600" />
               </div>
               <div>
-                <h3 className="font-bold text-[#1B3060]">Remove User</h3>
-                <p className="text-gray-500 text-xs">{deleteModal.email}</p>
+                <h3 className="font-heading font-bold text-[#1B3060]">Remove User</h3>
+                <p className="font-body text-gray-400 text-xs">This will deactivate the account</p>
               </div>
             </div>
-            <p className="text-sm text-gray-600 mb-5 bg-gray-50 rounded-xl p-3">
-              Remove <strong>{deleteModal.display_name || deleteModal.full_name || 'this user'}</strong>? Their account will be deactivated.
-            </p>
+            <div className="bg-gray-50 rounded-xl p-4 mb-5">
+              <p className="font-body text-sm text-gray-600">
+                Remove <strong className="text-[#1B3060]">
+                  {deleteModal.display_name || deleteModal.full_name || 'this user'}
+                </strong>? Their account will be deactivated.
+              </p>
+            </div>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteModal(null)} className="flex-1 py-2.5 border border-gray-200 rounded-xl text-gray-600 text-sm font-medium hover:bg-gray-50">Cancel</button>
-              <button onClick={handleDelete} disabled={!!actionLoading} className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600">Remove</button>
+              <button onClick={() => setDeleteModal(null)}
+                className="flex-1 font-heading font-bold text-sm py-2.5 border border-gray-200 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handleDelete} disabled={!!actionLoading}
+                className="flex-1 font-heading font-bold text-sm py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-60">
+                Remove
+              </button>
             </div>
           </div>
         </div>

@@ -338,8 +338,8 @@ export default function ConsultantProfileClient({
           <div className="grid grid-cols-4 gap-0 mt-6 pt-6 border-t border-gray-100">
             {[
               { icon: Shield,    color: '#059669', label: 'License', value: consultant.oep_license_number || 'Verified' },
-              { icon: BadgeCheck,color: '#1B3060', label: 'Certified', value: 'IATA Member' },
-              { icon: Award,     color: '#C9A227', label: 'Recognition', value: 'Top 5% in PK' },
+              { icon: BadgeCheck,color: '#1B3060', label: 'Certified', value: 'SECP, FBR' },
+              { icon: Award,     color: '#C9A227', label: 'Association Memberships', value: 'TAAP, PATO' },
               { icon: Clock,     color: '#7c3aed', label: 'Response', value: '~1 hour' },
             ].map((stat, i) => (
               <div key={i} className={`flex items-center gap-3 px-6 ${i < 3 ? 'border-r border-gray-100' : ''}`}>

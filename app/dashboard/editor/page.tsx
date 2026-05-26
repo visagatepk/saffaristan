@@ -4,12 +4,35 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { FileText, MessageSquare, Eye, PenSquare, TrendingUp, Clock } from 'lucide-react'
+import {
+  FileText, MessageSquare, Eye, PenSquare,
+  TrendingUp, Clock, ArrowRight, ChevronRight,
+} from 'lucide-react'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sparkline
+// ─────────────────────────────────────────────────────────────────────────────
+function Sparkline({ data, color }: { data: number[]; color: string }) {
+  const w = 60, h = 28
+  const min = Math.min(...data), max = Math.max(...data)
+  const range = max - min || 1
+  const pts = data.map((v, i) =>
+    `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * (h - 4) - 2}`
+  ).join(' ')
+  const line = pts.split(' ').join('L')
+  const area = `M${line} L${w},${h} L0,${h} Z`
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none">
+      <path d={`M${line}`} stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+      <path d={area} fill={color} fillOpacity="0.12" />
+    </svg>
+  )
+}
 
 export default function EditorOverviewPage() {
-  const [stats, setStats] = useState({ total: 0, published: 0, drafts: 0, views: 0, pending: 0 })
+  const [stats, setStats]   = useState({ total: 0, published: 0, drafts: 0, views: 0, pending: 0 })
   const [recent, setRecent] = useState<any[]>([])
-  const [name, setName] = useState('')
+  const [name, setName]     = useState('')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -20,28 +43,27 @@ export default function EditorOverviewPage() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('display_name')
+        .select('display_name, full_name')
         .eq('user_id', session.user.id)
         .single()
-      setName(profile?.display_name || 'Editor')
+      setName(profile?.display_name || profile?.full_name || 'Editor')
 
-      const [{ data: arts }, { data: comms }] = await Promise.all([
+      const [{ data: arts }, { data: comms }, { data: recentArts }] = await Promise.all([
         supabase.from('articles').select('id, is_published, views'),
-        supabase.from('article_comments').select('id, is_approved').eq('is_approved', false)
+        supabase.from('article_comments').select('id').eq('is_approved', false),
+        supabase
+          .from('articles')
+          .select('id, title, is_published, views, created_at, category')
+          .order('created_at', { ascending: false })
+          .limit(6),
       ])
 
-      const { data: recentArts } = await supabase
-        .from('articles')
-        .select('id, title, is_published, views, created_at, category')
-        .order('created_at', { ascending: false })
-        .limit(5)
-
       setStats({
-        total: arts?.length || 0,
+        total:     arts?.length || 0,
         published: arts?.filter(a => a.is_published).length || 0,
-        drafts: arts?.filter(a => !a.is_published).length || 0,
-        views: arts?.reduce((s, a) => s + (a.views || 0), 0) || 0,
-        pending: comms?.length || 0,
+        drafts:    arts?.filter(a => !a.is_published).length || 0,
+        views:     arts?.reduce((s, a) => s + (a.views || 0), 0) || 0,
+        pending:   comms?.length || 0,
       })
       setRecent(recentArts || [])
       setLoading(false)
@@ -49,84 +71,156 @@ export default function EditorOverviewPage() {
     load()
   }, [])
 
-  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' })
+  const formatDate = (d: string) =>
+    new Date(d).toLocaleDateString('en-PK', { month: 'short', day: 'numeric' })
+
+  const firstName = name.split(' ')[0]
 
   return (
-    <div className="max-w-4xl">
-      {/* Welcome */}
-      <div className="mb-7">
-        <h1 className="text-2xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans']">
-          Welcome back, {name}! 👋
-        </h1>
-        <p className="text-gray-500 text-sm mt-1">Here's your Insights overview for today.</p>
+    <div className="max-w-[900px]">
+
+      {/* ── Welcome banner ── */}
+      <div className="bg-[#1B3060] rounded-2xl p-7 mb-6 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.5) 1px,transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+        <div className="absolute top-0 right-0 w-72 h-72 opacity-[0.18] pointer-events-none"
+          style={{ background: 'radial-gradient(circle,#C9A227 0%,transparent 70%)', transform: 'translate(30%,-30%)' }}
+        />
+        <div className="relative flex items-center justify-between gap-6 flex-wrap">
+          <div>
+            {/* [FIX] was font-['Plus_Jakarta_Sans'] */}
+            <h1 className="font-heading font-black text-white text-2xl tracking-tight mb-1">
+              Welcome back, {firstName}! 👋
+            </h1>
+            <p className="font-body text-white/50 text-sm">Here's your Insights overview for today.</p>
+          </div>
+          <Link href="/dashboard/editor/insights/editor"
+            className="inline-flex items-center gap-2 font-heading font-bold text-sm text-[#1B3060] px-5 py-2.5 rounded-xl hover:opacity-90 transition-all shrink-0"
+            style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
+            <PenSquare size={15} /> Write New Article
+          </Link>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-7">
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-6">
         {[
-          { label: 'Total Articles', value: stats.total, icon: FileText, color: 'text-blue-600 bg-blue-50' },
-          { label: 'Published', value: stats.published, icon: TrendingUp, color: 'text-green-600 bg-green-50' },
-          { label: 'Total Views', value: stats.views.toLocaleString(), icon: Eye, color: 'text-purple-600 bg-purple-50' },
-          { label: 'Pending Comments', value: stats.pending, icon: MessageSquare, color: stats.pending > 0 ? 'text-orange-600 bg-orange-50' : 'text-gray-500 bg-gray-100' },
+          { label: 'Total Articles',   value: stats.total,                       color: '#2563eb', spark: [2,3,4,3,5,4,stats.total]          },
+          { label: 'Published',        value: stats.published,                   color: '#059669', spark: [1,2,2,3,3,4,stats.published]       },
+          { label: 'Total Views',      value: stats.views.toLocaleString(),      color: '#7c3aed', spark: [10,20,30,28,40,50,stats.views]      },
+          { label: 'Pending Comments', value: stats.pending,                     color: stats.pending > 0 ? '#f59e0b' : '#9ca3af',
+            spark: [1,2,1,3,2,2,stats.pending], alert: stats.pending > 0 },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-2 ${s.color}`}>
-              <s.icon size={18} />
+          <div key={s.label}
+            className={`bg-white rounded-2xl border p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)] ${
+              s.alert ? 'border-amber-200' : 'border-gray-100'
+            }`}>
+            <p className="font-body text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3">{s.label}</p>
+            <div className="flex items-end justify-between">
+              <p className="font-heading font-black text-[#1B3060] text-3xl tracking-tight leading-none">{s.value}</p>
+              <Sparkline data={s.spark} color={s.color} />
             </div>
-            <div className="text-2xl font-bold text-[#1B3060]">{s.value}</div>
-            <div className="text-xs text-gray-500">{s.label}</div>
           </div>
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-4 mb-7">
-        <Link href="/dashboard/editor/insights/editor" className="flex items-center gap-3 bg-[#C9A227] text-white p-4 rounded-2xl hover:bg-[#b8911f] transition-colors group">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
-            <PenSquare size={20} />
+      {/* ── Quick actions ── */}
+      <div className="grid sm:grid-cols-2 gap-3.5 mb-6">
+        <Link href="/dashboard/editor/insights/editor"
+          className="flex items-center gap-4 p-5 rounded-2xl relative overflow-hidden hover:opacity-95 transition-opacity"
+          style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <PenSquare size={22} className="text-white" />
           </div>
           <div>
-            <div className="font-semibold text-sm">Write New Article</div>
-            <div className="text-white/70 text-xs">Create and publish</div>
+            <p className="font-heading font-bold text-white text-sm">Write New Article</p>
+            <p className="font-body text-white/70 text-xs mt-0.5">Create, format and publish</p>
           </div>
+          <ChevronRight size={16} className="text-white/40 ml-auto" />
         </Link>
-        <Link href="/dashboard/editor/insights?tab=comments" className="flex items-center gap-3 bg-[#1B3060] text-white p-4 rounded-2xl hover:bg-[#243d7a] transition-colors">
-          <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-            <MessageSquare size={20} />
+
+        <Link href="/dashboard/editor/insights"
+          className="flex items-center gap-4 p-5 rounded-2xl bg-white border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] hover:border-[#C9A227]/30 hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)] transition-all group">
+          <div className="w-12 h-12 bg-[#EBF0F8] rounded-xl flex items-center justify-center shrink-0">
+            <MessageSquare size={20} className="text-[#1B3060]" />
           </div>
           <div>
-            <div className="font-semibold text-sm">Moderate Comments</div>
-            <div className="text-white/70 text-xs">{stats.pending} pending review</div>
+            <p className="font-heading font-bold text-[#1B3060] text-sm">Moderate Comments</p>
+            <p className="font-body text-gray-400 text-xs mt-0.5">
+              {stats.pending > 0
+                ? <><span className="text-amber-500 font-semibold">{stats.pending}</span> pending review</>
+                : 'All caught up ✅'}
+            </p>
           </div>
+          <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 ml-auto transition-colors" />
         </Link>
       </div>
 
-      {/* Recent Articles */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* ── Recent articles ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-bold text-[#1B3060] text-sm">Recent Articles</h2>
-          <Link href="/dashboard/editor/insights" className="text-xs text-[#C9A227] font-medium hover:underline">View all →</Link>
+          <h2 className="font-heading font-extrabold text-[#1B3060] text-[15px]">Recent Articles</h2>
+          <Link href="/dashboard/editor/insights"
+            className="font-body text-xs font-semibold text-[#C9A227] hover:text-[#a8861f] transition-colors flex items-center gap-1">
+            View all <ArrowRight size={12} />
+          </Link>
         </div>
+
         {loading ? (
           <div className="p-4 space-y-3">
-            {Array.from({ length: 4 }).map((_, i) => <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />)}
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+            ))}
           </div>
         ) : recent.length === 0 ? (
-          <div className="p-10 text-center text-gray-400 text-sm">No articles yet. <Link href="/dashboard/editor/insights/editor" className="text-[#C9A227] hover:underline">Write your first one →</Link></div>
+          <div className="p-12 text-center">
+            <FileText size={32} className="text-gray-200 mx-auto mb-3" />
+            <p className="font-body text-gray-400 text-sm mb-2">No articles yet.</p>
+            <Link href="/dashboard/editor/insights/editor"
+              className="font-body text-sm text-[#C9A227] hover:underline inline-flex items-center gap-1">
+              Write your first one <ArrowRight size={12} />
+            </Link>
+          </div>
         ) : (
           <div className="divide-y divide-gray-50">
             {recent.map(art => (
-              <div key={art.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                <div>
-                  <p className="text-sm font-medium text-[#1B3060] line-clamp-1">{art.title}</p>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-xs text-gray-400 flex items-center gap-1"><Clock size={10} />{formatDate(art.created_at)}</span>
-                    <span className="text-xs text-gray-400 flex items-center gap-1"><Eye size={10} />{art.views || 0} views</span>
+              <div key={art.id}
+                className="px-5 py-3.5 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                <div className="min-w-0 flex-1">
+                  <p className="font-heading font-bold text-[#1B3060] text-sm line-clamp-1 mb-0.5">
+                    {art.title}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                      <Clock size={10} />{formatDate(art.created_at)}
+                    </span>
+                    <span className="font-body text-xs text-gray-400 flex items-center gap-1">
+                      <Eye size={10} />{(art.views || 0).toLocaleString()}
+                    </span>
+                    {art.category && (
+                      <span className="font-body text-[10px] font-semibold bg-[#EBF0F8] text-[#1B3060] px-2 py-0.5 rounded-full">
+                        {art.category}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${art.is_published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                  {art.is_published ? 'Published' : 'Draft'}
-                </span>
+                <div className="flex items-center gap-2 ml-4 shrink-0">
+                  <span className={`font-body text-[11px] font-bold px-2.5 py-1 rounded-full ${
+                    art.is_published
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {art.is_published ? 'Published' : 'Draft'}
+                  </span>
+                  <Link href={`/dashboard/editor/insights/editor?id=${art.id}`}
+                    className="font-heading text-xs font-semibold text-[#1B3060] bg-[#EBF0F8] px-3 py-1 rounded-lg hover:bg-[#1B3060] hover:text-white transition-colors">
+                    Edit
+                  </Link>
+                </div>
               </div>
             ))}
           </div>

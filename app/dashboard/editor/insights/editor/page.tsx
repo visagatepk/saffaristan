@@ -19,82 +19,60 @@ import {
   Save, Globe, ArrowLeft, Eye, Loader2,
 } from 'lucide-react'
 
-// ── Toolbar helpers ──────────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Toolbar helpers
+// ─────────────────────────────────────────────────────────────────────────────
 function ToolbarBtn({
   onClick, active, disabled, title, children,
 }: {
-  onClick: () => void
-  active?: boolean
-  disabled?: boolean
-  title?: string
-  children: React.ReactNode
+  onClick: () => void; active?: boolean; disabled?: boolean; title?: string; children: React.ReactNode
 }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
+    <button type="button" onClick={onClick} disabled={disabled} title={title}
       className={`p-2 rounded-lg transition-all text-sm ${
-        active
-          ? 'bg-[#1B3060] text-white shadow-sm'
-          : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
-      } ${disabled ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer'}`}
-    >
+        active ? 'bg-[#1B3060] text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+      } ${disabled ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer'}`}>
       {children}
     </button>
   )
 }
 
 function Sep() {
-  return <div className="w-px h-5 bg-gray-200 mx-1 flex-shrink-0" />
+  return <div className="w-px h-5 bg-gray-200 mx-1 shrink-0" />
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  'Visa Tips',
-  'Country Guides',
-  'Immigration News',
-  'Student Visa',
-  'Work Permit',
-  'Family Visa',
-  'Business Visa',
-  'Travel Tips',
-  'Success Stories',
+  'Visa Tips', 'Country Guides', 'Immigration News',
+  'Student Visa', 'Work Permit', 'Family Visa',
+  'Business Visa', 'Travel Tips', 'Success Stories',
 ]
 
-// ── Slug helper ──────────────────────────────────────────────────────────────
-
 function toSlug(text: string) {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
+  return text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-').replace(/-+/g, '-')
 }
 
-// ── Inner editor — uses useSearchParams safely inside Suspense ───────────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Editor inner component — Suspense boundary required for useSearchParams
+// ─────────────────────────────────────────────────────────────────────────────
 function ArticleEditor() {
-  const router = useRouter()
+  const router       = useRouter()
   const searchParams = useSearchParams()
-  const editId = searchParams.get('id')
+  const editId       = searchParams.get('id')
 
-  const [title, setTitle] = useState('')
-  const [category, setCategory] = useState('Visa Tips')
+  const [title, setTitle]               = useState('')
+  const [category, setCategory]         = useState('Visa Tips')
   const [coverImageUrl, setCoverImageUrl] = useState('')
-  const [excerpt, setExcerpt] = useState('')
-  const [articleId, setArticleId] = useState<string | null>(editId)
-  const [wordCount, setWordCount] = useState(0)
-  const [saving, setSaving] = useState(false)
-  const [publishing, setPublishing] = useState(false)
-  const [savedMsg, setSavedMsg] = useState('')
+  const [excerpt, setExcerpt]           = useState('')
+  const [articleId, setArticleId]       = useState<string | null>(editId)
+  const [wordCount, setWordCount]       = useState(0)
+  const [saving, setSaving]             = useState(false)
+  const [publishing, setPublishing]     = useState(false)
+  const [savedMsg, setSavedMsg]         = useState('')
   const [loadingArticle, setLoadingArticle] = useState(!!editId)
 
-  // ── Editor setup ───────────────────────────────────────────────────────────
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
@@ -116,52 +94,47 @@ function ArticleEditor() {
     },
   })
 
-  // ── Load article if editing ────────────────────────────────────────────────
+  // Load article if editing
   useEffect(() => {
     if (!editId || !editor) return
     ;(async () => {
       const supabase = createClient()
-      const { data } = await supabase
-        .from('articles')
-        .select('*')
-        .eq('id', editId)
-        .single()
+      const { data } = await supabase.from('articles').select('*').eq('id', editId).single()
       if (data) {
         setTitle(data.title || '')
         setCategory(data.category || 'Visa Tips')
-        setCoverImageUrl(data.cover_image_url || '')
+        // [FIX] was data.cover_image_url — correct column is cover_image
+        setCoverImageUrl(data.cover_image || '')
         setExcerpt(data.excerpt || '')
         if (data.content) editor.commands.setContent(data.content)
       }
       setLoadingArticle(false)
     })()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId, editor])
 
-  // ── Save / Publish ─────────────────────────────────────────────────────────
   const save = async (publish: boolean) => {
-    if (!title.trim()) {
-      alert('Please add a title before saving.')
-      return
-    }
+    if (!title.trim()) { alert('Please add a title before saving.'); return }
     publish ? setPublishing(true) : setSaving(true)
 
     const supabase = createClient()
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) { router.push('/login'); return }
 
-    const content = editor?.getHTML() || ''
+    const content    = editor?.getHTML() || ''
     const autoExcerpt = editor?.getText().slice(0, 160).trim() + '…'
 
     const payload = {
-      title: title.trim(),
-      slug: toSlug(title),
+      title:        title.trim(),
+      slug:         toSlug(title),
       content,
-      excerpt: excerpt.trim() || autoExcerpt,
+      excerpt:      excerpt.trim() || autoExcerpt,
       category,
-      cover_image_url: coverImageUrl.trim() || null,
+      // [FIX] was cover_image_url — correct column name is cover_image
+      cover_image:  coverImageUrl.trim() || null,
       is_published: publish,
-      author_id: session.user.id,
-      updated_at: new Date().toISOString(),
+      author_id:    session.user.id,
+      updated_at:   new Date().toISOString(),
     }
 
     if (articleId) {
@@ -181,7 +154,6 @@ function ArticleEditor() {
     if (publish) router.push('/dashboard/editor/insights')
   }
 
-  // ── Loading state ──────────────────────────────────────────────────────────
   if (loadingArticle || !editor) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -190,108 +162,91 @@ function ArticleEditor() {
     )
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  const inputClass = "w-full font-body text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B3060]/20 focus:border-[#1B3060] transition-all"
+
   return (
     <div className="max-w-5xl mx-auto space-y-4">
 
-      {/* ── Top Bar ─────────────────────────────────────────────────────────── */}
+      {/* ── Top bar ── */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard/editor/insights"
-            className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors"
-          >
+          <Link href="/dashboard/editor/insights"
+            className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 className="text-xl font-bold text-[#1B3060] font-['Plus_Jakarta_Sans']">
+            {/* [FIX] was font-['Plus_Jakarta_Sans'] */}
+            <h1 className="font-heading font-bold text-[#1B3060] text-xl">
               {editId ? 'Edit Article' : 'New Article'}
             </h1>
-            <p className="text-xs text-gray-400 mt-0.5">{wordCount} words</p>
+            <p className="font-body text-xs text-gray-400 mt-0.5">{wordCount} words</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           {savedMsg && (
-            <span className="text-xs font-medium text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+            <span className="font-body text-xs font-semibold text-green-700 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
               ✓ {savedMsg}
             </span>
           )}
           {articleId && title && (
-            <Link
-              href={`/insights/${toSlug(title)}`}
-              target="_blank"
-              className="flex items-center gap-1.5 text-xs text-gray-600 px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors"
-            >
+            <Link href={`/insights/${toSlug(title)}`} target="_blank"
+              className="flex items-center gap-1.5 font-body text-xs text-gray-600 px-3 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors">
               <Eye size={13} /> Preview
             </Link>
           )}
-          <button
-            onClick={() => save(false)}
-            disabled={saving}
-            className="flex items-center gap-1.5 text-xs font-semibold text-[#1B3060] px-4 py-2 rounded-xl border border-[#1B3060] hover:bg-blue-50 transition-colors disabled:opacity-50"
-          >
+          <button onClick={() => save(false)} disabled={saving}
+            className="flex items-center gap-1.5 font-heading text-xs font-bold text-[#1B3060] px-4 py-2 rounded-xl border border-[#1B3060]/25 bg-[#EBF0F8] hover:bg-[#1B3060] hover:text-white transition-colors disabled:opacity-50">
             {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
             Save Draft
           </button>
-          <button
-            onClick={() => save(true)}
-            disabled={publishing}
-            className="flex items-center gap-1.5 text-xs font-semibold text-white bg-[#C9A227] px-4 py-2 rounded-xl hover:bg-[#b8911f] transition-colors disabled:opacity-50"
-          >
+          <button onClick={() => save(true)} disabled={publishing}
+            className="flex items-center gap-1.5 font-heading text-xs font-bold text-white px-4 py-2 rounded-xl hover:opacity-90 transition-colors disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
             {publishing ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
             Publish
           </button>
         </div>
       </div>
 
-      {/* ── Metadata Card ────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <input
-          type="text"
-          value={title}
-          onChange={e => setTitle(e.target.value)}
+      {/* ── Metadata card ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] p-5 space-y-4">
+        {/* [FIX] was font-['Plus_Jakarta_Sans'] */}
+        <input type="text" value={title} onChange={e => setTitle(e.target.value)}
           placeholder="Article title…"
-          className="w-full text-[22px] font-bold text-[#1B3060] placeholder-gray-300 border-none outline-none font-['Plus_Jakarta_Sans'] bg-transparent"
-        />
+          className="w-full font-heading font-black text-[#1B3060] text-[22px] placeholder-gray-300 border-none outline-none bg-transparent" />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Category</label>
-            <select
-              value={category}
-              onChange={e => setCategory(e.target.value)}
-              className="w-full text-sm text-gray-700 border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B3060]/20 bg-white"
-            >
+            <label className="font-body text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
+              Category
+            </label>
+            <select value={category} onChange={e => setCategory(e.target.value)} className={inputClass}>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">Cover Image URL</label>
-            <input
-              type="url"
-              value={coverImageUrl}
-              onChange={e => setCoverImageUrl(e.target.value)}
+            <label className="font-body text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
+              Cover Image URL
+            </label>
+            <input type="url" value={coverImageUrl} onChange={e => setCoverImageUrl(e.target.value)}
               placeholder="https://images.unsplash.com/…"
-              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B3060]/20"
-            />
+              className={inputClass} />
           </div>
         </div>
+
         <div>
-          <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
+          <label className="font-body text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5">
             Excerpt <span className="text-gray-400 font-normal normal-case">(auto-generated if blank)</span>
           </label>
-          <textarea
-            value={excerpt}
-            onChange={e => setExcerpt(e.target.value)}
-            placeholder="Brief summary shown in article cards…"
-            rows={2}
-            className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#1B3060]/20 resize-none"
-          />
+          <textarea value={excerpt} onChange={e => setExcerpt(e.target.value)}
+            placeholder="Brief summary shown in article cards…" rows={2}
+            className={`${inputClass} resize-none`} />
         </div>
       </div>
 
-      {/* ── Editor Card ───────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* ── Editor card ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)] overflow-hidden">
 
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-0.5 px-3 py-2.5 border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
@@ -302,13 +257,13 @@ function ArticleEditor() {
             <Redo size={15} />
           </ToolbarBtn>
           <Sep />
-          <ToolbarBtn title="Heading 1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })}>
+          <ToolbarBtn title="H1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })}>
             <Heading1 size={15} />
           </ToolbarBtn>
-          <ToolbarBtn title="Heading 2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })}>
+          <ToolbarBtn title="H2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })}>
             <Heading2 size={15} />
           </ToolbarBtn>
-          <ToolbarBtn title="Heading 3" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })}>
+          <ToolbarBtn title="H3" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive('heading', { level: 3 })}>
             <Heading3 size={15} />
           </ToolbarBtn>
           <Sep />
@@ -342,62 +297,58 @@ function ArticleEditor() {
           <ToolbarBtn title="Blockquote" onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive('blockquote')}>
             <Quote size={15} />
           </ToolbarBtn>
-          <span className="ml-auto text-[10px] text-gray-400 hidden md:block pr-1">
+          <span className="ml-auto font-body text-[10px] text-gray-400 hidden md:block pr-1">
             Ctrl+B Bold · Ctrl+I Italic · Ctrl+Z Undo
           </span>
         </div>
 
-        {/* Editor content styles */}
+        {/* TipTap content styles */}
         <style>{`
-          .ProseMirror h1 { font-size: 1.75rem; font-weight: 800; color: #1B3060; margin: 1.5rem 0 0.75rem; line-height: 1.2; }
-          .ProseMirror h2 { font-size: 1.35rem; font-weight: 700; color: #1B3060; margin: 1.25rem 0 0.5rem; line-height: 1.3; }
-          .ProseMirror h3 { font-size: 1.1rem; font-weight: 600; color: #1B3060; margin: 1rem 0 0.4rem; }
-          .ProseMirror p { margin: 0.6rem 0; color: #374151; }
-          .ProseMirror strong { font-weight: 700; color: #111827; }
-          .ProseMirror em { font-style: italic; }
-          .ProseMirror u { text-decoration: underline; }
-          .ProseMirror ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.75rem 0; }
-          .ProseMirror ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }
-          .ProseMirror li { margin: 0.3rem 0; color: #374151; }
-          .ProseMirror blockquote { border-left: 4px solid #C9A227; padding: 0.75rem 1rem; margin: 1rem 0; background: #fffbf0; border-radius: 0 8px 8px 0; color: #6b7280; font-style: italic; }
-          .ProseMirror code { background: #f3f4f6; padding: 0.15rem 0.4rem; border-radius: 4px; font-family: monospace; font-size: 0.875em; color: #1B3060; }
-          .ProseMirror p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #d1d5db; pointer-events: none; float: left; height: 0; }
+          .ProseMirror h1 { font-size:1.75rem; font-weight:800; color:#1B3060; margin:1.5rem 0 0.75rem; line-height:1.2; }
+          .ProseMirror h2 { font-size:1.35rem; font-weight:700; color:#1B3060; margin:1.25rem 0 0.5rem; line-height:1.3; }
+          .ProseMirror h3 { font-size:1.1rem; font-weight:600; color:#1B3060; margin:1rem 0 0.4rem; }
+          .ProseMirror p { margin:0.6rem 0; color:#374151; }
+          .ProseMirror strong { font-weight:700; color:#111827; }
+          .ProseMirror em { font-style:italic; }
+          .ProseMirror u { text-decoration:underline; }
+          .ProseMirror ul { list-style-type:disc; padding-left:1.5rem; margin:0.75rem 0; }
+          .ProseMirror ol { list-style-type:decimal; padding-left:1.5rem; margin:0.75rem 0; }
+          .ProseMirror li { margin:0.3rem 0; color:#374151; }
+          .ProseMirror blockquote { border-left:4px solid #C9A227; padding:0.75rem 1rem; margin:1rem 0; background:#fffbf0; border-radius:0 8px 8px 0; color:#6b7280; font-style:italic; }
+          .ProseMirror code { background:#f3f4f6; padding:0.15rem 0.4rem; border-radius:4px; font-family:monospace; font-size:0.875em; color:#1B3060; }
+          .ProseMirror p.is-editor-empty:first-child::before { content:attr(data-placeholder); color:#d1d5db; pointer-events:none; float:left; height:0; }
         `}</style>
 
         <EditorContent editor={editor} />
       </div>
 
-      {/* ── Bottom Action Bar ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-sm">
-        <p className="text-xs text-gray-400">
-          {wordCount} words · Slug: <span className="font-mono">{toSlug(title) || 'article-slug-here'}</span>
+      {/* ── Bottom action bar ── */}
+      <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-gray-100 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
+        <p className="font-body text-xs text-gray-400">
+          {wordCount} words · Slug:{' '}
+          <span className="font-mono text-[#1B3060]">{toSlug(title) || 'article-slug-here'}</span>
         </p>
         <div className="flex gap-2">
-          <button
-            onClick={() => save(false)}
-            disabled={saving}
-            className="flex items-center gap-2 text-sm font-semibold text-[#1B3060] px-5 py-2.5 rounded-xl border border-[#1B3060] hover:bg-blue-50 transition-colors disabled:opacity-50"
-          >
+          <button onClick={() => save(false)} disabled={saving}
+            className="flex items-center gap-2 font-heading font-bold text-sm text-[#1B3060] px-5 py-2.5 rounded-xl bg-[#EBF0F8] border border-[#1B3060]/15 hover:bg-[#1B3060] hover:text-white transition-colors disabled:opacity-50">
             {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
             Save Draft
           </button>
-          <button
-            onClick={() => save(true)}
-            disabled={publishing}
-            className="flex items-center gap-2 text-sm font-semibold text-white bg-[#C9A227] px-5 py-2.5 rounded-xl hover:bg-[#b8911f] transition-colors disabled:opacity-50"
-          >
+          <button onClick={() => save(true)} disabled={publishing}
+            className="flex items-center gap-2 font-heading font-bold text-sm text-white px-5 py-2.5 rounded-xl hover:opacity-90 transition-colors disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
             {publishing ? <Loader2 size={15} className="animate-spin" /> : <Globe size={15} />}
             Publish Article
           </button>
         </div>
       </div>
-
     </div>
   )
 }
 
-// ── Default export — Suspense wrapper fixes Next.js 14 prerender error ────────
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Page export — Suspense required for useSearchParams
+// ─────────────────────────────────────────────────────────────────────────────
 export default function ArticleEditorPage() {
   return (
     <Suspense fallback={
