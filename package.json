@@ -12,6 +12,8 @@
     "@emailjs/browser": "^4.4.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.1",
+    "@tiptap/extension-image": "^3.22.5",
+    "@tiptap/extension-link": "^3.22.5",
     "@tiptap/extension-placeholder": "^3.22.5",
     "@tiptap/extension-text-align": "^3.22.5",
     "@tiptap/extension-underline": "^3.22.5",
@@ -26,7 +28,8 @@
     "react": "^18",
     "react-dom": "^18",
     "react-dropzone": "^15.0.0",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "tiptap-text-direction": "^0.4.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.39",
