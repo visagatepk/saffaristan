@@ -1,396 +1,709 @@
 'use client'
 // FILE: app/dashboard/admin/insights/editor/page.tsx
-// NOTE: This page renders its own full-screen layout with a sticky top bar.
-// It intentionally overrides the admin dashboard layout padding for the editor UX.
+// ALSO REPLACE: app/dashboard/editor/insights/editor/page.tsx
 
-import { useEffect, useState, useRef, Suspense } from 'react'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useEffect, useState, useCallback, Suspense } from 'react'
+import { useEditor, EditorContent } from '@tiptap/react'
+import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
+import Placeholder from '@tiptap/extension-placeholder'
+import TextAlign from '@tiptap/extension-text-align'
+import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import { TextDirection } from 'tiptap-text-direction'
 import { createClient } from '@/lib/supabase/client'
-import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import NextLink from 'next/link'
 import {
-  ArrowLeft, Bold, Italic, Heading2, Heading3, List, Quote,
-  Code, Link as LinkIcon, Eye, EyeOff, Upload, X,
-  Save, Globe, Clock, Hash, CheckCircle, AlertCircle, ImageIcon,
+  Bold, Italic, Underline as UnderlineIcon,
+  Heading1, Heading2, Heading3,
+  List, ListOrdered, Quote,
+  Undo, Redo, AlignLeft, AlignCenter, AlignRight,
+  Save, Globe, ArrowLeft, Loader2, AlignJustify,
+  Link2, Image as ImageIcon, Languages, ArrowLeftRight,
+  Eye, Code2,
 } from 'lucide-react'
 
-const CATEGORIES = ['Visa Tips', 'Country Guides', 'Immigration News', 'Success Stories', 'Consultants', 'General']
+type EditorMode = 'visual' | 'text'
+type DirType = 'ltr' | 'rtl'
 
-function slugify(text: string) {
-  return text.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').trim()
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function DirBtn({ onClick, active, label, children }: {
+  onClick: () => void
+  active?: boolean
+  label?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={label}
+      className={`px-2.5 py-1.5 rounded-lg transition-all text-xs flex items-center gap-1 font-medium ${
+        active ? 'bg-[#1B3060] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
+      }`}
+    >
+      {children}
+    </button>
+  )
 }
 
-function calcReadTime(text: string) {
-  return Math.max(1, Math.ceil(text.split(/\s+/).length / 200))
+function ToolbarBtn({ onClick, active, disabled, title, children }: {
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+  title?: string
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`p-1.5 rounded-md transition-all ${
+        active
+          ? 'bg-[#1B3060] text-white'
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+      } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
+    >
+      {children}
+    </button>
+  )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Editor inner component (needs useSearchParams → wrapped in Suspense)
-// ─────────────────────────────────────────────────────────────────────────────
-function EditorContent() {
+function Sep() {
+  return <div className="w-px h-5 bg-gray-200 mx-0.5 self-center" />
+}
+
+function getWordCount(html: string): number {
+  const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  return text ? text.split(' ').filter(Boolean).length : 0
+}
+
+function getReadTime(w: number): number {
+  return Math.max(1, Math.round(w / 200))
+}
+
+// ─── Main editor ─────────────────────────────────────────────────────────────
+
+function InsightEditorInner() {
   const searchParams = useSearchParams()
-  const editId       = searchParams?.get('id')
-  const router       = useRouter()
+  const articleId = searchParams.get('id')
+  const supabase = createClient()
 
-  const [title, setTitle]             = useState('')
-  const [slug, setSlug]               = useState('')
-  const [slugEdited, setSlugEdited]   = useState(false)
-  const [content, setContent]         = useState('')
-  const [excerpt, setExcerpt]         = useState('')
-  const [category, setCategory]       = useState('General')
-  const [tags, setTags]               = useState('')
-  const [authorName, setAuthorName]   = useState('')
-  const [coverUrl, setCoverUrl]       = useState('')
+  const [title, setTitle] = useState('')
+  const [slug, setSlug] = useState('')
+  const [excerpt, setExcerpt] = useState('')
+  const [coverImage, setCoverImage] = useState('')
+  const [tags, setTags] = useState('')
+  const [category, setCategory] = useState('General')
   const [isPublished, setIsPublished] = useState(false)
-  const [isFeatured, setIsFeatured]   = useState(false)
-  const [preview, setPreview]         = useState(false)
-  const [uploading, setUploading]     = useState(false)
-  const [saving, setSaving]           = useState(false)
-  const [status, setStatus]           = useState<'idle' | 'saved' | 'published' | 'error'>('idle')
-  const [statusMsg, setStatusMsg]     = useState('')
+  const [isFeatured, setIsFeatured] = useState(false)
+  const [author, setAuthor] = useState('')
+  const [editorDir, setEditorDir] = useState<DirType>('rtl')
+  const [editorMode, setEditorMode] = useState<EditorMode>('visual')
+  const [htmlSource, setHtmlSource] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [publishing, setPublishing] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [loading, setLoading] = useState(!!articleId)
 
-  const textareaRef  = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      Underline,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextDirection.configure({
+        types: ['heading', 'paragraph', 'bulletList', 'orderedList', 'blockquote'],
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { class: 'text-[#C9A227] underline hover:text-[#1B3060] transition-colors' },
+      }),
+      Image.configure({
+        HTMLAttributes: { class: 'rounded-xl max-w-full my-4 mx-auto block shadow-md' },
+      }),
+      Placeholder.configure({
+        placeholder: 'مضمون لکھنا شروع کریں یا Start writing your article here...',
+      }),
+    ],
+    editorProps: {
+      attributes: { class: 'outline-none min-h-[420px] px-6 py-5 text-gray-800' },
+    },
+    onUpdate: ({ editor: ed }) => {
+      setHtmlSource(ed.getHTML())
+    },
+  })
 
-  useEffect(() => {
-    const supabase = createClient()
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { router.push('/login'); return }
+  const switchToText = useCallback(() => {
+    if (!editor) return
+    setHtmlSource(editor.getHTML())
+    setEditorMode('text')
+  }, [editor])
 
-      // [FIX] was .eq('id', session.user.id) — profiles FK is user_id
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('display_name, full_name')
-        .eq('user_id', session.user.id)
-        .single()
-      if (profile) setAuthorName(profile.display_name || profile.full_name || 'Admin')
+  const switchToVisual = useCallback(() => {
+    if (!editor) return
+    editor.commands.setContent(htmlSource)
+    setEditorMode('visual')
+  }, [editor, htmlSource])
 
-      if (editId) {
-        const { data: art } = await supabase.from('articles').select('*').eq('id', editId).single()
-        if (art) {
-          setTitle(art.title || '')
-          setSlug(art.slug || '')
-          setSlugEdited(true)
-          setContent(art.content || '')
-          setExcerpt(art.excerpt || '')
-          setCategory(art.category || 'General')
-          setTags((art.tags || []).join(', '))
-          setAuthorName(art.author_name || '')
-          setCoverUrl(art.cover_image || '')
-          setIsPublished(art.is_published || false)
-          setIsFeatured(art.is_featured || false)
-        }
+  const toggleEditorDir = useCallback(() => {
+    if (!editor) return
+    const newDir: DirType = editorDir === 'rtl' ? 'ltr' : 'rtl'
+    setEditorDir(newDir)
+    const { state, dispatch } = editor.view
+    const { tr, doc } = state
+    doc.descendants((node, pos) => {
+      if (['heading', 'paragraph', 'bulletList', 'orderedList', 'blockquote'].includes(node.type.name)) {
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, dir: newDir })
       }
-    }
-    init()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editId])
+    })
+    dispatch(tr)
+  }, [editor, editorDir])
+
+  const setDir = useCallback((dir: DirType) => {
+    if (!editor) return
+    editor.chain().focus().setTextDirection(dir).run()
+  }, [editor])
 
   useEffect(() => {
-    if (!slugEdited && title) setSlug(slugify(title))
-  }, [title, slugEdited])
-
-  const insertMarkdown = (before: string, after = '') => {
-    const ta = textareaRef.current
-    if (!ta) return
-    const start    = ta.selectionStart
-    const end      = ta.selectionEnd
-    const selected = content.substring(start, end)
-    const newContent = content.substring(0, start) + before + selected + after + content.substring(end)
-    setContent(newContent)
-    setTimeout(() => {
-      ta.focus()
-      ta.setSelectionRange(start + before.length, end + before.length)
-    }, 0)
-  }
-
-  const toolbarActions = [
-    { icon: Bold,     label: 'Bold',   action: () => insertMarkdown('**', '**') },
-    { icon: Italic,   label: 'Italic', action: () => insertMarkdown('*', '*') },
-    { icon: Heading2, label: 'H2',     action: () => insertMarkdown('\n## ') },
-    { icon: Heading3, label: 'H3',     action: () => insertMarkdown('\n### ') },
-    { icon: List,     label: 'List',   action: () => insertMarkdown('\n- ') },
-    { icon: Quote,    label: 'Quote',  action: () => insertMarkdown('\n> ') },
-    { icon: Code,     label: 'Code',   action: () => insertMarkdown('`', '`') },
-    { icon: LinkIcon, label: 'Link',   action: () => insertMarkdown('[', '](url)') },
-  ]
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    const supabase = createClient()
-    const ext  = file.name.split('.').pop()
-    const path = `covers/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('articles').upload(path, file, { upsert: true })
-    if (!error) {
-      const { data: { publicUrl } } = supabase.storage.from('articles').getPublicUrl(path)
-      setCoverUrl(publicUrl)
+    if (!articleId && title) {
+      const s = title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim()
+      setSlug(s || 'article')
     }
-    setUploading(false)
-  }
+  }, [title, articleId])
 
-  const save = async (publish = false) => {
-    if (!title.trim() || !content.trim()) {
-      setStatus('error')
-      setStatusMsg('Title and content are required.')
-      setTimeout(() => setStatus('idle'), 3500)
+  useEffect(() => {
+    if (!articleId) return
+    void (async () => {
+      setLoading(true)
+      const { data } = await supabase
+        .from('articles')
+        .select('*')
+        .eq('id', articleId)
+        .single()
+      if (data) {
+        setTitle(data.title || '')
+        setSlug(data.slug || '')
+        setExcerpt(data.excerpt || '')
+        setCoverImage(data.cover_image || '')
+        setTags((data.tags || []).join(', '))
+        setCategory(data.category || 'General')
+        setIsPublished(data.is_published ?? false)
+        setIsFeatured(data.is_featured ?? false)
+        setAuthor(data.author_name || '')
+        const html: string = data.content || ''
+        setHtmlSource(html)
+        if (editor) editor.commands.setContent(html)
+      }
+      setLoading(false)
+    })()
+  }, [articleId, editor])
+
+  const handleSave = async (publish: boolean) => {
+    setError('')
+    setSuccess('')
+    if (!title.trim()) { setError('Title is required.'); return }
+    if (!slug.trim()) { setError('Slug is required.'); return }
+
+    if (publish) { setPublishing(true) } else { setSaving(true) }
+
+    const content = editorMode === 'text' ? htmlSource : (editor?.getHTML() ?? '')
+    const tagsArray = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : []
+    const autoExcerpt = excerpt || content.replace(/<[^>]+>/g, '').slice(0, 200).trim()
+
+    const { data: authData } = await supabase.auth.getUser()
+    const user = authData?.user
+    if (!user) {
+      setError('Not authenticated.')
+      setSaving(false)
+      setPublishing(false)
       return
     }
-    setSaving(true)
-    const supabase = createClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setSaving(false); return }
 
     const payload = {
-      title:        title.trim(),
-      slug:         slug.trim() || slugify(title),
-      content:      content.trim(),
-      excerpt:      excerpt.trim(),
+      title: title.trim(),
+      slug: slug.trim(),
+      content,
+      excerpt: autoExcerpt,
+      cover_image: coverImage.trim() || null,
+      tags: tagsArray,
       category,
-      tags:         tags.split(',').map(t => t.trim()).filter(Boolean),
-      author_name:  authorName,
-      author_id:    session.user.id,
-      cover_image:  coverUrl || null,
       is_published: publish ? true : isPublished,
-      is_featured:  isFeatured,
-      read_time:    calcReadTime(content),
-      updated_at:   new Date().toISOString(),
+      is_featured: isFeatured,
+      author_name: author.trim() || null,
+      updated_at: new Date().toISOString(),
     }
 
-    const op = editId
-      ? supabase.from('articles').update(payload).eq('id', editId)
-      : supabase.from('articles').insert({ ...payload, views: 0, likes_count: 0 })
+    let saveError: { message: string } | null = null
 
-    const { error } = await op
-    setSaving(false)
-
-    if (error) {
-      setStatus('error')
-      setStatusMsg(error.message)
+    if (articleId) {
+      const { error: e } = await supabase
+        .from('articles')
+        .update(payload)
+        .eq('id', articleId)
+      saveError = e
     } else {
-      setStatus(publish ? 'published' : 'saved')
-      setStatusMsg(publish ? 'Article published!' : 'Draft saved!')
-      if (publish && !isPublished) setIsPublished(true)
+      const { error: e } = await supabase.from('articles').insert({
+        ...payload,
+        author_id: user.id,
+        created_at: new Date().toISOString(),
+        view_count: 0,
+        like_count: 0,
+        comment_count: 0,
+      })
+      saveError = e
     }
-    setTimeout(() => setStatus('idle'), 3000)
+
+    if (saveError) {
+      setError('Save failed: ' + saveError.message)
+    } else {
+      setSuccess(publish ? 'Article published!' : 'Draft saved!')
+      if (publish) setIsPublished(true)
+      setTimeout(() => setSuccess(''), 3000)
+    }
+
+    setSaving(false)
+    setPublishing(false)
   }
 
-  const renderPreview = (text: string) =>
-    text
-      .replace(/^### (.+)$/gm, '<h3 style="font-size:1.1rem;font-weight:700;color:#1B3060;margin:1.5rem 0 0.5rem">$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2 style="font-size:1.3rem;font-weight:700;color:#1B3060;margin:2rem 0 0.75rem">$1</h2>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      .replace(/`(.+?)`/g, '<code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:0.875rem">$1</code>')
-      .replace(/^\> (.+)$/gm, '<blockquote style="border-left:4px solid #C9A227;padding:8px 16px;background:#fefce8;margin:12px 0;border-radius:0 8px 8px 0;color:#555">$1</blockquote>')
-      .replace(/^\- (.+)$/gm, '<li style="margin:4px 0;padding-left:4px">$1</li>')
-      .replace(/\n\n/g, '</p><p style="margin-bottom:1rem;color:#374151;line-height:1.75">')
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-[#1B3060]" />
+      </div>
+    )
+  }
 
-  const wordCount = content.trim().split(/\s+/).filter(Boolean).length
+  const currentHtml = editorMode === 'visual' && editor ? editor.getHTML() : htmlSource
+  const wordCount = getWordCount(currentHtml)
+  const readTime = getReadTime(wordCount)
 
-  const inputClass = "w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm font-body focus:outline-none focus:ring-2 focus:ring-[#1B3060]/20 focus:border-[#1B3060] transition-all"
+  const isVisual = editorMode === 'visual'
+  const isText = editorMode === 'text'
+
+  const currentBlock = editor?.isActive('heading', { level: 1 })
+    ? 'H1'
+    : editor?.isActive('heading', { level: 2 })
+    ? 'H2'
+    : editor?.isActive('heading', { level: 3 })
+    ? 'H3'
+    : 'P'
 
   return (
-    <div className="min-h-screen bg-gray-50 -m-6">
+    <div className="min-h-screen bg-[#f8f9fb]">
 
-      {/* Sticky top bar */}
-      <div className="sticky top-0 z-20 bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+      {/* Top bar */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Link href="/dashboard/admin/insights" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <ArrowLeft size={18} className="text-gray-600" />
-            </Link>
-            <div>
-              {/* [FIX] was font-['Plus_Jakarta_Sans'] */}
-              <h1 className="font-heading font-bold text-[#1B3060] text-base leading-tight">
-                {editId ? 'Edit Article' : 'New Article'}
-              </h1>
-              <div className="flex items-center gap-3 text-xs text-gray-400">
-                <span className="flex items-center gap-1"><Hash size={10} />{wordCount} words</span>
-                <span className="flex items-center gap-1"><Clock size={10} />{calcReadTime(content)} min read</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5">
-            {status !== 'idle' && (
-              <span className={`flex items-center gap-1.5 font-body text-sm px-3 py-1.5 rounded-lg ${
-                status === 'error' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-700'
-              }`}>
-                {status === 'error' ? <AlertCircle size={13} /> : <CheckCircle size={13} />}
-                {statusMsg}
+            <NextLink
+              href="/dashboard/admin/insights"
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#1B3060] transition-colors"
+            >
+              <ArrowLeft size={15} />
+              <span>Back</span>
+            </NextLink>
+            <div className="w-px h-4 bg-gray-200" />
+            <span className="text-xs text-gray-400">{wordCount} words · {readTime} min read</span>
+            {isPublished && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                Published
               </span>
             )}
-            <button onClick={() => setPreview(!preview)}
-              className={`flex items-center gap-1.5 font-heading font-semibold text-sm px-3 py-2 rounded-lg border transition-all ${
-                preview ? 'bg-[#1B3060] text-white border-[#1B3060]' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}>
-              {preview ? <EyeOff size={13} /> : <Eye size={13} />}
-              {preview ? 'Edit' : 'Preview'}
+          </div>
+          <div className="flex items-center gap-2">
+            {error && (
+              <span className="text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                {error}
+              </span>
+            )}
+            {success && (
+              <span className="text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
+                {success}
+              </span>
+            )}
+            <button
+              onClick={() => handleSave(false)}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+            >
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+              Save Draft
             </button>
-            <button onClick={() => save(false)} disabled={saving}
-              className="flex items-center gap-1.5 font-heading font-semibold text-sm px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-60">
-              <Save size={13} /> {saving ? 'Saving…' : 'Save Draft'}
-            </button>
-            <button onClick={() => save(true)} disabled={saving}
-              className="flex items-center gap-1.5 font-heading font-bold text-sm px-4 py-2 rounded-lg text-white hover:opacity-90 transition-all disabled:opacity-60"
-              style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)' }}>
-              <Globe size={13} /> Publish
+            <button
+              onClick={() => handleSave(true)}
+              disabled={publishing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227] text-white text-sm font-medium hover:bg-[#b8911f] transition-all disabled:opacity-50"
+            >
+              {publishing ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
+              Publish
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
+      <div className="max-w-7xl mx-auto px-4 py-5 flex gap-5">
 
-        {/* ── Main editor ── */}
-        <div className="flex-1 space-y-4">
+        {/* Editor column */}
+        <div className="flex-1 min-w-0">
 
-          {/* Title */}
-          <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-            placeholder="Article title…"
-            className="w-full font-heading font-black text-[#1B3060] text-2xl placeholder-gray-300 border-0 border-b-2 border-gray-200 focus:border-[#C9A227] outline-none bg-transparent pb-2 transition-colors" />
+          <input
+            type="text"
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            placeholder="عنوان لکھیں / Article title"
+            dir="auto"
+            className="w-full text-2xl font-bold text-gray-900 placeholder-gray-300 border-0 bg-transparent outline-none mb-3"
+          />
 
-          {/* Slug */}
-          <div className="flex items-center gap-2 bg-gray-100 rounded-xl px-4 py-2.5">
-            <span className="font-body text-gray-500 text-sm">visagate.pk/insights/</span>
-            <input type="text" value={slug}
-              onChange={e => { setSlug(e.target.value); setSlugEdited(true) }}
-              className="flex-1 font-body text-sm text-[#1B3060] bg-transparent outline-none font-mono"
-              placeholder="article-slug" />
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xs text-gray-400 whitespace-nowrap">visagate.pk/insights/</span>
+            <input
+              type="text"
+              value={slug}
+              onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+              placeholder="article-url-slug"
+              className="text-xs text-[#1B3060] bg-blue-50 border border-blue-100 rounded-lg px-2 py-1 outline-none focus:border-[#1B3060] flex-1"
+            />
           </div>
 
-          {/* Cover image */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <label className="font-heading font-bold text-[#1B3060] text-sm mb-3 flex items-center gap-2 block">
-              <ImageIcon size={14} className="text-[#C9A227]" /> Cover Image
-            </label>
-            {coverUrl ? (
-              <div className="relative rounded-xl overflow-hidden h-48">
-                <img src={coverUrl} alt="cover" className="w-full h-full object-cover" />
-                <button onClick={() => setCoverUrl('')}
-                  className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-red-500 transition-colors">
-                  <X size={13} />
-                </button>
+          {/* Editor box */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+
+            {/* Toolbar — Visual mode only */}
+            {isVisual && (
+              <div className="border-b border-gray-100">
+
+                {/* Row 1: Mode tabs + Direction */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100 flex-wrap">
+
+                  {/* Visual / Text tabs */}
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={switchToVisual}
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-[#1B3060] text-white transition-all"
+                    >
+                      <Eye size={12} /> Visual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={switchToText}
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-white text-gray-600 hover:bg-gray-50 transition-all border-l border-gray-200"
+                    >
+                      <Code2 size={12} /> Text
+                    </button>
+                  </div>
+
+                  <div className="w-px h-4 bg-gray-200" />
+
+                  <Languages size={13} className="text-gray-400" />
+                  <span className="text-xs text-gray-400">Direction:</span>
+
+                  <button
+                    type="button"
+                    onClick={toggleEditorDir}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#1B3060] text-white hover:bg-[#152549] transition-all"
+                  >
+                    <ArrowLeftRight size={11} />
+                    {editorDir === 'rtl' ? 'اردو (RTL)' : 'English (LTR)'}
+                  </button>
+
+                  <div className="w-px h-4 bg-gray-200" />
+                  <span className="text-xs text-gray-400">Paragraph:</span>
+
+                  <DirBtn
+                    onClick={() => setDir('rtl')}
+                    active={editor?.isActive({ textDirection: 'rtl' })}
+                    label="Set RTL (Urdu)"
+                  >
+                    RTL اردو
+                  </DirBtn>
+                  <DirBtn
+                    onClick={() => setDir('ltr')}
+                    active={editor?.isActive({ textDirection: 'ltr' })}
+                    label="Set LTR (English)"
+                  >
+                    LTR Eng
+                  </DirBtn>
+                </div>
+
+                {/* Row 2: Formatting buttons */}
+                <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5">
+                  <select
+                    onChange={e => {
+                      const v = e.target.value
+                      if (v === 'p') {
+                        editor?.chain().focus().setParagraph().run()
+                      } else {
+                        editor?.chain().focus().toggleHeading({ level: parseInt(v) as 1 | 2 | 3 }).run()
+                      }
+                      e.target.value = 'p'
+                    }}
+                    defaultValue="p"
+                    className="text-xs border border-gray-200 rounded-md px-1.5 py-1 mr-1 outline-none text-gray-700 bg-white cursor-pointer h-7"
+                  >
+                    <option value="p">Paragraph</option>
+                    <option value="1">Heading 1</option>
+                    <option value="2">Heading 2</option>
+                    <option value="3">Heading 3</option>
+                  </select>
+
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} title="Bold (Ctrl+B)">
+                    <Bold size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleItalic().run()} active={editor?.isActive('italic')} title="Italic (Ctrl+I)">
+                    <Italic size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleUnderline().run()} active={editor?.isActive('underline')} title="Underline">
+                    <UnderlineIcon size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} title="Bullet List">
+                    <List size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={editor?.isActive('orderedList')} title="Numbered List">
+                    <ListOrdered size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={editor?.isActive('blockquote')} title="Quote">
+                    <Quote size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} title="Align Left">
+                    <AlignLeft size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} title="Center">
+                    <AlignCenter size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} title="Align Right">
+                    <AlignRight size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('justify').run()} active={editor?.isActive({ textAlign: 'justify' })} title="Justify">
+                    <AlignJustify size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn
+                    onClick={() => {
+                      const url = window.prompt('Link URL:')
+                      if (url) editor?.chain().focus().setLink({ href: url }).run()
+                    }}
+                    active={editor?.isActive('link')}
+                    title="Insert Link"
+                  >
+                    <Link2 size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn
+                    onClick={() => {
+                      const url = window.prompt('Image URL:')
+                      if (url) editor?.chain().focus().setImage({ src: url }).run()
+                    }}
+                    title="Insert Image"
+                  >
+                    <ImageIcon size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} title="Undo">
+                    <Undo size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()} title="Redo">
+                    <Redo size={15} />
+                  </ToolbarBtn>
+                </div>
               </div>
-            ) : (
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploading}
-                className="w-full h-40 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-[#C9A227] hover:bg-[#FBF5E0]/50 transition-all text-gray-400 hover:text-[#C9A227]">
-                <Upload size={22} />
-                <span className="font-body text-sm font-semibold">
-                  {uploading ? 'Uploading…' : 'Click to upload cover image'}
-                </span>
-                <span className="font-body text-xs">JPG, PNG up to 5MB</span>
-              </button>
             )}
-            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+
+            {/* Visual editor content */}
+            {isVisual && (
+              <div dir={editorDir} className="editor-multilang">
+                <EditorContent editor={editor} />
+              </div>
+            )}
+
+            {/* Text / HTML source mode */}
+            {isText && (
+              <div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100">
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={switchToVisual}
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-white text-gray-600 hover:bg-gray-50 transition-all"
+                    >
+                      <Eye size={12} /> Visual
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-[#1B3060] text-white border-l border-gray-200"
+                    >
+                      <Code2 size={12} /> Text
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-400 ml-2">
+                    Edit raw HTML — changes sync back to Visual mode
+                  </span>
+                </div>
+                <textarea
+                  value={htmlSource}
+                  onChange={e => setHtmlSource(e.target.value)}
+                  dir="ltr"
+                  className="w-full min-h-[420px] px-5 py-4 text-xs font-mono text-gray-700 bg-[#fafafa] outline-none resize-y leading-relaxed"
+                  placeholder="<p>Raw HTML here...</p>"
+                  spellCheck={false}
+                />
+              </div>
+            )}
+
+            {/* Status bar */}
+            <div className="border-t border-gray-100 bg-gray-50 px-4 py-1.5 flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                {isVisual ? currentBlock : 'HTML'}
+              </span>
+              <span className="text-xs text-gray-400">Word count: {wordCount}</span>
+            </div>
           </div>
 
-          {/* Content editor */}
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-            {/* Toolbar */}
-            <div className="flex items-center gap-1 p-3 border-b border-gray-100 bg-gray-50 flex-wrap">
-              {toolbarActions.map(({ icon: Icon, label, action }) => (
-                <button key={label} onClick={action} title={label}
-                  className="flex items-center gap-1 px-2.5 py-1.5 font-body text-gray-600 hover:text-[#1B3060] hover:bg-white rounded-lg text-xs font-medium transition-all border border-transparent hover:border-gray-200">
-                  <Icon size={13} />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              ))}
-            </div>
-            {preview ? (
-              <div className="p-6 min-h-64 prose max-w-none"
-                dangerouslySetInnerHTML={{
-                  __html: `<p style="margin-bottom:1rem;color:#374151;line-height:1.75">${renderPreview(content)}</p>`,
-                }}
-              />
-            ) : (
-              <textarea ref={textareaRef} value={content} onChange={e => setContent(e.target.value)}
-                placeholder={`Write your article content here...\n\nUse ## for section headings\nUse **text** for bold\nUse > for quotes\nUse - for bullet points`}
-                rows={20}
-                className="w-full p-6 font-body text-gray-700 text-sm leading-relaxed resize-none outline-none font-mono" />
-            )}
-          </div>
+          <p className="text-xs text-gray-400 mt-2 text-center">
+            اردو کے لیے RTL · For Urdu use RTL — For English use LTR
+          </p>
         </div>
 
-        {/* ── Sidebar ── */}
-        <div className="w-72 shrink-0 space-y-4">
+        {/* Sidebar */}
+        <div className="w-64 shrink-0 space-y-3">
 
-          {/* Publication */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-heading font-bold text-[#1B3060] text-sm mb-3">Publication</h3>
-            <div className="space-y-3">
-              {[
-                { label: 'Published', value: isPublished, set: setIsPublished, color: 'bg-green-500' },
-                { label: 'Featured',  value: isFeatured,  set: setIsFeatured,  color: 'bg-[#C9A227]' },
-              ].map(({ label, value, set, color }) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="font-body text-sm text-gray-700 flex items-center gap-2">
-                    <Globe size={13} className="text-gray-400" /> {label}
-                  </span>
-                  <button onClick={() => set(!value)}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${value ? color : 'bg-gray-200'}`}>
-                    <div className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform"
-                      style={{ transform: value ? 'translateX(22px)' : 'translateX(0)' }} />
-                  </button>
-                </div>
-              ))}
-            </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-3">Publication</h3>
+            <label className="flex items-center justify-between cursor-pointer mb-2.5">
+              <span className="text-sm text-gray-600">Published</span>
+              <div
+                onClick={() => setIsPublished(p => !p)}
+                className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${
+                  isPublished ? 'bg-[#1B3060]' : 'bg-gray-200'
+                }`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                  isPublished ? 'left-4' : 'left-0.5'
+                }`} />
+              </div>
+            </label>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-sm text-gray-600">Featured</span>
+              <div
+                onClick={() => setIsFeatured(p => !p)}
+                className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${
+                  isFeatured ? 'bg-[#C9A227]' : 'bg-gray-200'
+                }`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                  isFeatured ? 'left-4' : 'left-0.5'
+                }`} />
+              </div>
+            </label>
           </div>
 
-          {/* Category */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-heading font-bold text-[#1B3060] text-sm mb-3">Category</h3>
-            <select value={category} onChange={e => setCategory(e.target.value)}
-              className={inputClass}>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Cover Image</h3>
+            <input
+              type="text"
+              value={coverImage}
+              onChange={e => setCoverImage(e.target.value)}
+              placeholder="https://... image URL"
+              className="w-full text-xs border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#1B3060] text-gray-700"
+            />
+            {coverImage && (
+              <div className="mt-2 relative rounded-lg overflow-hidden">
+                <img src={coverImage} alt="Cover" className="w-full h-24 object-cover rounded-lg" />
+                <button
+                  type="button"
+                  onClick={() => setCoverImage('')}
+                  className="absolute top-1 right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center hover:bg-red-600"
+                >
+                  x
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Category</h3>
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#1B3060] text-gray-700 bg-white"
+            >
+              <option>General</option>
+              <option>Work Visa</option>
+              <option>Student Visa</option>
+              <option>Family Visa</option>
+              <option>Tourist Visa</option>
+              <option>Business Visa</option>
+              <option>Immigration</option>
+              <option>Scholarships</option>
             </select>
           </div>
 
-          {/* Tags */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-heading font-bold text-[#1B3060] text-sm mb-1">Tags</h3>
-            <input type="text" value={tags} onChange={e => setTags(e.target.value)}
-              placeholder="visa, uk, work permit" className={inputClass} />
-            <p className="font-body text-xs text-gray-400 mt-1">Comma separated</p>
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">Tags</h3>
+            <p className="text-xs text-gray-400 mb-2">Comma separated</p>
+            <input
+              type="text"
+              value={tags}
+              onChange={e => setTags(e.target.value)}
+              placeholder="visa, uk, work permit"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#1B3060] text-gray-700"
+            />
           </div>
 
-          {/* Excerpt */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-heading font-bold text-[#1B3060] text-sm mb-1">Excerpt</h3>
-            <p className="font-body text-xs text-gray-400 mb-2">Short description shown in cards</p>
-            <textarea value={excerpt} onChange={e => setExcerpt(e.target.value.slice(0, 200))}
-              placeholder="Brief summary…" rows={3}
-              className={`${inputClass} resize-none`} />
-            <p className={`font-body text-xs mt-1 text-right ${excerpt.length > 180 ? 'text-amber-500' : 'text-gray-400'}`}>
-              {excerpt.length}/200
-            </p>
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-1">Excerpt</h3>
+            <p className="text-xs text-gray-400 mb-2">Max 200 chars</p>
+            <textarea
+              value={excerpt}
+              onChange={e => setExcerpt(e.target.value.slice(0, 200))}
+              placeholder="Brief summary..."
+              rows={3}
+              dir="auto"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#1B3060] text-gray-700 resize-none"
+            />
+            <p className="text-xs text-gray-400 text-right mt-1">{excerpt.length}/200</p>
           </div>
 
-          {/* Author */}
-          <div className="bg-white rounded-2xl border border-gray-200 p-4">
-            <h3 className="font-heading font-bold text-[#1B3060] text-sm mb-3">Author</h3>
-            <input type="text" value={authorName} onChange={e => setAuthorName(e.target.value)}
-              className={inputClass} />
+          <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Author</h3>
+            <input
+              type="text"
+              value={author}
+              onChange={e => setAuthor(e.target.value)}
+              placeholder="Author name"
+              className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 outline-none focus:border-[#1B3060] text-gray-700"
+            />
           </div>
+
         </div>
       </div>
     </div>
   )
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Page export — Suspense required for useSearchParams
-// ─────────────────────────────────────────────────────────────────────────────
-export default function AdminEditorPage() {
+export default function InsightEditorPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-4 border-[#1B3060]/20 border-t-[#1B3060] rounded-full animate-spin" />
-      </div>
-    }>
-      <EditorContent />
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-[#1B3060]" />
+        </div>
+      }
+    >
+      <InsightEditorInner />
     </Suspense>
   )
 }

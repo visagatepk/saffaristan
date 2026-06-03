@@ -1,7 +1,6 @@
 'use client'
 // FILE: app/dashboard/admin/insights/editor/page.tsx
 // ALSO REPLACE: app/dashboard/editor/insights/editor/page.tsx
-// Full multilingual RTL/LTR rich text editor with Urdu support
 
 import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -13,32 +12,36 @@ import Link from '@tiptap/extension-link'
 import Image from '@tiptap/extension-image'
 import { TextDirection } from 'tiptap-text-direction'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import NextLink from 'next/link'
 import {
   Bold, Italic, Underline as UnderlineIcon,
   Heading1, Heading2, Heading3,
   List, ListOrdered, Quote,
-  Undo, Redo,
-  AlignLeft, AlignCenter, AlignRight,
-  Save, Globe, ArrowLeft, Loader2,
-  AlignJustify, Link2, Image as ImageIcon,
-  Languages, ArrowLeftRight,
+  Undo, Redo, AlignLeft, AlignCenter, AlignRight,
+  Save, Globe, ArrowLeft, Loader2, AlignJustify,
+  Link2, Image as ImageIcon, Languages, ArrowLeftRight,
+  Eye, Code2,
 } from 'lucide-react'
 
-// ─── RTL/LTR toggle button ───────────────────────────────────────────────────
-function DirBtn({
-  onClick, active, label, children,
-}: {
-  onClick: () => void; active?: boolean; label?: string; children: React.ReactNode
+type EditorMode = 'visual' | 'text'
+type DirType = 'ltr' | 'rtl'
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function DirBtn({ onClick, active, label, children }: {
+  onClick: () => void
+  active?: boolean
+  label?: string
+  children: React.ReactNode
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={label}
-      className={`p-2 rounded-lg transition-all text-sm flex items-center gap-1 ${
-        active ? 'bg-[#1B3060] text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+      className={`px-2.5 py-1.5 rounded-lg transition-all text-xs flex items-center gap-1 font-medium ${
+        active ? 'bg-[#1B3060] text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'
       }`}
     >
       {children}
@@ -46,11 +49,12 @@ function DirBtn({
   )
 }
 
-// ─── Toolbar button ──────────────────────────────────────────────────────────
-function ToolbarBtn({
-  onClick, active, disabled, title, children,
-}: {
-  onClick: () => void; active?: boolean; disabled?: boolean; title?: string; children: React.ReactNode
+function ToolbarBtn({ onClick, active, disabled, title, children }: {
+  onClick: () => void
+  active?: boolean
+  disabled?: boolean
+  title?: string
+  children: React.ReactNode
 }) {
   return (
     <button
@@ -58,37 +62,35 @@ function ToolbarBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`p-2 rounded-lg transition-all text-sm ${
-        active ? 'bg-[#1B3060] text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800'
-      } ${disabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+      className={`p-1.5 rounded-md transition-all ${
+        active
+          ? 'bg-[#1B3060] text-white'
+          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+      } ${disabled ? 'opacity-30 cursor-not-allowed' : ''}`}
     >
       {children}
     </button>
   )
 }
 
-// ─── Separator ───────────────────────────────────────────────────────────────
 function Sep() {
-  return <div className="w-px h-6 bg-gray-200 mx-1 self-center" />
+  return <div className="w-px h-5 bg-gray-200 mx-0.5 self-center" />
 }
 
-// ─── Word count ──────────────────────────────────────────────────────────────
 function getWordCount(html: string): number {
   const text = html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  if (!text) return 0
-  return text.split(' ').filter(Boolean).length
+  return text ? text.split(' ').filter(Boolean).length : 0
 }
 
-// ─── Estimate read time ──────────────────────────────────────────────────────
-function getReadTime(wordCount: number): number {
-  return Math.max(1, Math.round(wordCount / 200))
+function getReadTime(w: number): number {
+  return Math.max(1, Math.round(w / 200))
 }
 
-// ─── Main editor component ───────────────────────────────────────────────────
+// ─── Main editor ─────────────────────────────────────────────────────────────
+
 function InsightEditorInner() {
   const searchParams = useSearchParams()
   const articleId = searchParams.get('id')
-  const router = useRouter()
   const supabase = createClient()
 
   const [title, setTitle] = useState('')
@@ -100,23 +102,23 @@ function InsightEditorInner() {
   const [isPublished, setIsPublished] = useState(false)
   const [isFeatured, setIsFeatured] = useState(false)
   const [author, setAuthor] = useState('')
-  const [editorDir, setEditorDir] = useState<'ltr' | 'rtl'>('rtl')
-
+  const [editorDir, setEditorDir] = useState<DirType>('rtl')
+  const [editorMode, setEditorMode] = useState<EditorMode>('visual')
+  const [htmlSource, setHtmlSource] = useState('')
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(!!articleId)
 
-  // ── Tiptap editor ──────────────────────────────────────────────────────────
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-      }),
+      StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
       Underline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TextDirection.configure({ types: ['heading', 'paragraph', 'bulletList', 'orderedList', 'blockquote'] }),
+      TextDirection.configure({
+        types: ['heading', 'paragraph', 'bulletList', 'orderedList', 'blockquote'],
+      }),
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { class: 'text-[#C9A227] underline hover:text-[#1B3060] transition-colors' },
@@ -129,19 +131,29 @@ function InsightEditorInner() {
       }),
     ],
     editorProps: {
-      attributes: {
-        class: 'prose max-w-none min-h-[400px] outline-none px-6 py-4 text-gray-800',
-      },
+      attributes: { class: 'outline-none min-h-[420px] px-6 py-5 text-gray-800' },
     },
-    onUpdate: () => {},
+    onUpdate: ({ editor: ed }) => {
+      setHtmlSource(ed.getHTML())
+    },
   })
 
-  // ── Toggle entire editor direction ────────────────────────────────────────
+  const switchToText = useCallback(() => {
+    if (!editor) return
+    setHtmlSource(editor.getHTML())
+    setEditorMode('text')
+  }, [editor])
+
+  const switchToVisual = useCallback(() => {
+    if (!editor) return
+    editor.commands.setContent(htmlSource)
+    setEditorMode('visual')
+  }, [editor, htmlSource])
+
   const toggleEditorDir = useCallback(() => {
     if (!editor) return
-    const newDir = editorDir === 'rtl' ? 'ltr' : 'rtl'
+    const newDir: DirType = editorDir === 'rtl' ? 'ltr' : 'rtl'
     setEditorDir(newDir)
-    // Apply direction to ALL nodes in the document
     const { state, dispatch } = editor.view
     const { tr, doc } = state
     doc.descendants((node, pos) => {
@@ -152,13 +164,11 @@ function InsightEditorInner() {
     dispatch(tr)
   }, [editor, editorDir])
 
-  // ── Set direction for current selection ───────────────────────────────────
-  const setDir = useCallback((dir: 'ltr' | 'rtl') => {
+  const setDir = useCallback((dir: DirType) => {
     if (!editor) return
     editor.chain().focus().setTextDirection(dir).run()
   }, [editor])
 
-  // ── Auto-slug from title ──────────────────────────────────────────────────
   useEffect(() => {
     if (!articleId && title) {
       const s = title
@@ -171,53 +181,53 @@ function InsightEditorInner() {
     }
   }, [title, articleId])
 
-  // ── Load existing article ─────────────────────────────────────────────────
   useEffect(() => {
     if (!articleId) return
-    ;(async () => {
+    void (async () => {
       setLoading(true)
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('articles')
         .select('*')
         .eq('id', articleId)
         .single()
-      if (error || !data) {
-        setError('Failed to load article.')
-        setLoading(false)
-        return
-      }
-      setTitle(data.title || '')
-      setSlug(data.slug || '')
-      setExcerpt(data.excerpt || '')
-      setCoverImage(data.cover_image || '')
-      setTags((data.tags || []).join(', '))
-      setCategory(data.category || 'General')
-      setIsPublished(data.is_published ?? false)
-      setIsFeatured(data.is_featured ?? false)
-      setAuthor(data.author_name || '')
-      if (data.content && editor) {
-        editor.commands.setContent(data.content)
+      if (data) {
+        setTitle(data.title || '')
+        setSlug(data.slug || '')
+        setExcerpt(data.excerpt || '')
+        setCoverImage(data.cover_image || '')
+        setTags((data.tags || []).join(', '))
+        setCategory(data.category || 'General')
+        setIsPublished(data.is_published ?? false)
+        setIsFeatured(data.is_featured ?? false)
+        setAuthor(data.author_name || '')
+        const html: string = data.content || ''
+        setHtmlSource(html)
+        if (editor) editor.commands.setContent(html)
       }
       setLoading(false)
     })()
   }, [articleId, editor])
 
-  // ── Save / Publish ─────────────────────────────────────────────────────────
-  const handleSave = async (publish = false) => {
-    if (!editor) return
+  const handleSave = async (publish: boolean) => {
     setError('')
     setSuccess('')
     if (!title.trim()) { setError('Title is required.'); return }
     if (!slug.trim()) { setError('Slug is required.'); return }
 
-    publish ? setPublishing(true) : setSaving(true)
+    if (publish) { setPublishing(true) } else { setSaving(true) }
 
-    const content = editor.getHTML()
+    const content = editorMode === 'text' ? htmlSource : (editor?.getHTML() ?? '')
     const tagsArray = tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : []
-    const autoExcerpt = excerpt || editor.getText().slice(0, 200).trim()
+    const autoExcerpt = excerpt || content.replace(/<[^>]+>/g, '').slice(0, 200).trim()
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setError('Not authenticated.'); setSaving(false); setPublishing(false); return }
+    const { data: authData } = await supabase.auth.getUser()
+    const user = authData?.user
+    if (!user) {
+      setError('Not authenticated.')
+      setSaving(false)
+      setPublishing(false)
+      return
+    }
 
     const payload = {
       title: title.trim(),
@@ -233,24 +243,30 @@ function InsightEditorInner() {
       updated_at: new Date().toISOString(),
     }
 
-    let err
+    let saveError: { message: string } | null = null
+
     if (articleId) {
-      ;({ error: err } = await supabase.from('articles').update(payload).eq('id', articleId))
+      const { error: e } = await supabase
+        .from('articles')
+        .update(payload)
+        .eq('id', articleId)
+      saveError = e
     } else {
-      ;({ error: err } = await supabase.from('articles').insert({
+      const { error: e } = await supabase.from('articles').insert({
         ...payload,
         author_id: user.id,
         created_at: new Date().toISOString(),
         view_count: 0,
         like_count: 0,
         comment_count: 0,
-      }))
+      })
+      saveError = e
     }
 
-    if (err) {
-      setError('Save failed: ' + err.message)
+    if (saveError) {
+      setError('Save failed: ' + saveError.message)
     } else {
-      setSuccess(publish ? 'Article published successfully!' : 'Draft saved successfully!')
+      setSuccess(publish ? 'Article published!' : 'Draft saved!')
       if (publish) setIsPublished(true)
       setTimeout(() => setSuccess(''), 3000)
     }
@@ -259,7 +275,6 @@ function InsightEditorInner() {
     setPublishing(false)
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -268,27 +283,37 @@ function InsightEditorInner() {
     )
   }
 
-  const wordCount = editor ? getWordCount(editor.getHTML()) : 0
+  const currentHtml = editorMode === 'visual' && editor ? editor.getHTML() : htmlSource
+  const wordCount = getWordCount(currentHtml)
   const readTime = getReadTime(wordCount)
 
-  return (
-    <div className="min-h-screen bg-gray-50">
+  const isVisual = editorMode === 'visual'
+  const isText = editorMode === 'text'
 
-      {/* ── Top bar ─────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+  const currentBlock = editor?.isActive('heading', { level: 1 })
+    ? 'H1'
+    : editor?.isActive('heading', { level: 2 })
+    ? 'H2'
+    : editor?.isActive('heading', { level: 3 })
+    ? 'H3'
+    : 'P'
+
+  return (
+    <div className="min-h-screen bg-[#f8f9fb]">
+
+      {/* Top bar */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <NextLink
               href="/dashboard/admin/insights"
               className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#1B3060] transition-colors"
             >
-              <ArrowLeft size={16} />
+              <ArrowLeft size={15} />
               <span>Back</span>
             </NextLink>
-            <div className="w-px h-5 bg-gray-200" />
-            <span className="text-xs text-gray-400">
-              {wordCount} words · {readTime} min read
-            </span>
+            <div className="w-px h-4 bg-gray-200" />
+            <span className="text-xs text-gray-400">{wordCount} words · {readTime} min read</span>
             {isPublished && (
               <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
                 Published
@@ -297,52 +322,49 @@ function InsightEditorInner() {
           </div>
           <div className="flex items-center gap-2">
             {error && (
-              <span className="text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-200">
+              <span className="text-xs text-red-600 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
                 {error}
               </span>
             )}
             {success && (
-              <span className="text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg border border-green-200">
+              <span className="text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100">
                 {success}
               </span>
             )}
             <button
               onClick={() => handleSave(false)}
               disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
             >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+              {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
               Save Draft
             </button>
             <button
               onClick={() => handleSave(true)}
               disabled={publishing}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#C9A227] text-white text-sm font-medium hover:bg-[#b8911f] transition-all disabled:opacity-50 shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#C9A227] text-white text-sm font-medium hover:bg-[#b8911f] transition-all disabled:opacity-50"
             >
-              {publishing ? <Loader2 size={14} className="animate-spin" /> : <Globe size={14} />}
+              {publishing ? <Loader2 size={13} className="animate-spin" /> : <Globe size={13} />}
               Publish
             </button>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6 flex gap-6">
+      <div className="max-w-7xl mx-auto px-4 py-5 flex gap-5">
 
-        {/* ── Editor panel ───────────────────────────────────────── */}
+        {/* Editor column */}
         <div className="flex-1 min-w-0">
 
-          {/* Title */}
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="عنوان لکھیں / Article title"
             dir="auto"
-            className="w-full text-3xl font-bold text-gray-900 placeholder-gray-300 border-0 bg-transparent outline-none mb-4 font-heading"
-            style={{ fontFamily: 'inherit' }}
+            className="w-full text-2xl font-bold text-gray-900 placeholder-gray-300 border-0 bg-transparent outline-none mb-3"
           />
 
-          {/* Slug */}
           <div className="flex items-center gap-2 mb-4">
             <span className="text-xs text-gray-400 whitespace-nowrap">visagate.pk/insights/</span>
             <input
@@ -354,156 +376,242 @@ function InsightEditorInner() {
             />
           </div>
 
-          {/* ── Toolbar ───────────────────────────────────────────── */}
-          <div className="bg-white border border-gray-200 rounded-xl mb-2 shadow-sm">
+          {/* Editor box */}
+          <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
 
-            {/* Direction row */}
-            <div className="flex items-center gap-1 px-3 py-2 border-b border-gray-100 bg-gray-50 rounded-t-xl">
-              <Languages size={14} className="text-gray-400 mr-1" />
-              <span className="text-xs text-gray-400 mr-2">Direction:</span>
+            {/* Toolbar — Visual mode only */}
+            {isVisual && (
+              <div className="border-b border-gray-100">
 
-              {/* Toggle entire document */}
-              <button
-                type="button"
-                onClick={toggleEditorDir}
-                className="flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium bg-[#1B3060] text-white hover:bg-[#152549] transition-all"
-              >
-                <ArrowLeftRight size={12} />
-                {editorDir === 'rtl' ? 'اردو (RTL)' : 'English (LTR)'}
-              </button>
+                {/* Row 1: Mode tabs + Direction */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100 flex-wrap">
 
-              <div className="w-px h-4 bg-gray-200 mx-2" />
-              <span className="text-xs text-gray-400">Selected paragraph:</span>
+                  {/* Visual / Text tabs */}
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={switchToVisual}
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-[#1B3060] text-white transition-all"
+                    >
+                      <Eye size={12} /> Visual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={switchToText}
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-white text-gray-600 hover:bg-gray-50 transition-all border-l border-gray-200"
+                    >
+                      <Code2 size={12} /> Text
+                    </button>
+                  </div>
 
-              <DirBtn onClick={() => setDir('rtl')} active={editor?.isActive({ textDirection: 'rtl' })} label="Set RTL (Urdu/Arabic)">
-                <span className="text-xs font-medium">RTL اردو</span>
-              </DirBtn>
-              <DirBtn onClick={() => setDir('ltr')} active={editor?.isActive({ textDirection: 'ltr' })} label="Set LTR (English)">
-                <span className="text-xs font-medium">LTR Eng</span>
-              </DirBtn>
+                  <div className="w-px h-4 bg-gray-200" />
 
-              <div className="ml-auto text-xs text-gray-400 italic">
-                Tip: Place cursor in a paragraph, then click RTL/LTR to change its direction
+                  <Languages size={13} className="text-gray-400" />
+                  <span className="text-xs text-gray-400">Direction:</span>
+
+                  <button
+                    type="button"
+                    onClick={toggleEditorDir}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-[#1B3060] text-white hover:bg-[#152549] transition-all"
+                  >
+                    <ArrowLeftRight size={11} />
+                    {editorDir === 'rtl' ? 'اردو (RTL)' : 'English (LTR)'}
+                  </button>
+
+                  <div className="w-px h-4 bg-gray-200" />
+                  <span className="text-xs text-gray-400">Paragraph:</span>
+
+                  <DirBtn
+                    onClick={() => setDir('rtl')}
+                    active={editor?.isActive({ textDirection: 'rtl' })}
+                    label="Set RTL (Urdu)"
+                  >
+                    RTL اردو
+                  </DirBtn>
+                  <DirBtn
+                    onClick={() => setDir('ltr')}
+                    active={editor?.isActive({ textDirection: 'ltr' })}
+                    label="Set LTR (English)"
+                  >
+                    LTR Eng
+                  </DirBtn>
+                </div>
+
+                {/* Row 2: Formatting buttons */}
+                <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5">
+                  <select
+                    onChange={e => {
+                      const v = e.target.value
+                      if (v === 'p') {
+                        editor?.chain().focus().setParagraph().run()
+                      } else {
+                        editor?.chain().focus().toggleHeading({ level: parseInt(v) as 1 | 2 | 3 }).run()
+                      }
+                      e.target.value = 'p'
+                    }}
+                    defaultValue="p"
+                    className="text-xs border border-gray-200 rounded-md px-1.5 py-1 mr-1 outline-none text-gray-700 bg-white cursor-pointer h-7"
+                  >
+                    <option value="p">Paragraph</option>
+                    <option value="1">Heading 1</option>
+                    <option value="2">Heading 2</option>
+                    <option value="3">Heading 3</option>
+                  </select>
+
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} title="Bold (Ctrl+B)">
+                    <Bold size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleItalic().run()} active={editor?.isActive('italic')} title="Italic (Ctrl+I)">
+                    <Italic size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleUnderline().run()} active={editor?.isActive('underline')} title="Underline">
+                    <UnderlineIcon size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} title="Bullet List">
+                    <List size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={editor?.isActive('orderedList')} title="Numbered List">
+                    <ListOrdered size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={editor?.isActive('blockquote')} title="Quote">
+                    <Quote size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} title="Align Left">
+                    <AlignLeft size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} title="Center">
+                    <AlignCenter size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} title="Align Right">
+                    <AlignRight size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('justify').run()} active={editor?.isActive({ textAlign: 'justify' })} title="Justify">
+                    <AlignJustify size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn
+                    onClick={() => {
+                      const url = window.prompt('Link URL:')
+                      if (url) editor?.chain().focus().setLink({ href: url }).run()
+                    }}
+                    active={editor?.isActive('link')}
+                    title="Insert Link"
+                  >
+                    <Link2 size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn
+                    onClick={() => {
+                      const url = window.prompt('Image URL:')
+                      if (url) editor?.chain().focus().setImage({ src: url }).run()
+                    }}
+                    title="Insert Image"
+                  >
+                    <ImageIcon size={15} />
+                  </ToolbarBtn>
+                  <Sep />
+                  <ToolbarBtn onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} title="Undo">
+                    <Undo size={15} />
+                  </ToolbarBtn>
+                  <ToolbarBtn onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()} title="Redo">
+                    <Redo size={15} />
+                  </ToolbarBtn>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Formatting row */}
-            <div className="flex flex-wrap items-center gap-0.5 px-2 py-2">
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleHeading({ level: 1 }).run()} active={editor?.isActive('heading', { level: 1 })} title="Heading 1">
-                <Heading1 size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()} active={editor?.isActive('heading', { level: 2 })} title="Heading 2">
-                <Heading2 size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleHeading({ level: 3 }).run()} active={editor?.isActive('heading', { level: 3 })} title="Heading 3">
-                <Heading3 size={16} />
-              </ToolbarBtn>
-              <Sep />
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleBold().run()} active={editor?.isActive('bold')} title="Bold (Ctrl+B)">
-                <Bold size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleItalic().run()} active={editor?.isActive('italic')} title="Italic (Ctrl+I)">
-                <Italic size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleUnderline().run()} active={editor?.isActive('underline')} title="Underline (Ctrl+U)">
-                <UnderlineIcon size={16} />
-              </ToolbarBtn>
-              <Sep />
-              <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('left').run()} active={editor?.isActive({ textAlign: 'left' })} title="Align Left">
-                <AlignLeft size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('center').run()} active={editor?.isActive({ textAlign: 'center' })} title="Align Center">
-                <AlignCenter size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('right').run()} active={editor?.isActive({ textAlign: 'right' })} title="Align Right">
-                <AlignRight size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().setTextAlign('justify').run()} active={editor?.isActive({ textAlign: 'justify' })} title="Justify">
-                <AlignJustify size={16} />
-              </ToolbarBtn>
-              <Sep />
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleBulletList().run()} active={editor?.isActive('bulletList')} title="Bullet List">
-                <List size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleOrderedList().run()} active={editor?.isActive('orderedList')} title="Ordered List">
-                <ListOrdered size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().toggleBlockquote().run()} active={editor?.isActive('blockquote')} title="Quote">
-                <Quote size={16} />
-              </ToolbarBtn>
-              <Sep />
-              <ToolbarBtn
-                onClick={() => {
-                  const url = window.prompt('URL:')
-                  if (url) editor?.chain().focus().setLink({ href: url }).run()
-                }}
-                active={editor?.isActive('link')}
-                title="Add Link"
-              >
-                <Link2 size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn
-                onClick={() => {
-                  const url = window.prompt('Image URL:')
-                  if (url) editor?.chain().focus().setImage({ src: url }).run()
-                }}
-                title="Insert Image"
-              >
-                <ImageIcon size={16} />
-              </ToolbarBtn>
-              <Sep />
-              <ToolbarBtn onClick={() => editor?.chain().focus().undo().run()} disabled={!editor?.can().undo()} title="Undo">
-                <Undo size={16} />
-              </ToolbarBtn>
-              <ToolbarBtn onClick={() => editor?.chain().focus().redo().run()} disabled={!editor?.can().redo()} title="Redo">
-                <Redo size={16} />
-              </ToolbarBtn>
+            {/* Visual editor content */}
+            {isVisual && (
+              <div dir={editorDir} className="editor-multilang">
+                <EditorContent editor={editor} />
+              </div>
+            )}
+
+            {/* Text / HTML source mode */}
+            {isText && (
+              <div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 border-b border-gray-100">
+                  <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={switchToVisual}
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-white text-gray-600 hover:bg-gray-50 transition-all"
+                    >
+                      <Eye size={12} /> Visual
+                    </button>
+                    <button
+                      type="button"
+                      className="px-3 py-1.5 flex items-center gap-1.5 bg-[#1B3060] text-white border-l border-gray-200"
+                    >
+                      <Code2 size={12} /> Text
+                    </button>
+                  </div>
+                  <span className="text-xs text-gray-400 ml-2">
+                    Edit raw HTML — changes sync back to Visual mode
+                  </span>
+                </div>
+                <textarea
+                  value={htmlSource}
+                  onChange={e => setHtmlSource(e.target.value)}
+                  dir="ltr"
+                  className="w-full min-h-[420px] px-5 py-4 text-xs font-mono text-gray-700 bg-[#fafafa] outline-none resize-y leading-relaxed"
+                  placeholder="<p>Raw HTML here...</p>"
+                  spellCheck={false}
+                />
+              </div>
+            )}
+
+            {/* Status bar */}
+            <div className="border-t border-gray-100 bg-gray-50 px-4 py-1.5 flex items-center justify-between">
+              <span className="text-xs text-gray-400">
+                {isVisual ? currentBlock : 'HTML'}
+              </span>
+              <span className="text-xs text-gray-400">Word count: {wordCount}</span>
             </div>
           </div>
 
-          {/* ── ProseMirror content area ──────────────────────────── */}
-          <div
-            className={`bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden editor-multilang`}
-            dir={editorDir}
-          >
-            <EditorContent editor={editor} />
-          </div>
-
-          {/* Language hint */}
           <p className="text-xs text-gray-400 mt-2 text-center">
-            اردو متن کے لیے RTL اور انگریزی کے لیے LTR بٹن استعمال کریں · Use RTL for Urdu, LTR for English
+            اردو کے لیے RTL · For Urdu use RTL — For English use LTR
           </p>
         </div>
 
-        {/* ── Sidebar ─────────────────────────────────────────────── */}
-        <div className="w-72 shrink-0 space-y-4">
+        {/* Sidebar */}
+        <div className="w-64 shrink-0 space-y-3">
 
-          {/* Publication */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-800 mb-3">Publication</h3>
-            <label className="flex items-center justify-between cursor-pointer mb-2">
+            <label className="flex items-center justify-between cursor-pointer mb-2.5">
               <span className="text-sm text-gray-600">Published</span>
               <div
                 onClick={() => setIsPublished(p => !p)}
-                className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${isPublished ? 'bg-[#1B3060]' : 'bg-gray-200'}`}
+                className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${
+                  isPublished ? 'bg-[#1B3060]' : 'bg-gray-200'
+                }`}
               >
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isPublished ? 'left-5' : 'left-0.5'}`} />
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                  isPublished ? 'left-4' : 'left-0.5'
+                }`} />
               </div>
             </label>
             <label className="flex items-center justify-between cursor-pointer">
               <span className="text-sm text-gray-600">Featured</span>
               <div
                 onClick={() => setIsFeatured(p => !p)}
-                className={`w-10 h-5 rounded-full transition-colors cursor-pointer relative ${isFeatured ? 'bg-[#C9A227]' : 'bg-gray-200'}`}
+                className={`w-9 h-5 rounded-full transition-colors cursor-pointer relative ${
+                  isFeatured ? 'bg-[#C9A227]' : 'bg-gray-200'
+                }`}
               >
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${isFeatured ? 'left-5' : 'left-0.5'}`} />
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                  isFeatured ? 'left-4' : 'left-0.5'
+                }`} />
               </div>
             </label>
           </div>
 
-          {/* Cover Image */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Cover Image</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Cover Image</h3>
             <input
               type="text"
               value={coverImage}
@@ -513,7 +621,7 @@ function InsightEditorInner() {
             />
             {coverImage && (
               <div className="mt-2 relative rounded-lg overflow-hidden">
-                <img src={coverImage} alt="Cover" className="w-full h-28 object-cover rounded-lg" />
+                <img src={coverImage} alt="Cover" className="w-full h-24 object-cover rounded-lg" />
                 <button
                   type="button"
                   onClick={() => setCoverImage('')}
@@ -525,9 +633,8 @@ function InsightEditorInner() {
             )}
           </div>
 
-          {/* Category */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-800 mb-3">Category</h3>
+            <h3 className="text-sm font-semibold text-gray-800 mb-2">Category</h3>
             <select
               value={category}
               onChange={e => setCategory(e.target.value)}
@@ -544,7 +651,6 @@ function InsightEditorInner() {
             </select>
           </div>
 
-          {/* Tags */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-800 mb-1">Tags</h3>
             <p className="text-xs text-gray-400 mb-2">Comma separated</p>
@@ -557,10 +663,9 @@ function InsightEditorInner() {
             />
           </div>
 
-          {/* Excerpt */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-800 mb-1">Excerpt</h3>
-            <p className="text-xs text-gray-400 mb-2">Short description (max 200 chars)</p>
+            <p className="text-xs text-gray-400 mb-2">Max 200 chars</p>
             <textarea
               value={excerpt}
               onChange={e => setExcerpt(e.target.value.slice(0, 200))}
@@ -572,7 +677,6 @@ function InsightEditorInner() {
             <p className="text-xs text-gray-400 text-right mt-1">{excerpt.length}/200</p>
           </div>
 
-          {/* Author */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
             <h3 className="text-sm font-semibold text-gray-800 mb-2">Author</h3>
             <input
@@ -590,14 +694,15 @@ function InsightEditorInner() {
   )
 }
 
-// ─── Page wrapper with Suspense ───────────────────────────────────────────────
 export default function InsightEditorPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-[#1B3060]" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center min-h-screen">
+          <Loader2 className="w-8 h-8 animate-spin text-[#1B3060]" />
+        </div>
+      }
+    >
       <InsightEditorInner />
     </Suspense>
   )

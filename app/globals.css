@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -44,14 +46,13 @@ body {
   background: #C9A227;
   color: white;
 }
-/* ─── Multilingual Rich Text Editor Styles ──────────────────────────────────
-   Add this block to app/globals.css (paste at the bottom)
-   ─────────────────────────────────────────────────────────────────────────── */
 
-/* Urdu / Arabic / RTL font: Noto Nastaliq Urdu */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu:wght@400;700&display=swap');
+/* =============================================================================
+   MULTILINGUAL RICH TEXT EDITOR
+   Supports: Urdu (RTL / Noto Nastaliq), English (LTR / Plus Jakarta Sans)
+   ============================================================================= */
 
-/* ── ProseMirror base reset ─────────────────────────────────────────────── */
+/* ── ProseMirror base ─────────────────────────────────────────────────────── */
 .ProseMirror {
   outline: none;
   min-height: 400px;
@@ -69,7 +70,7 @@ body {
   height: 0;
 }
 
-/* ── RTL paragraphs & headings ──────────────────────────────────────────── */
+/* ── RTL nodes — Urdu / Arabic ────────────────────────────────────────────── */
 .ProseMirror [dir="rtl"],
 .ProseMirror p[dir="rtl"],
 .ProseMirror h1[dir="rtl"],
@@ -80,11 +81,11 @@ body {
   font-family: 'Noto Nastaliq Urdu', 'Segoe UI', Tahoma, Arial, sans-serif !important;
   direction: rtl;
   text-align: right;
-  line-height: 2.4; /* Nastaliq needs extra line height */
+  line-height: 2.4;
   font-size: 1.1rem;
 }
 
-/* ── LTR paragraphs & headings ──────────────────────────────────────────── */
+/* ── LTR nodes — English ──────────────────────────────────────────────────── */
 .ProseMirror [dir="ltr"],
 .ProseMirror p[dir="ltr"],
 .ProseMirror h1[dir="ltr"],
@@ -95,12 +96,7 @@ body {
   text-align: left;
 }
 
-/* ── Default RTL for .editor-multilang wrapper ──────────────────────────── */
-.editor-multilang .ProseMirror {
-  /* auto-detect per node via dir attr */
-}
-
-/* ── Headings ───────────────────────────────────────────────────────────── */
+/* ── Headings ─────────────────────────────────────────────────────────────── */
 .ProseMirror h1 {
   font-size: 2rem;
   font-weight: 700;
@@ -124,8 +120,6 @@ body {
   margin-top: 1rem;
   margin-bottom: 0.5rem;
 }
-
-/* ── RTL headings — Noto Nastaliq ───────────────────────────────────────── */
 .ProseMirror h1[dir="rtl"],
 .ProseMirror h2[dir="rtl"],
 .ProseMirror h3[dir="rtl"] {
@@ -133,7 +127,7 @@ body {
   color: #1B3060;
 }
 
-/* ── Blockquote ─────────────────────────────────────────────────────────── */
+/* ── Blockquote ───────────────────────────────────────────────────────────── */
 .ProseMirror blockquote {
   border-left: 4px solid #C9A227;
   padding-left: 1rem;
@@ -149,7 +143,7 @@ body {
   font-style: normal;
 }
 
-/* ── Lists ──────────────────────────────────────────────────────────────── */
+/* ── Lists ────────────────────────────────────────────────────────────────── */
 .ProseMirror ul {
   list-style-type: disc;
   padding-left: 1.5rem;
@@ -160,10 +154,10 @@ body {
   padding-left: 1.5rem;
   margin: 0.75rem 0;
 }
-.ProseMirror [dir="rtl"] ul,
-.ProseMirror [dir="rtl"] ol,
 .ProseMirror ul[dir="rtl"],
-.ProseMirror ol[dir="rtl"] {
+.ProseMirror ol[dir="rtl"],
+.ProseMirror [dir="rtl"] ul,
+.ProseMirror [dir="rtl"] ol {
   padding-left: 0;
   padding-right: 1.5rem;
   font-family: 'Noto Nastaliq Urdu', serif;
@@ -172,7 +166,7 @@ body {
   margin-bottom: 0.25rem;
 }
 
-/* ── Code ───────────────────────────────────────────────────────────────── */
+/* ── Code ─────────────────────────────────────────────────────────────────── */
 .ProseMirror code {
   background: #f1f5f9;
   padding: 0.15rem 0.4rem;
@@ -190,19 +184,19 @@ body {
   font-size: 0.875rem;
 }
 
-/* ── Images ─────────────────────────────────────────────────────────────── */
+/* ── Images ───────────────────────────────────────────────────────────────── */
 .ProseMirror img {
   max-width: 100%;
   border-radius: 12px;
   margin: 1rem auto;
   display: block;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 .ProseMirror img.ProseMirror-selectednode {
   outline: 2px solid #C9A227;
 }
 
-/* ── Links ──────────────────────────────────────────────────────────────── */
+/* ── Links ────────────────────────────────────────────────────────────────── */
 .ProseMirror a {
   color: #C9A227;
   text-decoration: underline;
@@ -212,14 +206,36 @@ body {
   color: #1B3060;
 }
 
-/* ── Paragraph spacing ──────────────────────────────────────────────────── */
+/* ── Paragraph spacing ────────────────────────────────────────────────────── */
 .ProseMirror p {
   margin-bottom: 0.75rem;
 }
 
-/* ── Horizontal rule ────────────────────────────────────────────────────── */
+/* ── Horizontal rule ──────────────────────────────────────────────────────── */
 .ProseMirror hr {
   border: none;
   border-top: 2px solid #e2e8f0;
   margin: 1.5rem 0;
+}
+
+/* ── Public article rendering (insights/[slug]) ───────────────────────────── */
+/* Ensures saved RTL HTML renders correctly on the public article page */
+.article-content [dir="rtl"],
+.article-content p[dir="rtl"],
+.article-content h1[dir="rtl"],
+.article-content h2[dir="rtl"],
+.article-content h3[dir="rtl"],
+.article-content li[dir="rtl"],
+.article-content blockquote[dir="rtl"] {
+  font-family: 'Noto Nastaliq Urdu', 'Segoe UI', Tahoma, Arial, sans-serif !important;
+  direction: rtl;
+  text-align: right;
+  line-height: 2.4;
+  font-size: 1.1rem;
+}
+.article-content blockquote[dir="rtl"] {
+  border-left: none;
+  border-right: 4px solid #C9A227;
+  padding-left: 0;
+  padding-right: 1rem;
 }
