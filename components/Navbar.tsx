@@ -150,12 +150,13 @@ export default function Navbar() {
   }
 
   // ── Dashboard redirect based on role ────────────────────────────────────
-  const getDashboardLink = () => {
-    if (profile?.role === 'consultant') return '/dashboard/consultant'
-    if (profile?.role === 'admin') return '/dashboard/admin'
-    return '/dashboard/seeker'
-  }
-
+// ✅ FIXED — editor bhi add kiya
+const getDashboardLink = () => {
+  if (profile?.role === 'consultant') return '/dashboard/consultant'
+  if (profile?.role === 'admin')      return '/dashboard/admin'
+  if (profile?.role === 'editor')     return '/dashboard/editor'
+  return '/dashboard/seeker'
+}
   // Active page  → navy text + font-semibold (no underline)
   // Hover        → navy text + navy underline scales in from center
   const linkClass = (href: string) =>
