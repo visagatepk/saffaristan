@@ -82,15 +82,9 @@ export default function AdminConsultants() {
         is_verified:         true,
         is_suspended:        false,
       })
-      .eq('user_id', id)
+      .eq('id', id)   // ✅ 'id' passed in IS profiles.id — match it directly
 
-    if (error) {
-      await supabase.from('profiles').update({
-        verification_status: 'verified',
-        is_verified:         true,
-        is_suspended:        false,
-      }).eq('id', id)
-    }
+    if (error) console.error('[Admin] Approve failed:', error)
 
     setAllConsultants(prev =>
       prev.map(c => c.id === id
