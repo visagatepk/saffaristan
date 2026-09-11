@@ -30,18 +30,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   useEffect(() => {
     const load = async () => {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/login'); return }
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { router.push('/login'); return }
 
-   const { data: { session } } = await supabase.auth.getSession()
-if (!session) { router.push('/login'); return }
-
-const { data } = await supabase
-  .from('profiles')
-  .select('role, full_name, display_name')
-  .eq('user_id', session.user.id)
-  .single()
-
+      const { data } = await supabase
+        .from('profiles')
+        .select('role, full_name, display_name')
+        .eq('user_id', session.user.id)
+        .single()
       if (!data || data.role !== 'admin') { router.push('/'); return }
       setAdminName(data.full_name || data.display_name || 'Admin')
       setLoading(false)
