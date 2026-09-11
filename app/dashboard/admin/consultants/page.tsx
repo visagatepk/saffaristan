@@ -15,7 +15,6 @@ const TABS = [
   { key: 'all',     label: 'All'     },
 ]
 
-// ✅ 'verified' is the correct value — not 'active'
 const STATUS_BADGE: Record<string, string> = {
   verified:             'bg-green-50 text-green-700 border-green-200',
   pending_verification: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -57,7 +56,6 @@ export default function AdminConsultants() {
 
   useEffect(() => { load() }, [load])
 
-  // ── Client-side filtering ──────────────────────────────────────────────────
   const tabFiltered = activeTab === 'pending'
     ? allConsultants.filter(c => c.verification_status === 'pending_verification')
     : activeTab === 'active'
@@ -75,20 +73,18 @@ export default function AdminConsultants() {
   const featuredCount = allConsultants.filter(c => c.is_featured).length
   const pendingCount  = allConsultants.filter(c => c.verification_status === 'pending_verification').length
 
-  // ── Approve ────────────────────────────────────────────────────────────────
   const handleApprove = async (id: string) => {
     setActionLoading(id + '_approve')
     const { error } = await supabase
       .from('profiles')
       .update({
-        verification_status: 'verified',   // ✅ correct value
+        verification_status: 'verified',
         is_verified:         true,
         is_suspended:        false,
       })
-      .eq('user_id', id)                   // ✅ use user_id not id
+      .eq('user_id', id)
 
     if (error) {
-      // fallback: try with id column
       await supabase.from('profiles').update({
         verification_status: 'verified',
         is_verified:         true,
@@ -105,7 +101,6 @@ export default function AdminConsultants() {
     setActionLoading(null)
   }
 
-  // ── Reject / Suspend ───────────────────────────────────────────────────────
   const handleReject = async (id: string) => {
     setActionLoading(id + '_reject')
     await supabase
@@ -126,23 +121,19 @@ export default function AdminConsultants() {
     setActionLoading(null)
   }
 
-  // ── Delete ─────────────────────────────────────────────────────────────────
   const handleDelete = async (id: string) => {
     setActionLoading(id + '_delete')
-    // Delete profile first, then auth user via service role if needed
     await supabase.from('profiles').delete().eq('id', id)
-    // Remove from local state immediately
     setAllConsultants(prev => prev.filter(c => c.id !== id))
     setDeleteConfirm(null)
     setActionLoading(null)
   }
 
-  // ── Feature toggle ─────────────────────────────────────────────────────────
   const handleFeatureToggle = async (id: string, currentFeatured: boolean) => {
     setActionLoading(id + '_feature')
     if (!currentFeatured) {
       if (featuredCount >= 3) {
-        alert('Maximum 3 featured consultants allowed. Pehle ek hatao.')
+        alert('Maximum 3 featured consultants allowed. Remove one first.')
         setActionLoading(null)
         return
       }
@@ -227,7 +218,7 @@ export default function AdminConsultants() {
             {activeTab === 'pending' ? 'No pending verifications' : 'No consultants found'}
           </p>
           <p className="text-gray-400 text-sm">
-            {activeTab === 'pending' ? 'Sab clear hai! ✅' : 'Filter change karo'}
+            {activeTab === 'pending' ? 'All caught up! ✅' : 'Try a different filter'}
           </p>
         </div>
       ) : (
@@ -267,7 +258,6 @@ export default function AdminConsultants() {
                       </div>
                       <p className="text-gray-400 text-xs">{c.business_name}</p>
                     </div>
-                    {/* Status badge */}
                     <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full border shrink-0 ${
                       STATUS_BADGE[c.verification_status] || 'bg-gray-100 text-gray-500 border-gray-200'
                     }`}>
@@ -297,13 +287,11 @@ export default function AdminConsultants() {
                   {/* ── Action buttons ── */}
                   <div className="flex items-center gap-2 flex-wrap">
 
-                    {/* View Profile */}
                     <Link href={`/consultants/${c.id}`} target="_blank"
                       className="text-xs font-semibold text-[#1B3060] border border-[#1B3060]/25 px-3 py-1.5 rounded-lg hover:bg-[#1B3060] hover:text-white transition-colors flex items-center gap-1">
                       <Eye size={12} /> View Profile
                     </Link>
 
-                    {/* Feature toggle — verified consultants only */}
                     {c.is_verified && (
                       <button
                         onClick={() => handleFeatureToggle(c.id, c.is_featured)}
@@ -318,7 +306,6 @@ export default function AdminConsultants() {
                       </button>
                     )}
 
-                    {/* Pending — Approve / Reject */}
                     {c.verification_status === 'pending_verification' && (
                       <>
                         <button onClick={() => handleApprove(c.id)}
@@ -336,7 +323,6 @@ export default function AdminConsultants() {
                       </>
                     )}
 
-                    {/* Verified — Suspend */}
                     {c.verification_status === 'verified' && (
                       <button onClick={() => handleReject(c.id)}
                         disabled={actionLoading === c.id + '_reject'}
@@ -345,7 +331,6 @@ export default function AdminConsultants() {
                       </button>
                     )}
 
-                    {/* Rejected — Re-activate */}
                     {(c.verification_status === 'rejected' || c.verification_status === 'unverified') && (
                       <button onClick={() => handleApprove(c.id)}
                         disabled={actionLoading === c.id + '_approve'}
@@ -354,7 +339,6 @@ export default function AdminConsultants() {
                       </button>
                     )}
 
-                    {/* ✅ Delete button — naya */}
                     <button onClick={() => setDeleteConfirm(c.id)}
                       className="text-xs font-semibold text-red-400 border border-red-100 px-3 py-1.5 rounded-lg hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-colors flex items-center gap-1 ml-auto">
                       <Trash2 size={12} /> Delete
@@ -374,9 +358,9 @@ export default function AdminConsultants() {
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <Trash2 size={20} className="text-red-600" />
             </div>
-            <h3 className="font-bold text-[#1B3060] text-center text-lg mb-1">Consultant Delete Karo?</h3>
+            <h3 className="font-bold text-[#1B3060] text-center text-lg mb-1">Delete Consultant?</h3>
             <p className="text-gray-400 text-sm text-center mb-5">
-              Ye action undo nahi ho sakta. Profile aur services hamesha ke liye delete ho jayengi.
+              This action cannot be undone. The profile and all services will be permanently deleted.
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteConfirm(null)}
@@ -386,7 +370,7 @@ export default function AdminConsultants() {
               <button onClick={() => handleDelete(deleteConfirm)}
                 disabled={actionLoading === deleteConfirm + '_delete'}
                 className="flex-1 py-2.5 bg-red-500 text-white rounded-xl text-sm font-semibold hover:bg-red-600 disabled:opacity-60">
-                {actionLoading === deleteConfirm + '_delete' ? 'Deleting…' : 'Haan, Delete Karo'}
+                {actionLoading === deleteConfirm + '_delete' ? 'Deleting…' : 'Yes, Delete'}
               </button>
             </div>
           </div>
