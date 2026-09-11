@@ -48,34 +48,39 @@ export default function BookAppointmentPage() {
   const [preferredDate, setPreferredDate] = useState('')
   const [preferredTime, setPreferredTime] = useState('')
 
-  useEffect(() => {
+useEffect(() => {
     const load = async () => {
-      const supabase = createClient()
+      try {
+        const supabase = createClient()
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push(`/login?redirect=/book/${consultantId}`); return }
-      setCurrentUser(user)
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session) { router.push(`/login?redirect=/book/${consultantId}`); return }
+        setCurrentUser(session.user)
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .maybeSingle()
 
-      if (profile) {
-        setSeekerName(profile.full_name || '')
-        setSeekerEmail(user.email || '')
-        setSeekerPhone(profile.phone || '')
+        if (profile) {
+          setSeekerName(profile.full_name || '')
+          setSeekerEmail(session.user.email || '')
+          setSeekerPhone(profile.phone || '')
+        }
+
+        const { data: cons } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', consultantId)
+          .maybeSingle()
+
+        setConsultant(cons)
+      } catch (err) {
+        console.error('[BookPage] load failed:', err)
+      } finally {
+        setLoading(false)
       }
-
-      const { data: cons } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', consultantId)
-        .single()
-
-      setConsultant(cons)
-      setLoading(false)
     }
     load()
   }, [consultantId, router])
