@@ -131,17 +131,19 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
     if (!initialConsultantId || initDone) return
     setInitDone(true)
 
-    const autoOpen = async () => {
+   const autoOpen = async () => {
+      console.log('[DEBUG] autoOpen started, initialConsultantId:', initialConsultantId, 'currentUserId:', currentUserId)
       try {
         // Check if conversation already exists (direct DB query, no list dependency)
-        const { data: existing } = await supabase
+        const { data: existing, error: existingErr } = await supabase
           .from('conversations')
           .select('*')
           .eq('seeker_id', currentUserId)
           .eq('consultant_id', initialConsultantId)
           .maybeSingle()
-
-        if (existing) {
+      console.log('[DEBUG] existing query result:', existing, 'error:', existingErr)
+      
+      if (existing) {
           const profile = await fetchProfile(initialConsultantId)
           const enriched: Conversation = {
             ...existing,
