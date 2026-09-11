@@ -75,14 +75,14 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
 
   // ── Helper: fetch profile for a given userId ────────────────────────────
   const fetchProfile = useCallback(async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('id, display_name, full_name, avatar_url, role, city')
-      .eq('id', userId)
-      .single()
+      .select('id, user_id, display_name, full_name, avatar_url, role, city')
+      .eq('user_id', userId)
+      .maybeSingle()
+    if (error) console.error('[MessagingUI] fetchProfile failed:', error)
     return data
   }, [])
-
   // ── Load conversations ──────────────────────────────────────────────────
   // ✅ FIX 1: try/catch/finally ensures setLoadingConvs(false) ALWAYS runs,
   //    preventing the sidebar from being stuck in skeleton forever.

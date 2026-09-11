@@ -665,8 +665,7 @@ export default function ConsultantProfileClient({
                   style={{ background: 'linear-gradient(135deg, #C9A227 0%, #a8861f 100%)', boxShadow: '0 4px 14px rgba(201,162,39,0.35)' }}>
                   <Calendar size={15} /> Book Consultation
                 </Link>
-                <Link href={`/messages?to=${consultant.user_id}`}
-                  className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-[#1B3060] border-[1.5px] border-[#1B3060] py-3.5 rounded-xl hover:bg-[#1B3060] hover:text-white transition-all">
+<Link href={`/dashboard/seeker/messages?to=${consultant.user_id}`}                  className="w-full flex items-center justify-center gap-2 font-heading font-bold text-sm text-[#1B3060] border-[1.5px] border-[#1B3060] py-3.5 rounded-xl hover:bg-[#1B3060] hover:text-white transition-all">
                   <MessageSquare size={15} /> Send Message
                 </Link>
                 {waNumber && (
