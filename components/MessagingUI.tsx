@@ -55,6 +55,12 @@ function getInitials(name: string) {
 }
 
 export default function MessagingUI({ currentUserId, currentUserRole, initialConsultantId }: Props) {
+  // ✅ myProfileId is profiles.id for the logged-in user — conversations.seeker_id,
+  //    conversations.consultant_id, and messages.sender_id are ALL foreign keys to
+  //    profiles.id, not to auth.users.id (which is what currentUserId is).
+  //    Every DB read/write below uses myProfileId, never the raw currentUserId.
+  const [myProfileId, setMyProfileId]       = useState<string | null>(null)
+  const [resolvingMe, setResolvingMe]       = useState(true)
   const [conversations, setConversations]   = useState<Conversation[]>([])
   const [selectedConv, setSelectedConv]     = useState<Conversation | null>(null)
   const [messages, setMessages]             = useState<Message[]>([])
@@ -73,37 +79,69 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  // ── Helper: fetch profile for a given userId ────────────────────────────
-  const fetchProfile = useCallback(async (userId: string) => {
+  // ── Helper: fetch profile (for display) by AUTH user_id ──────────────────
+  const fetchProfile = useCallback(async (authUserId: string) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('id, user_id, display_name, full_name, avatar_url, role, city')
-      .eq('user_id', userId)
+      .eq('user_id', authUserId)
       .maybeSingle()
     if (error) console.error('[MessagingUI] fetchProfile failed:', error)
     return data
   }, [])
+
+  // ── Helper: resolve profiles.id from an AUTH user_id ─────────────────────
+  const resolveProfileId = useCallback(async (authUserId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('user_id', authUserId)
+      .maybeSingle()
+    if (error) console.error('[MessagingUI] resolveProfileId failed:', error)
+    return data?.id || null
+  }, [])
+
+  // ── Resolve my own profile.id once on mount ──────────────────────────────
+  useEffect(() => {
+    let cancelled = false
+    const resolve = async () => {
+      try {
+        const id = await resolveProfileId(currentUserId)
+        if (!cancelled) setMyProfileId(id)
+      } finally {
+        if (!cancelled) setResolvingMe(false)
+      }
+    }
+    resolve()
+    return () => { cancelled = true }
+  }, [currentUserId, resolveProfileId])
+
   // ── Load conversations ──────────────────────────────────────────────────
-  // ✅ FIX 1: try/catch/finally ensures setLoadingConvs(false) ALWAYS runs,
-  //    preventing the sidebar from being stuck in skeleton forever.
   const loadConversations = useCallback(async () => {
+    if (!myProfileId) return
     try {
       const { data, error } = await supabase
         .from('conversations')
         .select('*')
-        .or(`seeker_id.eq.${currentUserId},consultant_id.eq.${currentUserId}`)
+        .or(`seeker_id.eq.${myProfileId},consultant_id.eq.${myProfileId}`)
         .order('last_message_at', { ascending: false })
 
       if (error) throw error
       if (!data) return
 
       const enriched = await Promise.all(data.map(async (conv) => {
-        const otherId = currentUserRole === 'seeker' ? conv.consultant_id : conv.seeker_id
-        const profile = await fetchProfile(otherId)
+        const otherProfileId = currentUserRole === 'seeker' ? conv.consultant_id : conv.seeker_id
+        // other_user lookup needs the OTHER person's auth user_id → but we only
+        // have their profiles.id here, so fetch by id instead of user_id.
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id, user_id, display_name, full_name, avatar_url, role, city')
+          .eq('id', otherProfileId)
+          .maybeSingle()
         return {
           ...conv,
           other_user: profile ? {
-            id: otherId,
+            id: profile.id,
             name: profile.display_name || profile.full_name || 'User',
             avatar: profile.avatar_url || null,
             role: profile.role,
@@ -116,39 +154,41 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
     } catch (err) {
       console.error('[MessagingUI] loadConversations failed:', err)
     } finally {
-      setLoadingConvs(false) // ← ALWAYS runs — no more infinite skeleton
+      setLoadingConvs(false)
     }
-  }, [currentUserId, currentUserRole, fetchProfile])
+  }, [myProfileId, currentUserRole])
 
   useEffect(() => {
-    loadConversations()
-  }, [loadConversations])
+    if (myProfileId) loadConversations()
+  }, [myProfileId, loadConversations])
 
   // ── Auto-open conversation with initialConsultantId ─────────────────────
-  // ✅ FIX 2: Runs immediately on mount — does NOT wait for loadingConvs.
-  //    Queries Supabase directly so it works even if loadConversations fails.
   useEffect(() => {
-    if (!initialConsultantId || initDone) return
+    if (!initialConsultantId || initDone || !myProfileId) return
     setInitDone(true)
 
-   const autoOpen = async () => {
-      console.log('[DEBUG] autoOpen started, initialConsultantId:', initialConsultantId, 'currentUserId:', currentUserId)
+    const autoOpen = async () => {
       try {
-        // Check if conversation already exists (direct DB query, no list dependency)
-        const { data: existing, error: existingErr } = await supabase
+        // initialConsultantId is an auth user_id (from the URL / consultant profile page)
+        const consultantProfileId = await resolveProfileId(initialConsultantId)
+        if (!consultantProfileId) {
+          console.error('[MessagingUI] Could not resolve consultant profile id for', initialConsultantId)
+          return
+        }
+
+        const { data: existing } = await supabase
           .from('conversations')
           .select('*')
-          .eq('seeker_id', currentUserId)
-          .eq('consultant_id', initialConsultantId)
+          .eq('seeker_id', myProfileId)
+          .eq('consultant_id', consultantProfileId)
           .maybeSingle()
-      console.log('[DEBUG] existing query result:', existing, 'error:', existingErr)
-      
-      if (existing) {
+
+        if (existing) {
           const profile = await fetchProfile(initialConsultantId)
           const enriched: Conversation = {
             ...existing,
             other_user: profile ? {
-              id: initialConsultantId,
+              id: consultantProfileId,
               name: profile.display_name || profile.full_name || 'Consultant',
               avatar: profile.avatar_url || null,
               role: profile.role,
@@ -160,12 +200,12 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
           return
         }
 
-        // Create new conversation
+        // Create new conversation — both ids must be profiles.id
         const { data: newConv, error } = await supabase
           .from('conversations')
           .insert({
-            seeker_id: currentUserId,
-            consultant_id: initialConsultantId,
+            seeker_id: myProfileId,
+            consultant_id: consultantProfileId,
             last_message: null,
             last_message_at: new Date().toISOString(),
             seeker_unread: 0,
@@ -183,7 +223,7 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
         const enrichedConv: Conversation = {
           ...newConv,
           other_user: profile ? {
-            id: initialConsultantId,
+            id: consultantProfileId,
             name: profile.display_name || profile.full_name || 'Consultant',
             avatar: profile.avatar_url || null,
             role: profile.role,
@@ -200,10 +240,11 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
     }
 
     autoOpen()
-  }, [initialConsultantId]) // ← NOT gated on loadingConvs or conversations array
+  }, [initialConsultantId, myProfileId, fetchProfile, resolveProfileId])
 
   // ── Load messages ───────────────────────────────────────────────────────
   const loadMessages = useCallback(async (convId: string) => {
+    if (!myProfileId) return
     setLoadingMsgs(true)
     try {
       const { data } = await supabase
@@ -214,12 +255,12 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
 
       setMessages(data || [])
 
-      // Mark as read
+      // Mark as read — sender_id is profiles.id, so compare against myProfileId
       await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', convId)
-        .neq('sender_id', currentUserId)
+        .neq('sender_id', myProfileId)
 
       const field = currentUserRole === 'seeker' ? 'seeker_unread' : 'consultant_unread'
       await supabase.from('conversations').update({ [field]: 0 }).eq('id', convId)
@@ -229,7 +270,7 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
     } finally {
       setLoadingMsgs(false)
     }
-  }, [currentUserId, currentUserRole])
+  }, [myProfileId, currentUserRole])
 
   useEffect(() => {
     if (selectedConv) loadMessages(selectedConv.id)
@@ -239,7 +280,7 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
 
   // ── Real-time: new messages in open conversation ─────────────────────────
   useEffect(() => {
-    if (!selectedConv) return
+    if (!selectedConv || !myProfileId) return
     const channel = supabase
       .channel(`messages:${selectedConv.id}`)
       .on('postgres_changes', {
@@ -251,27 +292,28 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
           if (prev.find(m => m.id === newMsg.id)) return prev
           return [...prev, newMsg]
         })
-        if (newMsg.sender_id !== currentUserId) {
+        if (newMsg.sender_id !== myProfileId) {
           supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id)
         }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [selectedConv?.id, currentUserId])
+  }, [selectedConv?.id, myProfileId])
 
   // ── Real-time: conversation list updates ────────────────────────────────
   useEffect(() => {
+    if (!myProfileId) return
     const channel = supabase
-      .channel(`conversations:${currentUserId}`)
+      .channel(`conversations:${myProfileId}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'conversations' },
         () => { loadConversations() })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [currentUserId])
+  }, [myProfileId, loadConversations])
 
   // ── Send message ────────────────────────────────────────────────────────
   const handleSend = async () => {
-    if (!newMessage.trim() || !selectedConv || sending) return
+    if (!newMessage.trim() || !selectedConv || sending || !myProfileId) return
     setSending(true)
     const content = newMessage.trim()
     setNewMessage('')
@@ -279,7 +321,7 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
     const tempMsg: Message = {
       id: `temp-${Date.now()}`,
       conversation_id: selectedConv.id,
-      sender_id: currentUserId,
+      sender_id: myProfileId,
       content,
       is_read: false,
       created_at: new Date().toISOString(),
@@ -288,7 +330,7 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
 
     const { data, error } = await supabase
       .from('messages')
-      .insert({ conversation_id: selectedConv.id, sender_id: currentUserId, content })
+      .insert({ conversation_id: selectedConv.id, sender_id: myProfileId, content })
       .select().single()
 
     if (!error && data) {
@@ -323,6 +365,26 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
   const totalUnread = conversations.reduce((sum, c) =>
     sum + (currentUserRole === 'seeker' ? c.seeker_unread : c.consultant_unread), 0
   )
+
+  // ── Loading state while resolving current user's profile ────────────────
+  if (resolvingMe) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-130px)] bg-white rounded-2xl border border-gray-100">
+        <div className="w-8 h-8 border-4 border-navy/20 border-t-navy rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (!myProfileId) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-130px)] bg-white rounded-2xl border border-gray-100 text-center px-6">
+        <div>
+          <p className="font-heading font-bold text-navy text-lg mb-2">Profile not found</p>
+          <p className="font-body text-gray-400 text-sm">We couldn't load your profile. Please try logging in again.</p>
+        </div>
+      </div>
+    )
+  }
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -481,7 +543,7 @@ export default function MessagingUI({ currentUserId, currentUserRole, initialCon
               ) : messages.length > 0 ? (
                 <>
                   {messages.map((msg, i) => {
-                    const isOwn = msg.sender_id === currentUserId
+                    const isOwn = msg.sender_id === myProfileId
                     const showAvatar = !isOwn && (i === 0 || messages[i-1].sender_id !== msg.sender_id)
                     const showTime = i === messages.length - 1 ||
                       new Date(messages[i+1].created_at).getTime() - new Date(msg.created_at).getTime() > 300000
