@@ -92,12 +92,19 @@ export default function AdminUsers() {
     if (!deleteModal) return
     setActionLoading(deleteModal.user_id)
     const supabase = createClient()
-    await supabase.from('profiles').update({
-      is_suspended: true,
-      suspended_reason: 'Account removed by admin',
-    }).eq('user_id', deleteModal.user_id)
-    setUsers(prev => prev.filter(u => u.user_id !== deleteModal.user_id))
-    showToast(`${deleteModal.display_name || 'User'} removed`)
+    // ✅ Real delete — profiles.id is the FK target for services/reviews/etc,
+    //    all set to ON DELETE CASCADE, so this cleans up everything safely.
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('user_id', deleteModal.user_id)
+
+    if (error) {
+      showToast('Failed to delete user: ' + error.message, 'error')
+    } else {
+      setUsers(prev => prev.filter(u => u.user_id !== deleteModal.user_id))
+      showToast(`${deleteModal.display_name || 'User'} permanently deleted`)
+    }
     setDeleteModal(null); setActionLoading(null)
   }
 
@@ -365,15 +372,15 @@ export default function AdminUsers() {
                 <Trash2 size={19} className="text-red-600" />
               </div>
               <div>
-                <h3 className="font-heading font-bold text-[#1B3060]">Remove User</h3>
-                <p className="font-body text-gray-400 text-xs">This will deactivate the account</p>
+               <h3 className="font-heading font-bold text-[#1B3060]">Delete User Permanently</h3>
+                <p className="font-body text-gray-400 text-xs">This cannot be undone</p>
               </div>
             </div>
             <div className="bg-gray-50 rounded-xl p-4 mb-5">
               <p className="font-body text-sm text-gray-600">
-                Remove <strong className="text-[#1B3060]">
+               Permanently delete <strong className="text-[#1B3060]">
                   {deleteModal.display_name || deleteModal.full_name || 'this user'}
-                </strong>? Their account will be deactivated.
+                </strong>? All their services, reviews, messages, and bookings will also be deleted. This cannot be undone.
               </p>
             </div>
             <div className="flex gap-3">
@@ -383,7 +390,7 @@ export default function AdminUsers() {
               </button>
               <button onClick={handleDelete} disabled={!!actionLoading}
                 className="flex-1 font-heading font-bold text-sm py-2.5 bg-red-500 text-white rounded-xl hover:bg-red-600 transition-colors disabled:opacity-60">
-                Remove
+                Delete Permanently
               </button>
             </div>
           </div>
