@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   BadgeCheck, Search, CheckCircle, XCircle,
-  Eye, X, Star, Trash2,
+  Eye, X, Star, Trash2,Briefcase
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -286,6 +286,11 @@ export default function AdminConsultants() {
                       <Eye size={12} /> View Profile
                     </Link>
 
+<Link href={`/dashboard/admin/consultants/${c.id}/services`}
+                      className="text-xs font-semibold text-[#C9A227] border border-[#C9A227]/25 px-3 py-1.5 rounded-lg hover:bg-[#C9A227] hover:text-white transition-colors flex items-center gap-1">
+                      <Briefcase size={12} /> Manage Services
+                    </Link>
+                    
                     {c.is_verified && (
                       <button
                         onClick={() => handleFeatureToggle(c.id, c.is_featured)}
